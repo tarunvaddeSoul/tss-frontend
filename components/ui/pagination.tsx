@@ -13,7 +13,7 @@ interface PaginationProps {
   className?: string
 }
 
-export function Pagination({ currentPage, totalPages, onPageChange, className }: PaginationProps) {
+function Pagination({ currentPage, totalPages, onPageChange, className }: PaginationProps) {
   // Generate page numbers to show
   const getPageNumbers = () => {
     const pageNumbers = []
@@ -168,4 +168,4 @@ const PaginationEllipsis = ({ className, ...props }: React.ComponentProps<"span"
 )
 PaginationEllipsis.displayName = "PaginationEllipsis"
 
-export { PaginationContent, PaginationEllipsis, PaginationLink, PaginationNext, PaginationPrevious, PaginationItem }
+export { Pagination, PaginationContent, PaginationEllipsis, PaginationLink, PaginationNext, PaginationPrevious, PaginationItem }

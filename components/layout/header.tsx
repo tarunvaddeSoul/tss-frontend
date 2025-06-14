@@ -1,7 +1,7 @@
 "use client"
 
-import { Bell } from "lucide-react"
-import { ModeToggle } from "@/components/mode-toggle"
+import { useAuth } from "@/hooks/use-auth"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,11 +11,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/hooks/use-auth"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import Link from "next/link"
 
 export function Header() {
   const { user, logout } = useAuth()
+
+  // Get initials from user's name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return "U"
+
+    const nameParts = name.trim().split(/\s+/)
+    if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase()
+
+    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase()
+  }
 
   return (
     <header className="border-b bg-card">
@@ -23,18 +33,15 @@ export function Header() {
         <div className="font-semibold text-lg md:hidden">TSS</div>
 
         <div className="ml-auto flex items-center space-x-4">
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-          </Button>
+          {/* Modern Theme Toggle */}
+          <ThemeToggle />
 
-          <ModeToggle />
-
+          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name || "User"} />
-                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                <Avatar className="h-8 w-8 bg-primary/10 hover:bg-primary/20 transition-colors">
+                  <AvatarFallback className="text-primary font-medium">{getInitials(user?.name)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -46,10 +53,16 @@ export function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings/profile">Profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/settings/security">Security</Link>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => logout()}>Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => logout()} className="text-destructive focus:text-destructive">
+                Log out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

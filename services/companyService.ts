@@ -7,7 +7,6 @@ import type {
   CompanySearchParams,
   CompanyEmployeeCountResponse,
   CompanyEmployeesResponse,
-  CompanyEmployee,
 } from "@/types/company"
 
 const COMPANY_ENDPOINTS = {
@@ -32,7 +31,7 @@ export const companyService = {
   },
 
   // Get a single company by ID
-  async getCompany(id: string): Promise<CompanyResponse> {
+  async getCompanyById(id: string): Promise<CompanyResponse> {
     try {
       const response = await api.get<CompanyResponse>(COMPANY_ENDPOINTS.BY_ID(id))
       if (!response.data.data) {

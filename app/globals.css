@@ -4,22 +4,29 @@
 
 @layer base {
   :root {
-    --background: 210 33% 98%;
+    /* Main brand colors */
+    --background: 210 40% 97%; /* subtle blue tint */
     --foreground: 224 71% 4%;
     --card: 0 0% 100%;
     --card-foreground: 224 71% 4%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71% 4%;
-    --primary: 215 68% 24%;
+    --primary: 215 68% 24%; /* deep blue */
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 48% 45%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 187 40% 36%;
+    --accent: 200 100% 60%; /* vibrant blue-cyan accent */
     --accent-foreground: 210 40% 98%;
     --destructive: 0 74% 42%;
     --destructive-foreground: 210 40% 98%;
+    --success: 142 71% 45%; /* green */
+    --success-foreground: 210 40% 98%;
+    --warning: 48 100% 67%; /* yellow */
+    --warning-foreground: 224 71% 4%;
+    --info: 200 100% 60%; /* cyan/blue */
+    --info-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 215 68% 24%;
@@ -35,14 +42,20 @@
     --popover-foreground: 210 40% 98%;
     --primary: 215 60% 50%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 48% 55%;
+    --secondary: 215 25% 27%;
     --secondary-foreground: 210 40% 98%;
     --muted: 215 30% 22%;
     --muted-foreground: 215 20.2% 75%;
-    --accent: 187 40% 46%;
+    --accent: 200 100% 60%; /* keep accent consistent */
     --accent-foreground: 210 40% 98%;
     --destructive: 0 72% 45%;
     --destructive-foreground: 210 40% 98%;
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+    --warning: 48 100% 67%;
+    --warning-foreground: 210 40% 98%;
+    --info: 200 100% 60%;
+    --info-foreground: 210 40% 98%;
     --border: 215 28% 25%;
     --input: 215 28% 25%;
     --ring: 215 60% 50%;
@@ -53,11 +66,56 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
   html {
     font-size: 15px;
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    @apply bg-background/80 backdrop-blur-lg border border-white/10;
+  }
+  
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-info;
+  }
+  
+  .gradient-border {
+    @apply relative;
+    &::before {
+      content: '';
+      @apply absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-r from-primary to-accent -z-10;
+    }
+  }
+  
+  .gradient-bg {
+    @apply bg-gradient-to-r from-primary/20 via-accent/20 to-info/20;
+  }
+  
+  .oval-gradient {
+    @apply relative overflow-hidden;
+    &::before {
+      content: '';
+      @apply absolute inset-0 bg-gradient-to-r from-primary/30 to-accent/30 rounded-[60%] blur-3xl -z-10;
+    }
+  }
+  
+  .success {
+    color: hsl(var(--success));
+    background: hsl(var(--success) / 0.1);
+  }
+  .warning {
+    color: hsl(var(--warning));
+    background: hsl(var(--warning) / 0.1);
+  }
+  .info {
+    color: hsl(var(--info));
+    background: hsl(var(--info) / 0.1);
   }
 }

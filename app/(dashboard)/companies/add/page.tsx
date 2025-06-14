@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, Save, ArrowLeft } from "lucide-react"
+import { Save, ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,13 +14,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "@/components/ui/use-toast"
-import { cn } from "@/lib/utils"
 import { companyService } from "@/services/companyService"
-import { SalaryTemplateForm } from "@/components/companies/salary-template-form"
-import type { Company, SalaryTemplates } from "@/types/company"
+import { SalaryTemplateConfigForm } from "@/components/companies/salary-template-config-form"
+import { SalarySlipPreview } from "@/components/companies/salary-slip-preview"
+import { CompanyStatus, type SalaryTemplateConfig, getDefaultSalaryTemplateConfig } from "@/types/company"
+import { DatePicker } from "@/components/ui/date-picker"
 
 // Form validation schema for basic company info
 const companyFormSchema = z.object({
@@ -28,75 +27,17 @@ const companyFormSchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters"),
   contactPersonName: z.string().min(2, "Contact person name must be at least 2 characters"),
   contactPersonNumber: z.string().regex(/^\d{10}$/, "Contact number must be 10 digits"),
-  status: z.enum(["ACTIVE", "INACTIVE"]),
+  status: z.nativeEnum(CompanyStatus),
   companyOnboardingDate: z.date(),
 })
-
-// Default salary template with all fields enabled
-const getDefaultSalaryTemplates = (): SalaryTemplates => {
-  const templateFields = [
-    "name",
-    "fatherName",
-    "companyName",
-    "designation",
-    "monthlyRate",
-    "basicDuty",
-    "dutyDone",
-    "wagesPerDay",
-    "basicPay",
-    "epfWages",
-    "otherAllowance",
-    "otherAllowanceRemark",
-    "bonus",
-    "grossSalary",
-    "pf",
-    "esic",
-    "advance",
-    "uniform",
-    "advanceGivenBy",
-    "penalty",
-    "lwf",
-    "otherDeductions",
-    "otherDeductionsRemark",
-    "totalDeductions",
-    "netSalary",
-    "uanNumber",
-    "pfPaidStatus",
-    "esicNumber",
-    "esicFilingStatus",
-  ]
-
-  const templates: SalaryTemplates = {}
-
-  // Set required fields as enabled by default
-  const requiredFields = [
-    "name",
-    "companyName",
-    "designation",
-    "monthlyRate",
-    "basicDuty",
-    "dutyDone",
-    "wagesPerDay",
-    "basicPay",
-    "grossSalary",
-    "totalDeductions",
-    "netSalary",
-  ]
-
-  templateFields.forEach((field) => {
-    templates[field] = {
-      enabled: requiredFields.includes(field),
-      value: "",
-    }
-  })
-
-  return templates
-}
 
 export default function AddCompanyPage() {
   const [activeTab, setActiveTab] = useState("basic")
   const [isLoading, setIsLoading] = useState(false)
-  const [salaryTemplates, setSalaryTemplates] = useState<SalaryTemplates>(getDefaultSalaryTemplates())
+  const [salaryTemplateConfig, setSalaryTemplateConfig] = useState<SalaryTemplateConfig>(
+    getDefaultSalaryTemplateConfig(),
+  )
+  const [showPreview, setShowPreview] = useState(false)
 
   const router = useRouter()
 
@@ -108,7 +49,7 @@ export default function AddCompanyPage() {
       address: "",
       contactPersonName: "",
       contactPersonNumber: "",
-      status: "ACTIVE",
+      status: CompanyStatus.ACTIVE,
       companyOnboardingDate: new Date(),
     },
   })
@@ -122,10 +63,10 @@ export default function AddCompanyPage() {
       const formattedDate = format(values.companyOnboardingDate, "dd-MM-yyyy")
 
       // Prepare the company data with the required structure
-      const companyData: Company = {
+      const companyData = {
         ...values,
         companyOnboardingDate: formattedDate,
-        salaryTemplates: salaryTemplates,
+        salaryTemplates: salaryTemplateConfig,
       }
 
       await companyService.createCompany(companyData)
@@ -149,8 +90,8 @@ export default function AddCompanyPage() {
   }
 
   // Handle salary template updates
-  const handleSalaryTemplatesChange = (templates: SalaryTemplates) => {
-    setSalaryTemplates(templates)
+  const handleSalaryTemplateChange = (config: SalaryTemplateConfig) => {
+    setSalaryTemplateConfig(config)
   }
 
   // Handle tab change
@@ -172,9 +113,10 @@ export default function AddCompanyPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="basic">Basic Information</TabsTrigger>
           <TabsTrigger value="salary-templates">Salary Templates</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4 pt-4">
@@ -214,8 +156,8 @@ export default function AddCompanyPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-                              <SelectItem value="INACTIVE">INACTIVE</SelectItem>
+                              <SelectItem value={CompanyStatus.ACTIVE}>ACTIVE</SelectItem>
+                              <SelectItem value={CompanyStatus.INACTIVE}>INACTIVE</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -250,38 +192,18 @@ export default function AddCompanyPage() {
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
                       name="companyOnboardingDate"
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Onboarding Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground",
-                                  )}
-                                >
-                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <DatePicker
+                            date={field.value}
+                            onSelect={field.onChange}
+                            className="w-full"
+                            yearRange={{ from: 1900, to: new Date().getFullYear() }}
+                          />
                           <FormDescription>The date when the company was onboarded</FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -317,11 +239,30 @@ export default function AddCompanyPage() {
         </TabsContent>
 
         <TabsContent value="salary-templates" className="space-y-4 pt-4">
-          <SalaryTemplateForm initialTemplates={salaryTemplates} onSave={handleSalaryTemplatesChange} />
+          <div className="flex justify-end mb-4">
+            <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
+              {showPreview ? "Hide Preview" : "Show Preview"}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className={showPreview ? "lg:col-span-3" : "lg:col-span-5"}>
+              <SalaryTemplateConfigForm initialConfig={salaryTemplateConfig} onSave={handleSalaryTemplateChange} />
+            </div>
+
+            {showPreview && (
+              <div className="lg:col-span-2">
+                <SalarySlipPreview config={salaryTemplateConfig} />
+              </div>
+            )}
+          </div>
 
           <div className="flex justify-end gap-3 mt-6">
             <Button variant="outline" onClick={() => handleTabChange("basic")}>
               Back to Basic Information
+            </Button>
+            <Button variant="outline" onClick={() => handleTabChange("preview")}>
+              Preview Salary Slip
             </Button>
             <Button
               type="submit"
@@ -348,6 +289,45 @@ export default function AddCompanyPage() {
               {isLoading ? "Saving..." : "Save Company"}
             </Button>
           </div>
+        </TabsContent>
+
+        <TabsContent value="preview" className="space-y-4 pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Salary Slip Preview</CardTitle>
+              <CardDescription>Preview how the salary slip will look with your configuration</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SalarySlipPreview config={salaryTemplateConfig} />
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={() => handleTabChange("salary-templates")}>
+                Back to Salary Templates
+              </Button>
+              <Button
+                type="submit"
+                form="company-form"
+                disabled={isLoading}
+                onClick={() => {
+                  form.trigger().then((isValid) => {
+                    if (isValid) {
+                      form.handleSubmit(onSubmit)()
+                    } else {
+                      handleTabChange("basic")
+                      toast({
+                        variant: "destructive",
+                        title: "Validation Error",
+                        description: "Please fill in all required fields in the Basic Information tab.",
+                      })
+                    }
+                  })
+                }}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isLoading ? "Saving..." : "Save Company"}
+              </Button>
+            </CardFooter>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

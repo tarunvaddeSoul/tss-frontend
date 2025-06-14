@@ -5,11 +5,15 @@ import { convertToCustomDateFormat } from "@/lib/utils"
 import type {
   EmployeeFormValues,
   EmployeeSearchParams,
-  IEmployeeContactInformation,
-  IEmployeeBankingInformation,
-  IEmployeeAdditionalDetails,
-  IEmployeeReferenceDetails,
-  IEmployeeEmploymentHistory,
+  UpdateEmployeeDto,
+  UpdateEmployeeContactDetailsDto,
+  UpdateEmployeeBankDetailsDto,
+  UpdateEmployeeAdditionalDetailsDto,
+  UpdateEmployeeReferenceDetailsDto,
+  UpdateEmployeeDocumentUploadsDto,
+  CreateEmploymentHistoryDto,
+  UpdateEmploymentHistoryDto,
+  LeavingDateDto,
 } from "@/types/employee"
 
 export const employeeService = {
@@ -17,7 +21,7 @@ export const employeeService = {
   async getEmployees(params?: EmployeeSearchParams) {
     try {
       const response = await api.get("/employees", { params })
-      return response.data
+      return response.data.data
     } catch (error) {
       console.error("Error fetching employees:", error)
       throw error
@@ -68,32 +72,10 @@ export const employeeService = {
     }
   },
 
-  // Update an employee
-  async updateEmployee(id: string, employeeData: Partial<EmployeeFormValues>) {
+  // Update an employee's basic information
+  async updateEmployee(id: string, employeeData: UpdateEmployeeDto) {
     try {
-      const formData = new FormData()
-
-      // Process form values
-      Object.entries(employeeData).forEach(([key, value]) => {
-        if (value instanceof Date) {
-          formData.append(key, convertToCustomDateFormat(value))
-        } else if (value instanceof File) {
-          // Only append the file if a file has been selected
-          if (value.name) {
-            formData.append(key, value)
-          }
-        } else if (value !== null && value !== undefined) {
-          // Append non-null and non-undefined values
-          formData.append(key, String(value))
-        }
-      })
-
-      const response = await api.patch(`/employees/${id}`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
-
+      const response = await api.patch(`/employees/${id}`, employeeData)
       return response.data
     } catch (error) {
       console.error(`Error updating employee with ID ${id}:`, error)
@@ -134,7 +116,7 @@ export const employeeService = {
     }
   },
 
-  async updateEmployeeContactDetails(employeeId: string, contactDetails: IEmployeeContactInformation) {
+  async updateEmployeeContactDetails(employeeId: string, contactDetails: UpdateEmployeeContactDetailsDto) {
     try {
       const response = await api.patch(`/employees/${employeeId}/contact-details`, contactDetails)
       return response.data
@@ -155,7 +137,7 @@ export const employeeService = {
     }
   },
 
-  async updateEmployeeBankingInformation(employeeId: string, bankDetails: IEmployeeBankingInformation) {
+  async updateEmployeeBankingInformation(employeeId: string, bankDetails: UpdateEmployeeBankDetailsDto) {
     try {
       const response = await api.patch(`/employees/${employeeId}/bank-details`, bankDetails)
       return response.data
@@ -176,7 +158,7 @@ export const employeeService = {
     }
   },
 
-  async updateEmployeeAdditionalDetails(employeeId: string, additionalDetails: IEmployeeAdditionalDetails) {
+  async updateEmployeeAdditionalDetails(employeeId: string, additionalDetails: UpdateEmployeeAdditionalDetailsDto) {
     try {
       const response = await api.patch(`/employees/${employeeId}/additional-details`, additionalDetails)
       return response.data
@@ -197,7 +179,7 @@ export const employeeService = {
     }
   },
 
-  async updateEmployeeReferenceDetails(employeeId: string, referenceDetails: IEmployeeReferenceDetails) {
+  async updateEmployeeReferenceDetails(employeeId: string, referenceDetails: UpdateEmployeeReferenceDetailsDto) {
     try {
       const response = await api.patch(`/employees/${employeeId}/reference-details`, referenceDetails)
       return response.data
@@ -237,6 +219,73 @@ export const employeeService = {
     }
   },
 
+  // Get employee documents
+  async getEmployeeDocumentUploads(employeeId: string) {
+    try {
+      const response = await api.get(`/employees/${employeeId}/document-uploads`)
+      return response.data
+    } catch (error) {
+      console.error(`Error fetching document uploads for employee ${employeeId}:`, error)
+      throw error
+    }
+  },
+
+  // Update employee documents
+  async updateEmployeeDocumentUploads(employeeId: string, documentData: UpdateEmployeeDocumentUploadsDto) {
+    try {
+      const formData = new FormData()
+
+      // Process document data
+      Object.entries(documentData).forEach(([key, value]) => {
+        if (value instanceof File) {
+          // Only append the file if a file has been selected
+          if (value.name) {
+            formData.append(key, value)
+          }
+        } else if (value !== null && value !== undefined) {
+          // Append non-null and non-undefined values (like otherDocumentRemarks)
+          formData.append(key, String(value))
+        }
+      })
+
+      const response = await api.patch(`/employees/${employeeId}/document-uploads`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      return response.data
+    } catch (error) {
+      console.error(`Error updating document uploads for employee ${employeeId}:`, error)
+      throw error
+    }
+  },
+
+  // Download document
+  async downloadEmployeeDocument(documentUrl: string, filename: string) {
+    try {
+      const response = await fetch(documentUrl, {
+        method: "GET",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to download document")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Error downloading document:", error)
+      throw error
+    }
+  },
+
   // Employment History
   async getEmployeeEmploymentHistory(employeeId: string) {
     try {
@@ -248,7 +297,7 @@ export const employeeService = {
     }
   },
 
-  async createEmploymentHistory(employeeId: string, historyData: IEmployeeEmploymentHistory) {
+  async createEmploymentHistory(employeeId: string, historyData: CreateEmploymentHistoryDto) {
     try {
       const response = await api.post(`/employees/${employeeId}/employment-history`, historyData)
       return response.data
@@ -258,17 +307,17 @@ export const employeeService = {
     }
   },
 
-  async updateEmploymentHistory(historyId: string, historyData: Partial<IEmployeeEmploymentHistory>) {
+  async updateEmploymentHistory(employeeId: string, historyData: UpdateEmploymentHistoryDto) {
     try {
-      const response = await api.patch(`/employees/employment-history/${historyId}`, historyData)
+      const response = await api.patch(`/employees/${employeeId}/employment-history`, historyData)
       return response.data
     } catch (error) {
-      console.error(`Error updating employment history with ID ${historyId}:`, error)
+      console.error(`Error updating employment history for employee ${employeeId}:`, error)
       throw error
     }
   },
 
-  async closeEmployment(employeeId: string, closureData: { endDate: string; reason: string }) {
+  async closeEmployment(employeeId: string, closureData: LeavingDateDto) {
     try {
       const response = await api.patch(`/employees/${employeeId}/close-employment`, closureData)
       return response.data

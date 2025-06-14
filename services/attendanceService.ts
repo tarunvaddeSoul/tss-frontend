@@ -1,143 +1,211 @@
 import api from "./api"
-import { handleApiError } from "@/utils"
-import type { Attendance } from "@/types/attendance"
+import type {
+  MarkAttendanceDto,
+  BulkMarkAttendanceDto,
+  UploadAttendanceSheetDto,
+  GetAttendanceByCompanyAndMonthDto,
+  DeleteAttendanceDto,
+  AttendanceResponse,
+  AttendanceListResponse,
+  BulkAttendanceResponse,
+  UploadAttendanceResponse,
+  AttendanceSearchParams,
+} from "@/types/attendance"
 
-// Define types for request payloads
-export interface AttendanceCreateRequest {
-  employeeId: string
-  date: string
-  checkIn: string
-  checkOut?: string
-  status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY"
-  notes?: string
-}
+class AttendanceService {
+  private readonly baseUrl = "/attendance"
 
-export interface AttendanceUpdateRequest {
-  checkIn?: string
-  checkOut?: string
-  status?: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY"
-  notes?: string
-}
-
-export interface AttendanceFilterParams {
-  employeeId?: string
-  date?: string
-  startDate?: string
-  endDate?: string
-  status?: string
-  page?: number
-  limit?: number
-}
-
-// API endpoints
-const ATTENDANCE_ENDPOINTS = {
-  BASE: "/attendance",
-  BY_ID: (id: string) => `/attendance/${id}`,
-  CHECK_IN: "/attendance/check-in",
-  CHECK_OUT: "/attendance/check-out",
-  BULK_UPLOAD: "/attendance/bulk-upload",
-  EXPORT: "/attendance/export",
-}
-
-export const attendanceService = {
-  // Get attendance records with optional filtering
-  async getAttendanceRecords(params?: AttendanceFilterParams): Promise<{ data: Attendance[]; total: number }> {
+  /**
+   * Mark attendance for a single employee
+   */
+  async markAttendance(data: MarkAttendanceDto): Promise<AttendanceResponse> {
     try {
-      const response = await api.get(ATTENDANCE_ENDPOINTS.BASE, { params })
+      const response = await api.post(`${this.baseUrl}/mark`, data)
       return response.data
     } catch (error) {
-      throw new Error(handleApiError(error))
+      console.error("Error marking attendance:", error)
+      throw error
     }
-  },
+  }
 
-  // Get a single attendance record by ID
-  async getAttendanceRecord(id: string): Promise<Attendance> {
+  /**
+   * Bulk mark attendance for multiple employees
+   */
+  async bulkMarkAttendance(data: BulkMarkAttendanceDto): Promise<BulkAttendanceResponse> {
     try {
-      const response = await api.get(ATTENDANCE_ENDPOINTS.BY_ID(id))
+      const response = await api.post(`${this.baseUrl}/bulk`, data)
       return response.data
     } catch (error) {
-      throw new Error(handleApiError(error))
+      console.error("Error bulk marking attendance:", error)
+      throw error
     }
-  },
+  }
 
-  // Create a new attendance record
-  async createAttendanceRecord(attendance: AttendanceCreateRequest): Promise<Attendance> {
-    try {
-      const response = await api.post(ATTENDANCE_ENDPOINTS.BASE, attendance)
-      return response.data
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  },
-
-  // Update an existing attendance record
-  async updateAttendanceRecord(id: string, attendance: AttendanceUpdateRequest): Promise<Attendance> {
-    try {
-      const response = await api.put(ATTENDANCE_ENDPOINTS.BY_ID(id), attendance)
-      return response.data
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  },
-
-  // Delete an attendance record
-  async deleteAttendanceRecord(id: string): Promise<void> {
-    try {
-      await api.delete(ATTENDANCE_ENDPOINTS.BY_ID(id))
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  },
-
-  // Mark employee check-in
-  async checkIn(employeeId: string, location?: { latitude: number; longitude: number }): Promise<Attendance> {
-    try {
-      const response = await api.post(ATTENDANCE_ENDPOINTS.CHECK_IN, { employeeId, location })
-      return response.data
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  },
-
-  // Mark employee check-out
-  async checkOut(employeeId: string, location?: { latitude: number; longitude: number }): Promise<Attendance> {
-    try {
-      const response = await api.post(ATTENDANCE_ENDPOINTS.CHECK_OUT, { employeeId, location })
-      return response.data
-    } catch (error) {
-      throw new Error(handleApiError(error))
-    }
-  },
-
-  // Bulk upload attendance records
-  async bulkUploadAttendance(file: File): Promise<{ success: number; failed: number; errors: any[] }> {
+  /**
+   * Upload attendance sheet (Excel/CSV file)
+   */
+  async uploadAttendanceSheet(data: UploadAttendanceSheetDto, file: File): Promise<UploadAttendanceResponse> {
     try {
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("companyId", data.companyId)
+      formData.append("month", data.month)
+      formData.append("attendanceSheet", file)
 
-      const response = await api.post(ATTENDANCE_ENDPOINTS.BULK_UPLOAD, formData, {
+      const response = await api.post(`${this.baseUrl}/upload`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       })
-
       return response.data
     } catch (error) {
-      throw new Error(handleApiError(error))
+      console.error("Error uploading attendance sheet:", error)
+      throw error
     }
-  },
+  }
 
-  // Export attendance records
-  async exportAttendance(params: AttendanceFilterParams): Promise<Blob> {
+  /**
+   * Get attendance records by company and month
+   */
+  async getAttendanceByCompanyAndMonth(params: GetAttendanceByCompanyAndMonthDto): Promise<AttendanceListResponse> {
     try {
-      const response = await api.get(ATTENDANCE_ENDPOINTS.EXPORT, {
+      const response = await api.get(`${this.baseUrl}/records-by-company-and-month`, {
         params,
-        responseType: "blob",
       })
-
       return response.data
     } catch (error) {
-      throw new Error(handleApiError(error))
+      console.error("Error fetching attendance by company and month:", error)
+      throw error
     }
-  },
+  }
+
+  /**
+   * Get attendance records by company ID
+   */
+  async getAttendanceByCompanyId(companyId: string): Promise<AttendanceListResponse> {
+    try {
+      const response = await api.get(`${this.baseUrl}/${companyId}`)
+      return response.data
+    } catch (error) {
+      console.error("Error fetching attendance by company:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get attendance records by employee ID
+   */
+  async getAttendanceByEmployeeId(employeeId: string): Promise<AttendanceListResponse> {
+    try {
+      const response = await api.get(`${this.baseUrl}/employee/${employeeId}`)
+      return response.data
+    } catch (error) {
+      console.error("Error fetching attendance by employee:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get all attendance records
+   */
+  async getAllAttendance(params?: AttendanceSearchParams): Promise<AttendanceListResponse> {
+    try {
+      const response = await api.get(this.baseUrl, { params })
+      return response.data
+    } catch (error) {
+      console.error("Error fetching all attendance:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Delete attendance record by ID
+   */
+  async deleteAttendanceById(id: string): Promise<void> {
+    try {
+      await api.delete(`${this.baseUrl}/${id}`)
+    } catch (error) {
+      console.error("Error deleting attendance:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Delete multiple attendance records
+   */
+  async deleteMultipleAttendances(data: DeleteAttendanceDto): Promise<void> {
+    try {
+      await api.delete(this.baseUrl, { data })
+    } catch (error) {
+      console.error("Error deleting multiple attendances:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get attendance summary for an employee
+   */
+  async getEmployeeAttendanceSummary(
+    employeeId: string,
+    startMonth: string,
+    endMonth: string,
+  ): Promise<AttendanceListResponse> {
+    try {
+      const response = await api.get(`${this.baseUrl}/employee/${employeeId}`, {
+        params: { startMonth, endMonth },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Error fetching employee attendance summary:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get attendance summary for a company
+   */
+  async getCompanyAttendanceSummary(companyId: string, month: string): Promise<AttendanceListResponse> {
+    try {
+      const response = await api.get(`${this.baseUrl}/${companyId}`, {
+        params: { month },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Error fetching company attendance summary:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Check if attendance exists for employee in a month
+   */
+  async checkAttendanceExists(employeeId: string, month: string): Promise<boolean> {
+    try {
+      const response = await this.getAttendanceByEmployeeId(employeeId)
+      const attendanceRecords = response.data || []
+      return attendanceRecords.some((record) => record.month === month)
+    } catch (error) {
+      console.error("Error checking attendance existence:", error)
+      return false
+    }
+  }
+
+  /**
+   * Get attendance statistics for dashboard
+   */
+  async getAttendanceStats(companyId?: string, month?: string) {
+    try {
+      const params: any = {}
+      if (companyId) params.companyId = companyId
+      if (month) params.month = month
+
+      const response = await api.get(`${this.baseUrl}/stats`, { params })
+      return response.data
+    } catch (error) {
+      console.error("Error fetching attendance stats:", error)
+      throw error
+    }
+  }
 }
+
+export const attendanceService = new AttendanceService()
+export default attendanceService

@@ -5,13 +5,15 @@ import Link from "next/link"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Shield } from "lucide-react"
+import { Shield, Mail, Lock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ApiError } from "@/components/ui/api-error"
+import { motion } from "framer-motion"
+import { getErrorMessage } from "@/services/api"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -39,31 +41,8 @@ export default function LoginPage() {
 
     try {
       await login(data)
-    } catch (err: any) {
-      // Handle different types of errors
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        const statusCode = err.response.status
-        const responseData = err.response.data
-
-        if (statusCode === 401) {
-          setError("Invalid email or password. Please try again.")
-        } else if (statusCode === 429) {
-          setError("Too many login attempts. Please try again later.")
-        } else if (responseData && responseData.message) {
-          setError(responseData.message)
-        } else {
-          setError("An error occurred during login. Please try again.")
-        }
-      } else if (err.request) {
-        // The request was made but no response was received
-        setError("No response from server. Please check your internet connection.")
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        setError(err.message || "An unexpected error occurred. Please try again.")
-      }
-
+    } catch (err) {
+      setError(getErrorMessage(err))
       console.error("Login error:", err)
     } finally {
       setIsLoading(false)
@@ -71,21 +50,31 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="w-full max-w-md shadow-xl rounded-2xl">
+    <Card className="border shadow-lg">
       <CardHeader className="space-y-1">
         <div className="flex justify-center mb-4">
-          <Shield className="h-12 w-12 text-primary" />
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Shield className="h-12 w-12 text-primary" />
+          </motion.div>
         </div>
-        <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
         <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ApiError title="Login Failed" message={error} />
+              </motion.div>
             )}
 
             <FormField
@@ -95,7 +84,10 @@ export default function LoginPage() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="your.email@example.com" {...field} />
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input placeholder="your.email@example.com" {...field} className="pl-10" />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -109,23 +101,39 @@ export default function LoginPage() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            <div className="text-right">
+              <Link href="/forgot-password" className="text-sm text-primary hover:text-primary/80 transition-colors">
+                Forgot password?
+              </Link>
+            </div>
+
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </Button>
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex flex-col space-y-4">
+      <CardFooter className="flex flex-col space-y-4 border-t">
         <div className="text-sm text-center text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-primary hover:underline">
+          <Link href="/signup" className="text-primary hover:text-primary/80 transition-colors">
             Sign up
           </Link>
         </div>

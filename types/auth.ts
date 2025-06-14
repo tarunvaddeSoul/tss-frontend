@@ -1,12 +1,21 @@
 export interface User {
   id: string
-  name?: string
+  name: string
   email: string
-  role: "ADMIN" | "MANAGER" | "EMPLOYEE" | "HR"
+  mobileNumber: string
+  role: Role
   avatar?: string
-  createdAt?: string
-  updatedAt?: string
-  // Add any other fields your API returns
+  departmentId: string
+  createdAt: string
+}
+
+export enum Role {
+  HR = "HR",
+  OPERATIONS = "OPERATIONS",
+  ACCOUNTS = "ACCOUNTS",
+  FIELD = "FIELD",
+  ADMIN = "ADMIN",
+  USER = "USER",
 }
 
 export interface LoginCredentials {
@@ -16,31 +25,50 @@ export interface LoginCredentials {
 
 export interface SignupCredentials {
   name: string
+  mobileNumber: string
   email: string
   password: string
-  confirmPassword?: string
-  // Add any other fields your API requires
+  role?: Role
+  departmentId: string
 }
 
-export interface ITokens {
-  accessToken: string;
-  refreshToken: string;
+export interface ChangePasswordCredentials {
+  oldPassword: string
+  newPassword: string
 }
 
-export interface AuthAPIResponse {
-  statusCode: number
-  message: string
-  data: AuthResponse
+export interface ForgotPasswordCredentials {
+  email: string
+}
+
+export interface ResetPasswordCredentials {
+  resetToken: string
+  newPassword: string
+}
+
+export interface UpdateUserCredentials {
+  name?: string
+  mobileNumber?: string
+  email?: string
+  role?: Role
+  departmentId?: string
+}
+
+export interface AuthTokens {
+  accessToken: string
+  refreshToken: string
 }
 
 export interface AuthResponse {
-  user?: User
-  tokens: ITokens
+  user: User
+  tokens: AuthTokens
 }
 
-export interface ApiError {
+export interface ApiResponse<T> {
+  statusCode: number
   message: string
-  code?: string
-  status?: number
-  errors?: Record<string, string[]>
+  data: T
 }
+
+export type AuthAPIResponse = ApiResponse<AuthResponse>
+export type UserAPIResponse = ApiResponse<User>

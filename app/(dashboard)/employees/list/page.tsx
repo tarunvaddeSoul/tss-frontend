@@ -10,7 +10,6 @@ import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import { companyService } from "@/services/companyService"
 import { pdf } from "@react-pdf/renderer"
-import dynamic from "next/dynamic"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,11 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Pagination,
-  PaginationContent,
   PaginationItem,
   PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
 } from "@/components/ui/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -33,13 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Employee, EmployeeSearchParams } from "@/types/employee"
 import { Company } from "@/types/company"
 import Link from "next/link"
-
-// Dynamically import the PDF component to avoid SSR issues
-const EmployeeViewPDF = dynamic(() => import("@/components/employees/employee-view-pdf"), {
-  ssr: false,
-  loading: () => <p>Loading PDF generator...</p>,
-})
-
+import { ScrollArea } from "@/components/ui/scroll-area"
+import EmployeeViewPDF from "@/components/employees/employee-view-pdf"
 interface Designation {
   id: string
   name: string
@@ -172,11 +163,12 @@ export default function EmployeeListPage() {
   }
 
   const handleEdit = (employee: Employee) => {
+    console.log("Edit employee:", JSON.stringify(employee, null, 2))
     router.push(`/employees/edit/${employee.id}`)
   }
 
   const handleIdClick = (id: string) => {
-    router.push(`/employees/${id}`)
+    router.push(`/employees/view/${id}`)
   }
 
   const handleDelete = (id: string) => {
@@ -189,8 +181,10 @@ export default function EmployeeListPage() {
     setSearchParams({ ...searchParams, page: 1 })
   }
 
-  const handlePageChange = (newPage: number) => {
-    setSearchParams({ ...searchParams, page: newPage })
+  const handlePageChange = (newPage: number | string | undefined) => {
+    const pageNum = Number(newPage)
+    if (!pageNum || isNaN(pageNum)) return // Prevent NaN and 0
+    setSearchParams({ ...searchParams, page: pageNum })
   }
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -320,107 +314,107 @@ export default function EmployeeListPage() {
           </form>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Employee List</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Designation</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
+      <ScrollArea className="flex-1">
+        <Card>
+          <CardHeader>
+            <CardTitle>Employee List</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10">
-                      Loading employees...
-                    </TableCell>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Designation</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
-                ) : employees.length > 0 ? (
-                  employees.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={employee.avatar || "/placeholder.svg"} />
-                            <AvatarFallback>{getInitials(employee.firstName, employee.lastName)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{`${employee.firstName} ${employee.lastName}`}</p>
-                            <button
-                              onClick={() => handleIdClick(employee.id)}
-                              className="text-xs text-primary hover:underline"
-                            >
-                              ID: {employee.id}
-                            </button>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="bg-primary/10">
-                            {employee.employmentHistories[0]?.designationName || "N/A"}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="bg-primary/10">
-                            {employee.employmentHistories[0]?.departmentName || "N/A"}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="bg-primary/10">
-                            {employee.employmentHistories[0]?.companyName || "N/A"}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleView(employee)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(employee.id)}>
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-10">
+                        Loading employees...
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10">
-                      No employees found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : employees.length > 0 ? (
+                    employees.map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={employee.avatar || "/placeholder.svg"} />
+                              <AvatarFallback>{getInitials(employee.firstName, employee.lastName)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium">{`${employee.firstName} ${employee.lastName}`}</p>
+                              <button
+                                onClick={() => handleIdClick(employee.id)}
+                                className="text-xs text-primary hover:underline"
+                              >
+                                ID: {employee.id}
+                              </button>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-primary/10">
+                              {employee.employmentHistories[0]?.designationName || "N/A"}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-primary/10">
+                              {employee.employmentHistories[0]?.departmentName || "N/A"}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-primary/10">
+                              {employee.employmentHistories[0]?.companyName || "N/A"}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleView(employee)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(employee.id)}>
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-10">
+                        No employees found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-          <div className="mt-4 flex justify-center">
-            <Pagination
-              currentPage={searchParams.page}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
+            <div className="mt-4 flex justify-center">
+              <Pagination
+                currentPage={searchParams.page}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </ScrollArea>
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>

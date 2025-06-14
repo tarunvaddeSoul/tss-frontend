@@ -1,29 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Upload } from 'lucide-react'
+import { Upload } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { EmployeeFormValues } from "@/types/employee"
@@ -35,6 +22,7 @@ interface EmployeeFormProps {
   employeeDepartments: { value: string; label: string }[]
   companies: { value: string; label: string }[]
   isLoading?: boolean
+  onChange?: () => void
 }
 
 // Create a schema for form validation
@@ -97,6 +85,7 @@ export function EmployeeForm({
   employeeDepartments,
   companies,
   isLoading = false,
+  onChange,
 }: EmployeeFormProps) {
   const [gender, setGender] = useState(initialValues?.gender || "")
   const [sameAsPermanent, setSameAsPermanent] = useState(false)
@@ -110,8 +99,8 @@ export function EmployeeForm({
       lastName: initialValues?.lastName || "",
       currentCompanyDesignationId: initialValues?.currentCompanyDesignationId || "",
       currentCompanyDepartmentId: initialValues?.currentCompanyDepartmentId || "",
-      currentCompanyJoiningDate: initialValues?.currentCompanyJoiningDate 
-        ? new Date(initialValues.currentCompanyJoiningDate) 
+      currentCompanyJoiningDate: initialValues?.currentCompanyJoiningDate
+        ? new Date(initialValues.currentCompanyJoiningDate)
         : new Date(),
       mobileNumber: initialValues?.mobileNumber || "",
       currentCompanyId: initialValues?.currentCompanyId || "",
@@ -122,11 +111,9 @@ export function EmployeeForm({
       motherName: initialValues?.motherName || "",
       husbandName: initialValues?.husbandName || "",
       category: initialValues?.category || "",
-      dateOfBirth: initialValues?.dateOfBirth 
-        ? new Date(initialValues.dateOfBirth) 
-        : new Date(),
-      employeeOnboardingDate: initialValues?.employeeOnboardingDate 
-        ? new Date(initialValues.employeeOnboardingDate) 
+      dateOfBirth: initialValues?.dateOfBirth ? new Date(initialValues.dateOfBirth) : new Date(),
+      employeeOnboardingDate: initialValues?.employeeOnboardingDate
+        ? new Date(initialValues.employeeOnboardingDate)
         : new Date(),
       highestEducationQualification: initialValues?.highestEducationQualification || "",
       bloodGroup: initialValues?.bloodGroup || "",
@@ -146,16 +133,16 @@ export function EmployeeForm({
       pfUanNumber: initialValues?.pfUanNumber || "",
       esicNumber: initialValues?.esicNumber || "",
       policeVerificationNumber: initialValues?.policeVerificationNumber || "",
-      policeVerificationDate: initialValues?.policeVerificationDate 
-        ? new Date(initialValues.policeVerificationDate) 
+      policeVerificationDate: initialValues?.policeVerificationDate
+        ? new Date(initialValues.policeVerificationDate)
         : new Date(),
       trainingCertificateNumber: initialValues?.trainingCertificateNumber || "",
-      trainingCertificateDate: initialValues?.trainingCertificateDate 
-        ? new Date(initialValues.trainingCertificateDate) 
+      trainingCertificateDate: initialValues?.trainingCertificateDate
+        ? new Date(initialValues.trainingCertificateDate)
         : new Date(),
       medicalCertificateNumber: initialValues?.medicalCertificateNumber || "",
-      medicalCertificateDate: initialValues?.medicalCertificateDate 
-        ? new Date(initialValues.medicalCertificateDate) 
+      medicalCertificateDate: initialValues?.medicalCertificateDate
+        ? new Date(initialValues.medicalCertificateDate)
         : new Date(),
       photo: initialValues?.photo || null,
       aadhaar: initialValues?.aadhaar || null,
@@ -168,6 +155,13 @@ export function EmployeeForm({
       aadhaarNumber: initialValues?.aadhaarNumber || "",
     },
   })
+
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      onChange?.()
+    })
+    return () => subscription.unsubscribe()
+  }, [form, onChange])
 
   // Handle form submission
   const handleFormSubmit = (values: z.infer<typeof employeeFormSchema>) => {
@@ -221,7 +215,7 @@ export function EmployeeForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
+      <form id="employee-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
             <CardTitle>Basic Details</CardTitle>
@@ -284,10 +278,7 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Date of Birth</FormLabel>
-                    <DatePicker
-                      date={field.value}
-                      onSelect={field.onChange}
-                    />
+                    <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -298,10 +289,7 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gender</FormLabel>
-                    <Select 
-                      onValueChange={(value) => handleGenderChange(value)} 
-                      defaultValue={field.value}
-                    >
+                    <Select onValueChange={(value) => handleGenderChange(value)} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select gender" />
@@ -379,10 +367,7 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Employee Onboarding Date</FormLabel>
-                    <DatePicker
-                      date={field.value}
-                      onSelect={field.onChange}
-                    />
+                    <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -523,11 +508,7 @@ export function EmployeeForm({
               )}
             />
             <div className="flex items-center space-x-2 mb-4">
-              <Checkbox 
-                id="sameAsPermanent" 
-                checked={sameAsPermanent}
-                onCheckedChange={handleSameAsPermanentChange}
-              />
+              <Checkbox id="sameAsPermanent" checked={sameAsPermanent} onCheckedChange={handleSameAsPermanentChange} />
               <label
                 htmlFor="sameAsPermanent"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -542,11 +523,7 @@ export function EmployeeForm({
                 <FormItem>
                   <FormLabel>Present Address</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Enter present address" 
-                      {...field} 
-                      disabled={sameAsPermanent}
-                    />
+                    <Input placeholder="Enter present address" {...field} disabled={sameAsPermanent} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -599,11 +576,11 @@ export function EmployeeForm({
                   <FormItem>
                     <FormLabel>Pincode</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="Enter pincode" 
-                        {...field} 
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      <Input
+                        type="number"
+                        placeholder="Enter pincode"
+                        {...field}
+                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -626,10 +603,7 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Company Date of Joining</FormLabel>
-                    <DatePicker
-                      date={field.value}
-                      onSelect={field.onChange}
-                    />
+                    <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -641,11 +615,11 @@ export function EmployeeForm({
                   <FormItem>
                     <FormLabel>Salary</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="Enter salary" 
-                        {...field} 
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      <Input
+                        type="number"
+                        placeholder="Enter salary"
+                        {...field}
+                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -841,10 +815,7 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Police Verification Date</FormLabel>
-                    <DatePicker
-                      date={field.value}
-                      onSelect={field.onChange}
-                    />
+                    <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -868,10 +839,7 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Training Certificate Date</FormLabel>
-                    <DatePicker
-                      date={field.value}
-                      onSelect={field.onChange}
-                    />
+                    <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -895,10 +863,7 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Medical Certificate Date</FormLabel>
-                    <DatePicker
-                      date={field.value}
-                      onSelect={field.onChange}
-                    />
+                    <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
                 )}

@@ -29,6 +29,7 @@ export default function AddEmployeePage() {
 
                 // Fetch designations
                 const designationsData = await designationService.getDesignations()
+                console.log("Designations data:", designationsData)
                 setDesignations(
                     designationsData.map((designation) => ({
                         value: designation.id,
@@ -71,8 +72,8 @@ export default function AddEmployeePage() {
     const handleSubmit = async (values: EmployeeFormValues) => {
         setIsLoading(true)
         try {
-            await employeeService.createEmployee(values)
-
+            const createEmployeeResponse = await employeeService.createEmployee(values)
+            console.log("(handleSubmit) Employee created successfully:", JSON.stringify(createEmployeeResponse, null, 2))
             toast({
                 title: "Success",
                 description: "Employee created successfully",

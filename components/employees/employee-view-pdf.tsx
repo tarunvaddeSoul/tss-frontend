@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const EmployeeView = ({ employee }: { employee: Employee }) => (
+const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
@@ -264,4 +264,4 @@ const EmployeeView = ({ employee }: { employee: Employee }) => (
   </Document>
 );
 
-export default EmployeeView;
+export default EmployeeViewPDF;

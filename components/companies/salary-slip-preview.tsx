@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { SalaryTemplates } from "@/types/company"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "@/components/ui/use-toast"
+import { SalaryFieldPurpose, SalaryFieldType, type SalaryTemplateConfig } from "@/types/company"
 
 // Define styles for PDF
 const styles = StyleSheet.create({
@@ -88,40 +90,54 @@ const styles = StyleSheet.create({
 
 // PDF Document Component
 const SalarySlipPDF = ({
-  salaryTemplates,
+  config,
   employeeName,
   month,
   year,
 }: {
-  salaryTemplates: SalaryTemplates
+  config: SalaryTemplateConfig
   employeeName: string
   month: string
   year: string
 }) => {
   const currentDate = new Date().toLocaleDateString()
 
-  // Get enabled fields grouped by category
-  const basicFields = ["name", "fatherName", "companyName", "designation"]
-  const salaryFields = ["monthlyRate", "basicDuty", "dutyDone", "wagesPerDay", "basicPay", "epfWages"]
-  const allowanceFields = ["otherAllowance", "otherAllowanceRemark", "bonus", "grossSalary"]
-  const deductionFields = [
-    "pf",
-    "esic",
-    "advance",
-    "uniform",
-    "advanceGivenBy",
-    "penalty",
-    "lwf",
-    "otherDeductions",
-    "otherDeductionsRemark",
-    "totalDeductions",
-  ]
-  const finalFields = ["netSalary", "uanNumber", "pfPaidStatus", "esicNumber", "esicFilingStatus"]
-
-  // Helper to get enabled fields from a group
-  const getEnabledFields = (fieldIds: string[]) => {
-    return fieldIds.filter((id) => salaryTemplates[id] && salaryTemplates[id].enabled)
+  // Helper to get enabled fields by purpose
+  const getEnabledFieldsByPurpose = (purpose: SalaryFieldPurpose) => {
+    const mandatoryFields = config.mandatoryFields.filter((field) => field.enabled && field.purpose === purpose)
+    const optionalFields = config.optionalFields.filter((field) => field.enabled && field.purpose === purpose)
+    const customFields = config.customFields?.filter((field) => field.enabled && field.purpose === purpose) || []
+    return [...mandatoryFields, ...optionalFields, ...customFields]
   }
+
+  // Get field value
+  const getFieldValue = (field: any) => {
+    if (field.key === "employeeName") return employeeName
+    if (field.key === "month") return month
+    if (field.key === "year") return year
+    if (field.key === "basicDuty") return `${field.defaultValue || "30"} days`
+
+    if (field.type === SalaryFieldType.NUMBER) {
+      return `₹${field.rules?.defaultValue || 0}`
+    }
+
+    if (field.type === SalaryFieldType.SELECT) {
+      return field.defaultValue || "-"
+    }
+
+    return field.defaultValue || "N/A"
+  }
+
+  // Get fields by purpose
+  const informationFields = getEnabledFieldsByPurpose(SalaryFieldPurpose.INFORMATION)
+  const allowanceFields = getEnabledFieldsByPurpose(SalaryFieldPurpose.ALLOWANCE)
+  const deductionFields = getEnabledFieldsByPurpose(SalaryFieldPurpose.DEDUCTION)
+  const calculationFields = getEnabledFieldsByPurpose(SalaryFieldPurpose.CALCULATION)
+
+  // Find net salary field
+  const netSalaryField = [...config.mandatoryFields, ...config.optionalFields].find(
+    (field) => field.enabled && field.key === "netSalary",
+  )
 
   return (
     <Document>
@@ -143,75 +159,61 @@ const SalarySlipPDF = ({
             <Text style={styles.value}>{employeeName}</Text>
           </View>
 
-          {getEnabledFields(basicFields).map((fieldId) => (
-            <View style={styles.row} key={fieldId}>
-              <Text style={styles.label}>{fieldId}:</Text>
-              <Text style={styles.value}>{salaryTemplates[fieldId]?.value || ""}</Text>
+          {informationFields.map((field) => (
+            <View style={styles.row} key={field.key}>
+              <Text style={styles.label}>{field.label}:</Text>
+              <Text style={styles.value}>{getFieldValue(field)}</Text>
             </View>
           ))}
         </View>
 
-        {/* Salary Information */}
-        {getEnabledFields(salaryFields).length > 0 && (
+        {/* Calculation Fields */}
+        {calculationFields.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Salary Details</Text>
 
-            {getEnabledFields(salaryFields).map((fieldId) => (
-              <View style={styles.row} key={fieldId}>
-                <Text style={styles.label}>{fieldId}:</Text>
-                <Text style={styles.value}>{salaryTemplates[fieldId]?.value || ""}</Text>
+            {calculationFields.map((field) => (
+              <View style={styles.row} key={field.key}>
+                <Text style={styles.label}>{field.label}:</Text>
+                <Text style={styles.value}>{getFieldValue(field)}</Text>
               </View>
             ))}
           </View>
         )}
 
         {/* Allowances */}
-        {getEnabledFields(allowanceFields).length > 0 && (
+        {allowanceFields.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Allowances</Text>
 
-            {getEnabledFields(allowanceFields).map((fieldId) => (
-              <View style={styles.row} key={fieldId}>
-                <Text style={styles.label}>{fieldId}:</Text>
-                <Text style={styles.value}>{salaryTemplates[fieldId]?.value || ""}</Text>
+            {allowanceFields.map((field) => (
+              <View style={styles.row} key={field.key}>
+                <Text style={styles.label}>{field.label}:</Text>
+                <Text style={styles.value}>{getFieldValue(field)}</Text>
               </View>
             ))}
           </View>
         )}
 
         {/* Deductions */}
-        {getEnabledFields(deductionFields).length > 0 && (
+        {deductionFields.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Deductions</Text>
 
-            {getEnabledFields(deductionFields).map((fieldId) => (
-              <View style={styles.row} key={fieldId}>
-                <Text style={styles.label}>{fieldId}:</Text>
-                <Text style={styles.value}>{salaryTemplates[fieldId]?.value || ""}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Final Details */}
-        {getEnabledFields(finalFields).length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Final Details</Text>
-
-            {getEnabledFields(finalFields).map((fieldId) => (
-              <View style={styles.row} key={fieldId}>
-                <Text style={styles.label}>{fieldId}:</Text>
-                <Text style={styles.value}>{salaryTemplates[fieldId]?.value || ""}</Text>
+            {deductionFields.map((field) => (
+              <View style={styles.row} key={field.key}>
+                <Text style={styles.label}>{field.label}:</Text>
+                <Text style={styles.value}>{getFieldValue(field)}</Text>
               </View>
             ))}
           </View>
         )}
 
         {/* Net Salary (always show if available) */}
-        {salaryTemplates.netSalary && salaryTemplates.netSalary.enabled && (
+        {netSalaryField && (
           <View style={styles.totalRow}>
             <Text style={styles.label}>Net Salary:</Text>
-            <Text style={styles.value}>{salaryTemplates.netSalary.value || ""}</Text>
+            <Text style={styles.value}>₹{netSalaryField.rules?.defaultValue || 0}</Text>
           </View>
         )}
 
@@ -224,15 +226,64 @@ const SalarySlipPDF = ({
 }
 
 interface SalarySlipPreviewProps {
-  salaryTemplates: SalaryTemplates
+  config: SalaryTemplateConfig
 }
 
-export function SalarySlipPreview({ salaryTemplates }: SalarySlipPreviewProps) {
+export function SalarySlipPreview({ config }: SalarySlipPreviewProps) {
   const [employeeName, setEmployeeName] = useState("John Doe")
   const [month, setMonth] = useState(new Date().toLocaleString("default", { month: "long" }))
   const [year, setYear] = useState(new Date().getFullYear().toString())
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+
+  // Get all enabled fields
+  const getEnabledFields = () => {
+    const mandatoryFields = config.mandatoryFields.filter((field) => field.enabled)
+    const optionalFields = config.optionalFields.filter((field) => field.enabled)
+    const customFields = (config.customFields || []).filter((field) => field.enabled)
+
+    return [...mandatoryFields, ...optionalFields, ...customFields]
+  }
+
+  // Group fields by purpose
+  const groupFieldsByPurpose = () => {
+    const enabledFields = getEnabledFields()
+    const grouped = {
+      [SalaryFieldPurpose.INFORMATION]: enabledFields.filter(
+        (field) => field.purpose === SalaryFieldPurpose.INFORMATION,
+      ),
+      [SalaryFieldPurpose.CALCULATION]: enabledFields.filter(
+        (field) => field.purpose === SalaryFieldPurpose.CALCULATION,
+      ),
+      [SalaryFieldPurpose.ALLOWANCE]: enabledFields.filter((field) => field.purpose === SalaryFieldPurpose.ALLOWANCE),
+      [SalaryFieldPurpose.DEDUCTION]: enabledFields.filter((field) => field.purpose === SalaryFieldPurpose.DEDUCTION),
+    }
+
+    return grouped
+  }
+
+  // Get field value based on field type and default values
+  const getFieldValue = (field: any) => {
+    if (field.key === "employeeName") return employeeName
+    if (field.key === "month") return month
+    if (field.key === "year") return year
+    if (field.key === "basicDuty") return `${field.defaultValue || "30"} days`
+
+    if (field.type === SalaryFieldType.NUMBER) {
+      if (field.rules?.defaultValue) return field.rules.defaultValue.toLocaleString()
+      return "0"
+    }
+
+    if (field.type === SalaryFieldType.TEXT) {
+      return field.defaultValue || "-"
+    }
+
+    if (field.type === SalaryFieldType.SELECT) {
+      return field.defaultValue || "-"
+    }
+
+    return "-"
+  }
 
   const handleGeneratePDF = async () => {
     try {
@@ -245,20 +296,42 @@ export function SalarySlipPreview({ salaryTemplates }: SalarySlipPreviewProps) {
 
       // Generate PDF
       const blob = await pdf(
-        <SalarySlipPDF salaryTemplates={salaryTemplates} employeeName={employeeName} month={month} year={year} />,
+        <SalarySlipPDF config={config} employeeName={employeeName} month={month} year={year} />,
       ).toBlob()
 
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
+
+      toast({
+        title: "PDF Generated",
+        description: "Your salary slip PDF has been generated successfully",
+      })
     } catch (error) {
       console.error("Error generating PDF:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+      })
     } finally {
       setIsGenerating(false)
     }
   }
 
   const handleDownloadPDF = () => {
-    if (!pdfUrl) return
+    if (!pdfUrl) {
+      handleGeneratePDF().then(() => {
+        if (pdfUrl) {
+          const link = document.createElement("a")
+          link.href = pdfUrl
+          link.download = `salary_slip_${employeeName.replace(/\s+/g, "_").toLowerCase()}_${month}_${year}.pdf`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+      })
+      return
+    }
 
     const link = document.createElement("a")
     link.href = pdfUrl
@@ -267,6 +340,8 @@ export function SalarySlipPreview({ salaryTemplates }: SalarySlipPreviewProps) {
     link.click()
     document.body.removeChild(link)
   }
+
+  const groupedFields = groupFieldsByPurpose()
 
   return (
     <Card className="w-full">
@@ -287,11 +362,49 @@ export function SalarySlipPreview({ salaryTemplates }: SalarySlipPreviewProps) {
           </div>
           <div>
             <Label htmlFor="month">Month</Label>
-            <Input id="month" value={month} onChange={(e) => setMonth(e.target.value)} placeholder="Enter month" />
+            <Select value={month} onValueChange={setMonth}>
+              <SelectTrigger id="month">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  "January",
+                  "February",
+                  "March",
+                  "April",
+                  "May",
+                  "June",
+                  "July",
+                  "August",
+                  "September",
+                  "October",
+                  "November",
+                  "December",
+                ].map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label htmlFor="year">Year</Label>
-            <Input id="year" value={year} onChange={(e) => setYear(e.target.value)} placeholder="Enter year" />
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger id="year">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => {
+                  const yearValue = new Date().getFullYear() - 2 + i
+                  return (
+                    <SelectItem key={yearValue} value={yearValue.toString()}>
+                      {yearValue}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -316,6 +429,87 @@ export function SalarySlipPreview({ salaryTemplates }: SalarySlipPreviewProps) {
                 <Download className="mr-2 h-4 w-4" />
                 Download PDF
               </Button>
+            </div>
+          </div>
+        )}
+
+        {!pdfUrl && (
+          <div className="border rounded-lg p-6 bg-white print:shadow-none">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold">SALARY SLIP</h2>
+              <p className="text-lg">
+                For the month of {month} {year}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Information Fields */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg border-b pb-1">Employee Information</h3>
+                {groupedFields[SalaryFieldPurpose.INFORMATION].map((field) => (
+                  <div key={field.key} className="flex justify-between">
+                    <span className="font-medium">{field.label}:</span>
+                    <span>{getFieldValue(field)}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Calculation Fields */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg border-b pb-1">Salary Calculation</h3>
+                {groupedFields[SalaryFieldPurpose.CALCULATION].map((field) => (
+                  <div key={field.key} className="flex justify-between">
+                    <span className="font-medium">{field.label}:</span>
+                    <span>{getFieldValue(field)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Allowance Fields */}
+              {groupedFields[SalaryFieldPurpose.ALLOWANCE].length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg border-b pb-1">Allowances</h3>
+                  {groupedFields[SalaryFieldPurpose.ALLOWANCE].map((field) => (
+                    <div key={field.key} className="flex justify-between">
+                      <span className="font-medium">{field.label}:</span>
+                      <span>{getFieldValue(field)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Deduction Fields */}
+              {groupedFields[SalaryFieldPurpose.DEDUCTION].length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg border-b pb-1">Deductions</h3>
+                  {groupedFields[SalaryFieldPurpose.DEDUCTION].map((field) => (
+                    <div key={field.key} className="flex justify-between">
+                      <span className="font-medium">{field.label}:</span>
+                      <span>{getFieldValue(field)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-4 mt-6">
+              <div className="flex justify-between font-bold text-lg">
+                <span>Net Salary:</span>
+                <span>
+                  ₹{" "}
+                  {groupedFields[SalaryFieldPurpose.CALCULATION].find((field) => field.key === "netSalary")
+                    ? getFieldValue(
+                        groupedFields[SalaryFieldPurpose.CALCULATION].find((field) => field.key === "netSalary"),
+                      )
+                    : "0"}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-8 border-t text-center text-sm text-gray-500">
+              <p>This is a computer-generated salary slip and does not require a signature.</p>
             </div>
           </div>
         )}

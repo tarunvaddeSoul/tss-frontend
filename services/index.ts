@@ -19,3 +19,4 @@ export const services = {
   departments: departmentService,
   designations: designationService,
 }
+  

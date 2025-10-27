@@ -307,12 +307,12 @@ export const employeeService = {
     }
   },
 
-  async updateEmploymentHistory(employeeId: string, historyData: UpdateEmploymentHistoryDto) {
+  async updateEmploymentHistory(id: string, historyData: UpdateEmploymentHistoryDto) {
     try {
-      const response = await api.patch(`/employees/${employeeId}/employment-history`, historyData)
+      const response = await api.patch(`/employees/employment-history/${id}`, historyData)
       return response.data
     } catch (error) {
-      console.error(`Error updating employment history for employee ${employeeId}:`, error)
+      console.error(`Error updating employment history for employee ${id}:`, error)
       throw error
     }
   },

@@ -1,77 +1,59 @@
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-  Font,
-} from "@react-pdf/renderer";
-import { Employee } from "@/types/employee";
-
-// Register fonts
-Font.register({
-  family: 'Roboto',
-  fonts: [
-    { src: '/fonts/Roboto-Regular.ttf' },
-    { src: '/fonts/Roboto-Bold.ttf', fontWeight: 'bold' },
-  ]
-});
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
+import type { Employee } from "@/types/employee"
 
 const styles = StyleSheet.create({
   page: {
     padding: 40,
-    fontFamily: 'Roboto',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 30,
     borderBottomWidth: 2,
-    borderBottomColor: '#D12702',
+    borderBottomColor: "#D12702",
     paddingBottom: 15,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#D12702',
+    fontWeight: "bold",
+    color: "#D12702",
   },
   section: {
     marginBottom: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     padding: 15,
     borderRadius: 5,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 15,
-    color: '#D12702',
+    color: "#D12702",
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: "#e2e8f0",
     paddingBottom: 8,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 10,
   },
   column: {
-    flexDirection: 'column',
+    flexDirection: "column",
     flexGrow: 1,
     flexBasis: 0,
     marginRight: 10,
   },
   heading: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#4a5568',
+    fontWeight: "bold",
+    color: "#4a5568",
     marginBottom: 3,
   },
   text: {
     fontSize: 11,
-    color: '#2d3748',
+    color: "#2d3748",
   },
-});
+})
 
 const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
   <Document>
@@ -85,7 +67,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
         <View style={styles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Name</Text>
-            <Text style={styles.text}>{`${employee.title || ''} ${employee.firstName} ${employee.lastName}`}</Text>
+            <Text style={styles.text}>{`${employee.title || ""} ${employee.firstName} ${employee.lastName}`}</Text>
           </View>
           <View style={styles.column}>
             <Text style={styles.heading}>Employee ID</Text>
@@ -259,9 +241,8 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
           </View>
         </View>
       </View>
-
     </Page>
   </Document>
-);
+)
 
-export default EmployeeViewPDF;
+export default EmployeeViewPDF

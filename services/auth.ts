@@ -11,6 +11,7 @@ import type {
   UserAPIResponse,
   ApiResponse,
 } from "@/types/auth"
+import { getErrorMessage } from "./api"
 
 // API endpoints configuration
 const AUTH_ENDPOINTS = {
@@ -41,8 +42,7 @@ const authService = {
 
       return response.data
     } catch (error) {
-      console.error("Login error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -61,8 +61,7 @@ const authService = {
 
       return response.data
     } catch (error) {
-      console.error("Signup error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -75,7 +74,6 @@ const authService = {
         await api.post(AUTH_ENDPOINTS.LOGOUT, { refreshToken })
       }
     } catch (error) {
-      console.error("Logout error:", error)
       // Continue with logout even if the API call fails
     } finally {
       // Always remove the tokens from localStorage
@@ -91,28 +89,17 @@ const authService = {
       const response = await api.get<UserAPIResponse>(AUTH_ENDPOINTS.CURRENT_USER)
       return response.data.data
     } catch (error) {
-      console.error("Get current user error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
   async refreshToken(refreshToken: string): Promise<AuthAPIResponse> {
     try {
       const response = await api.post<AuthAPIResponse>(`${AUTH_ENDPOINTS.REFRESH_TOKEN}/${refreshToken}`)
-
-      // Store the new tokens in localStorage
-      if (response.data.data.tokens.accessToken) {
-        localStorage.setItem("accessToken", response.data.data.tokens.accessToken)
-      }
-
-      if (response.data.data.tokens.refreshToken) {
-        localStorage.setItem("refreshToken", response.data.data.tokens.refreshToken)
-      }
-
+      // Do not set tokens here; handled in api.ts after refresh
       return response.data
     } catch (error) {
-      console.error("Refresh token error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -121,8 +108,7 @@ const authService = {
       const response = await api.put<ApiResponse<null>>(AUTH_ENDPOINTS.CHANGE_PASSWORD, credentials)
       return response.data
     } catch (error) {
-      console.error("Change password error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -131,8 +117,7 @@ const authService = {
       const response = await api.post<ApiResponse<null>>(AUTH_ENDPOINTS.FORGOT_PASSWORD, credentials)
       return response.data
     } catch (error) {
-      console.error("Forgot password error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -141,8 +126,7 @@ const authService = {
       const response = await api.put<ApiResponse<null>>(AUTH_ENDPOINTS.RESET_PASSWORD, credentials)
       return response.data
     } catch (error) {
-      console.error("Reset password error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -151,8 +135,7 @@ const authService = {
       const response = await api.put<UserAPIResponse>(`${AUTH_ENDPOINTS.UPDATE_USER}/${userId}`, data)
       return response.data
     } catch (error) {
-      console.error("Update user error:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 

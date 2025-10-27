@@ -5,7 +5,9 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format, isValid, parse } from "date-fns"
-import { toast } from "sonner"
+import { useToast } from "@/hooks/use-toast"
+import { AxiosError } from "axios"
+
 import {
   Plus,
   Edit,
@@ -88,15 +90,51 @@ const parseDate = (dateString: string | undefined | null): Date | null => {
 
 // Employment history schema
 const employmentHistorySchema = z.object({
-  companyId: z.string().min(1, "Company is required"),
-  departmentId: z.string().min(1, "Department is required"),
-  designationId: z.string().min(1, "Designation is required"),
+  companyId: z.string().uuid("Invalid company ID"),
+  departmentId: z.string().uuid("Invalid department ID"),
+  designationId: z.string().uuid("Invalid designation ID"),
   joiningDate: z.date({ required_error: "Joining date is required" }),
-  leavingDate: z.date().nullable().optional(),
+  leavingDate: z.date().optional(),
   salary: z.number().min(0, "Salary must be a positive number"),
   isActive: z.boolean().default(false),
-  reason: z.string().optional(),
-})
+}).superRefine((data, ctx) => {
+  // If not active, must have leaving date
+  if (!data.isActive && !data.leavingDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Please select an end date for this employment",
+      path: ["leavingDate"]
+    });
+  }
+  // If has leaving date, must be after joining date
+  if (data.leavingDate && data.leavingDate < data.joiningDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End date must be after the start date",
+      path: ["leavingDate"]
+    });
+  }
+});
+
+// Add helper text constants
+const EMPLOYMENT_GUIDANCE = {
+  add: "Add a new employment record when an employee starts working at a new company or changes their role.",
+  edit: "Update employment details if there are changes in the employee's role, salary, or department.",
+  close: "Close the current employment when the employee leaves or changes companies.",
+  active: "Mark as current employment if this is the employee's active role. Only one employment can be active at a time.",
+}
+
+// Add validation messages
+const EMPLOYMENT_MESSAGES = {
+  ACTIVE_EXISTS: "There is already an active employment. Please end the current employment first.",
+  INVALID_TRANSITION: "Cannot change status. Please end the current employment first.",
+  UPDATE_SUCCESS: "Employment history updated successfully!",
+  UPDATE_ERROR: "Failed to update employment history. Please try again.",
+  CLOSE_SUCCESS: "Employment closed successfully!",
+  CLOSE_ERROR: "Failed to close employment. Please try again.",
+  INVALID_DATES: "Leaving date cannot be before joining date",
+  REQUIRED_LEAVING_DATE: "Leaving date is required when ending employment",
+}
 
 interface EmploymentHistoryFormProps {
   employee: Employee
@@ -104,6 +142,7 @@ interface EmploymentHistoryFormProps {
 }
 
 export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryFormProps) {
+  const { toast } = useToast()
   const [employmentHistories, setEmploymentHistories] = useState<IEmployeeEmploymentHistory[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [designations, setDesignations] = useState<Designation[]>([])
@@ -122,10 +161,9 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
       departmentId: "",
       designationId: "",
       joiningDate: new Date(),
-      leavingDate: null,
+      leavingDate: undefined,
       salary: 0,
       isActive: false,
-      reason: "",
     },
   })
 
@@ -148,7 +186,11 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
         setDepartments(departmentsResponse || [])
       } catch (error) {
         console.error("Error loading employment history data:", error)
-        toast.error("Failed to load employment history")
+        toast({
+          title: "Error",
+          description: "Failed to load employment history",
+          variant: "destructive"
+        })
       } finally {
         setIsLoading(false)
       }
@@ -160,117 +202,231 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
   // Handle adding new employment history
   const handleAddEmploymentHistory = async (data: z.infer<typeof employmentHistorySchema>) => {
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
 
       const createData: CreateEmploymentHistoryDto = {
         companyId: data.companyId,
         departmentId: data.departmentId,
         designationId: data.designationId,
         salary: data.salary,
-        joiningDate: format(data.joiningDate, "dd-MM-yyyy"), // Add the formatted joiningDate
+        joiningDate: format(data.joiningDate, "dd-MM-yyyy"),
         status: data.isActive ? Status.ACTIVE : Status.INACTIVE,
+      };
+
+      const response = await employeeService.createEmploymentHistory(employee.id, createData);
+
+      if (response.statusCode === 201) {
+        toast({
+          title: "Success",
+          description: "Employment history added successfully!"
+        });
+
+        // Refresh employment histories
+        const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id);
+        setEmploymentHistories(updatedHistories.data || []);
+
+        // Close dialog and reset form
+        setShowAddDialog(false);
+        form.reset({
+          companyId: "",
+          departmentId: "",
+          designationId: "",
+          joiningDate: new Date(),
+          leavingDate: undefined,
+          salary: 0,
+          isActive: false,
+        });
+      } else {
+        throw new Error(response.message || "Failed to add employment history");
+      }
+    } catch (error) {
+      console.error("Error adding employment history:", error);
+      let errorMessage = "Failed to add employment history";
+      
+      if (error instanceof AxiosError && error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
 
-      await employeeService.createEmploymentHistory(employee.id, createData)
-
-      toast.success("Employment history added successfully!")
-
-      // Refresh employment histories
-      const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id)
-      setEmploymentHistories(updatedHistories.data || [])
-
-      // Close dialog and reset form
-      setShowAddDialog(false)
-      form.reset({
-        companyId: "",
-        departmentId: "",
-        designationId: "",
-        joiningDate: new Date(),
-        leavingDate: null,
-        salary: 0,
-        isActive: false,
-        reason: "",
-      })
-    } catch (error) {
-      console.error("Error adding employment history:", error)
-      toast.error("Failed to add employment history")
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // Handle updating employment history
   const handleUpdateEmploymentHistory = async (data: z.infer<typeof employmentHistorySchema>) => {
-    if (!selectedHistory?.id) return
+    if (!selectedHistory?.id) return;
 
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
+
+      // Validate dates if making inactive
+      if (!data.isActive && !data.leavingDate) {
+        toast({
+          title: "Error",
+          description: EMPLOYMENT_MESSAGES.REQUIRED_LEAVING_DATE,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data.leavingDate && data.leavingDate < data.joiningDate) {
+        toast({
+          title: "Error",
+          description: EMPLOYMENT_MESSAGES.INVALID_DATES,
+          variant: "destructive"
+        });
+        return;
+      }
 
       const updateData: UpdateEmploymentHistoryDto = {
         companyId: data.companyId,
         departmentId: data.departmentId,
         designationId: data.designationId,
         salary: data.salary,
-        leavingDate: data.leavingDate ? format(data.leavingDate, "dd-MM-yyyy") : undefined,
         status: data.isActive ? Status.ACTIVE : Status.INACTIVE,
+        leavingDate: data.leavingDate ? format(data.leavingDate, "dd-MM-yyyy") : undefined,
+      };
+
+      const response = await employeeService.updateEmploymentHistory(selectedHistory.id, updateData);
+
+      if (response.statusCode === 200) {
+        toast({
+          title: "Success",
+          description: EMPLOYMENT_MESSAGES.UPDATE_SUCCESS
+        });
+        const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id);
+        setEmploymentHistories(updatedHistories.data || []);
+        setShowEditDialog(false);
+        setSelectedHistory(null);
+      } else {
+        throw new Error(response.message || EMPLOYMENT_MESSAGES.UPDATE_ERROR);
       }
-
-      await employeeService.updateEmploymentHistory(selectedHistory.id, updateData)
-
-      toast.success("Employment history updated successfully!")
-
-      // Refresh employment histories
-      const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id)
-      setEmploymentHistories(updatedHistories.data || [])
-
-      // Close dialog and reset
-      setShowEditDialog(false)
-      setSelectedHistory(null)
     } catch (error) {
-      console.error("Error updating employment history:", error)
-      toast.error("Failed to update employment history")
+      console.error("Error updating employment history:", error);
+      if (error instanceof Error) {
+        if (error.message.includes("already an active employment")) {
+          toast({
+            title: "Error",
+            description: EMPLOYMENT_MESSAGES.ACTIVE_EXISTS,
+            variant: "destructive"
+          });
+        } else if (error.message.includes("not found")) {
+          toast({
+            title: "Error",
+            description: "Employment record not found. It may have been deleted.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || EMPLOYMENT_MESSAGES.UPDATE_ERROR,
+            variant: "destructive"
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: EMPLOYMENT_MESSAGES.UPDATE_ERROR,
+          variant: "destructive"
+        });
+      }
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // Handle closing current employment
   const handleCloseEmployment = async (historyId: string) => {
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
 
-      await employeeService.closeEmployment(employee.id, {
+      // First check if this is actually the active employment
+      const employmentToClose = employmentHistories.find(h => h.id === historyId);
+      if (!employmentToClose) {
+        toast({
+          title: "Error",
+          description: "Employment record not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (employmentToClose.status !== Status.ACTIVE) {
+        toast({
+          title: "Error",
+          description: "This employment is already inactive",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const response = await employeeService.closeEmployment(employee.id, {
         leavingDate: format(new Date(), "dd-MM-yyyy"),
-      })
+      });
 
-      toast.success("Employment closed successfully!")
+      if (response.statusCode === 200) {
+        toast({
+          title: "Success",
+          description: EMPLOYMENT_MESSAGES.CLOSE_SUCCESS
+        });
 
-      // Refresh employment histories
-      const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id)
-      setEmploymentHistories(updatedHistories.data || [])
+        // Refresh employment histories
+        const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id);
+        setEmploymentHistories(updatedHistories.data || []);
+      } else {
+        throw new Error(response.message || EMPLOYMENT_MESSAGES.CLOSE_ERROR);
+      }
     } catch (error) {
-      console.error("Error closing employment:", error)
-      toast.error("Failed to close employment")
+      console.error("Error closing employment:", error);
+
+      // Handle specific error cases
+      if (error instanceof Error) {
+        if (error.message.includes("No active employment found")) {
+          toast({
+            title: "Error",
+            description: "This employment is no longer active. Please refresh the page.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || EMPLOYMENT_MESSAGES.CLOSE_ERROR,
+            variant: "destructive"
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: EMPLOYMENT_MESSAGES.CLOSE_ERROR,
+          variant: "destructive"
+        });
+      }
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // Handle edit button click
   const handleEditClick = (history: IEmployeeEmploymentHistory) => {
-    setSelectedHistory(history)
+    setSelectedHistory(history);
     form.reset({
       companyId: history.companyId || "",
       departmentId: history.departmentId || "",
       designationId: history.designationId || "",
       joiningDate: parseDate(history.joiningDate) || new Date(),
-      leavingDate: parseDate(history.leavingDate),
+      leavingDate: history.leavingDate ? parseDate(history.leavingDate) || undefined : undefined,
       salary: history.salary || 0,
-      isActive: history.status === "ACTIVE",
-      reason: history.reason || "",
-    })
-    setShowEditDialog(true)
-  }
+      isActive: history.status === Status.ACTIVE,
+    });
+    setShowEditDialog(true);
+  };
 
   // Prepare options for selects
   const companyOptions = companies.map((company) => ({
@@ -287,6 +443,16 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
     value: department.id,
     label: department.name,
   }))
+
+  // Add a function to check if an employment can be made active
+  const canMakeActive = (history: IEmployeeEmploymentHistory) => {
+    if (!history?.id) return false;
+    
+    const hasActiveEmployment = employmentHistories.some(
+      h => h.id && h.id !== history.id && h.status === Status.ACTIVE
+    );
+    return !hasActiveEmployment;
+  };
 
   if (isLoading) {
     return (
@@ -314,13 +480,15 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
           <DialogTrigger asChild>
             <Button size="sm" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              Add Employment
+              Add New Employment
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Add Employment History</DialogTitle>
-              <DialogDescription>Add a new employment record for this employee.</DialogDescription>
+              <DialogTitle>Add New Employment Record</DialogTitle>
+              <DialogDescription>
+                {EMPLOYMENT_GUIDANCE.add}
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleAddEmploymentHistory)} className="space-y-4">
@@ -330,7 +498,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     name="companyId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company</FormLabel>
+                        <FormLabel>Company <span className="text-red-500">*</span></FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -355,11 +523,11 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     name="designationId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Designation</FormLabel>
+                        <FormLabel>Job Role <span className="text-red-500">*</span></FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select designation" />
+                              <SelectValue placeholder="Select job role" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -380,7 +548,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     name="departmentId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department</FormLabel>
+                        <FormLabel>Department <span className="text-red-500">*</span></FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -405,11 +573,11 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     name="salary"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Salary</FormLabel>
+                        <FormLabel>Monthly Salary <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="Enter salary"
+                            placeholder="Enter monthly salary"
                             {...field}
                             onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
                           />
@@ -424,20 +592,8 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     name="joiningDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Joining Date</FormLabel>
+                        <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
                         <DatePicker date={field.value} onSelect={field.onChange} />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="leavingDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Leaving Date (Optional)</FormLabel>
-                        <DatePicker date={field.value ?? null} onSelect={field.onChange} />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -448,13 +604,28 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   control={form.control}
                   name="isActive"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                       <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <Checkbox 
+                          checked={field.value} 
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            // Clear leaving date when making active
+                            if (checked) {
+                              form.setValue("leavingDate", undefined, { 
+                                shouldValidate: true,
+                                shouldDirty: true,
+                                shouldTouch: true
+                              });
+                            }
+                          }} 
+                        />
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>Current Employment</FormLabel>
-                        <p className="text-sm text-muted-foreground">Check if this is the current active employment</p>
+                        <p className="text-sm text-muted-foreground">
+                          {EMPLOYMENT_GUIDANCE.active}
+                        </p>
                       </div>
                     </FormItem>
                   )}
@@ -462,13 +633,21 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
 
                 <FormField
                   control={form.control}
-                  name="reason"
+                  name="leavingDate"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Reason for Leaving (Optional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter reason for leaving" {...field} />
-                      </FormControl>
+                    <FormItem className="flex flex-col">
+                      <FormLabel>End Date {!form.watch("isActive") && <span className="text-red-500">*</span>}</FormLabel>
+                      {form.watch("isActive") ? (
+                        <div className="text-sm text-muted-foreground">Not applicable for current employment</div>
+                      ) : (
+                        <DatePicker 
+                          date={field.value} 
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            form.trigger("leavingDate");
+                          }}
+                        />
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -485,7 +664,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                         Adding...
                       </>
                     ) : (
-                      "Add Employment"
+                      "Add Employment Record"
                     )}
                   </Button>
                 </DialogFooter>
@@ -520,7 +699,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   <TableHead>
                     <div className="flex items-center gap-2">
                       <Briefcase className="h-4 w-4" />
-                      Designation
+                      Job Role
                     </div>
                   </TableHead>
                   <TableHead>
@@ -532,19 +711,13 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   <TableHead>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Joining Date
-                    </div>
-                  </TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Leaving Date
+                      Start Date
                     </div>
                   </TableHead>
                   <TableHead>
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4" />
-                      Salary
+                      Monthly Salary
                     </div>
                   </TableHead>
                   <TableHead>Status</TableHead>
@@ -558,45 +731,60 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     <TableCell>{history.designationName}</TableCell>
                     <TableCell>{history.departmentName}</TableCell>
                     <TableCell>{history.joiningDate}</TableCell>
-                    <TableCell>{history.leavingDate || "-"}</TableCell>
                     <TableCell>₹{history.salary?.toLocaleString() || "-"}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={history.status === "ACTIVE" ? "default" : "secondary"}
+                        variant={history.status === Status.ACTIVE ? "default" : "secondary"}
                         className="flex items-center gap-1 w-fit"
                       >
-                        {history.status === "ACTIVE" ? (
+                        {history.status === Status.ACTIVE ? (
                           <CheckCircle className="h-3 w-3" />
                         ) : (
                           <XCircle className="h-3 w-3" />
                         )}
-                        {history.status === "ACTIVE" ? "Current" : "Previous"}
+                        {history.status === Status.ACTIVE ? "Current" : "Previous"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(history)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditClick(history)}
+                          title="Edit employment details"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        {history.status === "ACTIVE" && (
+                        {history.status === Status.ACTIVE && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="End current employment"
+                              >
                                 <XCircle className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Close Employment</AlertDialogTitle>
+                                <AlertDialogTitle>End Current Employment</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to close this employment? This will set the leaving date to
-                                  today and mark it as inactive.
+                                  Are you sure you want to end this employment? This will:
+                                  <ul className="list-disc list-inside mt-2">
+                                    <li>Mark this employment as inactive</li>
+                                    <li>Set today as the leaving date</li>
+                                    <li>Allow you to add a new employment record</li>
+                                  </ul>
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleCloseEmployment(history.id || "")}>
-                                  Close Employment
+                                <AlertDialogAction
+                                  onClick={() => handleCloseEmployment(history.id || "")}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  End Employment
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -617,7 +805,11 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Employment History</DialogTitle>
-            <DialogDescription>Update employment record for this employee.</DialogDescription>
+            <DialogDescription>
+              {selectedHistory?.status === Status.ACTIVE
+                ? "Update current employment details. Note: Making this inactive will end the current employment."
+                : "Update previous employment details."}
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleUpdateEmploymentHistory)} className="space-y-4">
@@ -721,7 +913,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   name="joiningDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Joining Date</FormLabel>
+                      <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
                       <DatePicker date={field.value} onSelect={field.onChange} />
                       <FormMessage />
                     </FormItem>
@@ -733,8 +925,18 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   name="leavingDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Leaving Date (Optional)</FormLabel>
-                      <DatePicker date={field.value ?? null} onSelect={field.onChange} />
+                      <FormLabel>End Date {!form.watch("isActive") && <span className="text-red-500">*</span>}</FormLabel>
+                      {form.watch("isActive") ? (
+                        <div className="text-sm text-muted-foreground">Not applicable for current employment</div>
+                      ) : (
+                        <DatePicker 
+                          date={field.value} 
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            form.trigger("leavingDate");
+                          }}
+                        />
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -747,26 +949,27 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                     <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          if (!checked) {
+                            // When making inactive, set leaving date to today if not set
+                            const leavingDate = form.getValues("leavingDate") || new Date();
+                            form.setValue("leavingDate", leavingDate);
+                          }
+                        }}
+                        disabled={!canMakeActive(selectedHistory!)}
+                      />
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel>Current Employment</FormLabel>
-                      <p className="text-sm text-muted-foreground">Check if this is the current active employment</p>
+                      <p className="text-sm text-muted-foreground">
+                        {!canMakeActive(selectedHistory!)
+                          ? "Cannot make this employment active while another employment is active."
+                          : "Check if this is the current active employment. Only one employment can be active at a time."}
+                      </p>
                     </div>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="reason"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Reason for Leaving (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter reason for leaving" {...field} />
-                    </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />

@@ -1,6 +1,6 @@
 "use client"
 import { format } from "date-fns"
-import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { useState } from "react"
 
 import { cn } from "@/lib/utils"
@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface DatePickerProps {
-  date: Date | null
+  date?: Date | null
   onSelect: (date: Date | null) => void
   className?: string
   yearRange?: { from: number; to: number }
@@ -23,6 +23,7 @@ export function DatePicker({
   yearRange = { from: 1900, to: 2100 }
 }: DatePickerProps) {
   const [currentMonth, setCurrentMonth] = useState(date || new Date())
+  const [open, setOpen] = useState(false)
 
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -57,7 +58,7 @@ export function DatePicker({
   }
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant={"outline"}
@@ -68,7 +69,16 @@ export function DatePicker({
           )}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "dd-MM-yyyy") : <span>Pick a date</span>}
+          {date ? format(date, "PPP") : <span>Pick a date</span>}
+          {date && (
+            <X
+              className="ml-auto h-4 w-4"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect(null)
+              }}
+            />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -111,7 +121,10 @@ export function DatePicker({
         <Calendar
           mode="single"
           selected={date || undefined}
-          onSelect={handleDateSelect}
+          onSelect={(date) => {
+            onSelect(date || null)
+            setOpen(false)
+          }}
           month={currentMonth}
           onMonthChange={setCurrentMonth}
           initialFocus

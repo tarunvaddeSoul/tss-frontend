@@ -257,25 +257,24 @@ export interface Companies {
 }
 
 export interface EmployeeFormValues {
-  title: EmployeeTitle | ""
+  title: string
   firstName: string
   lastName: string
-  mobileNumber: string
-  currentCompanyId?: string
   currentCompanyDesignationId?: string
   currentCompanyDepartmentId?: string
-  currentCompanySalary?: number
-  currentCompanyJoiningDate?: Date | string
+  currentCompanyJoiningDate?: string
+  mobileNumber: string
+  currentCompanyId?: string
   recruitedBy: string
-  gender: Gender | ""
+  gender: string
+  status: string
   fatherName: string
   motherName: string
-  husbandName: string | null
-  category: Category | ""
-  status: Status | ""
-  dateOfBirth: Date
-  employeeOnboardingDate: Date
-  highestEducationQualification: EducationQualification | ""
+  husbandName?: string
+  category: string
+  dateOfBirth: string
+  employeeOnboardingDate: string
+  highestEducationQualification: string
   bloodGroup: string
   permanentAddress: string
   presentAddress: string
@@ -293,19 +292,19 @@ export interface EmployeeFormValues {
   pfUanNumber: string
   esicNumber: string
   policeVerificationNumber: string
-  policeVerificationDate: Date
+  policeVerificationDate: string
   trainingCertificateNumber: string
-  trainingCertificateDate: Date
+  trainingCertificateDate: string
   medicalCertificateNumber: string
-  medicalCertificateDate: Date
-  photo: File | null | undefined | string
-  aadhaar: File | null | undefined | string
-  panCard: File | null | undefined | string
-  bankPassbook: File | null | undefined | string
-  markSheet: File | null | undefined | string
-  otherDocument: File | null | undefined | string
+  medicalCertificateDate: string
+  photo?: File | null
+  aadhaar?: File | null
+  panCard?: File | null
+  bankPassbook?: File | null
+  markSheet?: File | null
+  otherDocument?: File | null
   otherDocumentRemarks?: string
-  // salary: number;
+  currentCompanySalary?: number
   aadhaarNumber: string
 }
 

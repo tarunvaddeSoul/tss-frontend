@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
@@ -59,6 +60,10 @@ const navItems: NavItem[] = [
         title: "Add Employee",
         href: "/employees/add",
       },
+      {
+        title: 'Advanced Search',
+        href: '/employees/advanced-search'
+      }
     ],
   },
   {
@@ -191,12 +196,26 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex items-center h-16 px-4 border-b">
           {!collapsed ? (
             <div className="flex items-center gap-2 flex-1">
-              <Shield className="h-8 w-8 text-primary" />
-              <span className="font-bold text-xl">TSS</span>
+              <Image
+                src="/tss-logo.png"
+                alt="TSS Logo"
+                width={56}
+                height={56}
+                className="h-8 w-8 object-contain"
+                priority
+              />
+              <span className="font-bold text-xl">Tulsyan</span>
             </div>
           ) : (
             <div className="flex justify-center w-full">
-              <Shield className="h-8 w-8 text-primary" />
+              <Image
+                src="/tss-logo.png"
+                alt="TSS Logo"
+                width={56}
+                height={56}
+                className="h-8 w-8 object-contain"
+                priority
+              />
             </div>
           )}
 

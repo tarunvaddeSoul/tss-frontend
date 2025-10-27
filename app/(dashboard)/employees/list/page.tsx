@@ -4,12 +4,32 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, Edit, Search, Trash, Download, Plus } from "lucide-react"
+import { format } from "date-fns"
+import { toast } from "sonner"
+import {
+  MoreHorizontal,
+  Plus,
+  Search,
+  User,
+  Building,
+  Briefcase,
+  Users,
+  Mail,
+  Phone,
+  Calendar,
+  ArrowUpDown,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Download,
+  Edit,
+  Eye,
+  Trash,
+} from "lucide-react"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import { companyService } from "@/services/companyService"
-import { pdf } from "@react-pdf/renderer"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,11 +46,13 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Employee, EmployeeSearchParams } from "@/types/employee"
+import { Employee, EmployeeSearchParams, IEmployeeEmploymentHistory } from "@/types/employee"
 import { Company } from "@/types/company"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import EmployeeViewPDF from "@/components/employees/employee-view-pdf"
+// import { EmployeeViewPDF } from "@/components/employees/employee-view-pdf"
+// import { PDFViewer } from "@/components/pdf-viewer"
+
 interface Designation {
   id: string
   name: string
@@ -139,6 +161,13 @@ export default function EmployeeListPage() {
 
     try {
       setPdfLoading(true)
+      
+      // Dynamically import both pdf and the component
+      const [{ pdf }, { default: EmployeeViewPDF }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/employees/employee-view-pdf"),
+      ])
+
       // Generate PDF
       const blob = await pdf(<EmployeeViewPDF employee={selectedEmployee} />).toBlob()
       const url = URL.createObjectURL(blob)
@@ -361,21 +390,21 @@ export default function EmployeeListPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories[0]?.designationName || "N/A"}
+                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories[0]?.departmentName || "N/A"}
+                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories[0]?.companyName || "N/A"}
+                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
@@ -447,15 +476,15 @@ export default function EmployeeListPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Designation</p>
-                    <p>{selectedEmployee.employmentHistories[0]?.designationName || "N/A"}</p>
+                    <p>{selectedEmployee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "N/A"}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Department</p>
-                    <p>{selectedEmployee.employmentHistories[0]?.departmentName || "N/A"}</p>
+                    <p>{selectedEmployee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "N/A"}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Company</p>
-                    <p>{selectedEmployee.employmentHistories[0]?.companyName || "N/A"}</p>
+                    <p>{selectedEmployee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "N/A"}</p>
                   </div>
                   {selectedEmployee.contactDetails?.mobileNumber && (
                     <div className="space-y-2">

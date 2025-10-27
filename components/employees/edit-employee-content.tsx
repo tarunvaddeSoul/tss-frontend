@@ -304,22 +304,30 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Company:</span>
-                  <span className="font-medium">{employee.companyName || "Not assigned"}</span>
+                  <span className="font-medium">
+                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "Not assigned"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Department:</span>
-                  <span className="font-medium">{employee.employeeDepartmentName || "Not assigned"}</span>
+                  <span className="font-medium">
+                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "Not assigned"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Joining Date:</span>
-                  <span className="font-medium">{employee.dateOfJoining || "Not specified"}</span>
+                  <span className="font-medium">
+                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.joiningDate || "Not specified"}
+                  </span>
                 </div>
-                {employee.salary && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Salary:</span>
-                    <span className="font-medium">₹{employee.salary.toLocaleString()}</span>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Salary:</span>
+                  <span className="font-medium">
+                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.salary 
+                      ? `₹${employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.salary.toLocaleString()}`
+                      : "Not specified"}
+                  </span>
+                </div>
               </div>
             </CardContent>
           </Card>

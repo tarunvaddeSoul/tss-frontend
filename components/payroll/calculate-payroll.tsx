@@ -67,6 +67,7 @@ export default function CalculatePayroll() {
     useEffect(() => {
         console.log("Current step:", currentStep)
         console.log("Admin input fields:", adminInputFields)
+        console.log(calculationResult)
     }, [currentStep, adminInputFields])
 
     const updateStepStatus = (stepId: number, completed: boolean, current: boolean) => {
@@ -91,6 +92,7 @@ export default function CalculatePayroll() {
             await fetchCompanyDetails(selectedCompanyId)
             // Fetch employees for the selected company
             const employeesResponse = await companyService.getCompanyEmployees(selectedCompanyId)
+            console.log(employeesResponse.data)
             setEmployees(employeesResponse.data)
             setCurrentStep(2)
             updateStepStatus(2, false, true)
@@ -372,7 +374,9 @@ export default function CalculatePayroll() {
                         </Alert>
 
                         <div className="space-y-6">
-                            {employees.map((employee) => (
+                            {employees
+                                .filter(employee => employee.status === "ACTIVE")
+                                .map((employee) => (
                                 <div key={employee.id} className="border rounded-lg p-4">
                                     <div className="flex items-center justify-between mb-4">
                                         <div>

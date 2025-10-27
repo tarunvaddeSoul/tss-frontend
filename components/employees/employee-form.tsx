@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Upload } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,11 +32,11 @@ const employeeFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  currentCompanyDesignationId: z.string().min(1, "Designation is required"),
-  currentCompanyDepartmentId: z.string().min(1, "Department is required"),
-  currentCompanyJoiningDate: z.date(),
+  currentCompanyDesignationId: z.string().optional(),
+  currentCompanyDepartmentId: z.string().optional(),
+  currentCompanyJoiningDate: z.date().optional(),
   mobileNumber: z.string().regex(/^\d{10}$/, "Invalid mobile number"),
-  currentCompanyId: z.string().min(1, "Company is required"),
+  currentCompanyId: z.string().optional(),
   recruitedBy: z.string().min(1, "Recruiter name is required"),
   gender: z.string().min(1, "Gender is required"),
   status: z.string().default("ACTIVE"),
@@ -74,9 +76,22 @@ const employeeFormSchema = z.object({
   markSheet: z.any().optional(),
   otherDocument: z.any().optional(),
   otherDocumentRemarks: z.string().optional(),
-  currentCompanySalary: z.number().min(1, "Salary must be greater than 0"),
+  currentCompanySalary: z.number().optional(),
   aadhaarNumber: z.string().regex(/^\d{12}$/, "Invalid Aadhaar number"),
 })
+
+// Add date formatting utility
+const formatDateToDDMMYYYY = (date: Date) => {
+  return format(date, "dd-MM-yyyy")
+}
+
+const parseDateFromDDMMYYYY = (dateString: string) => {
+  const [day, month, year] = dateString.split("-").map(Number)
+  return new Date(year, month - 1, day)
+}
+
+// Add localStorage key constant
+const FORM_STORAGE_KEY = "employee_form_data"
 
 export function EmployeeForm({
   initialValues,
@@ -87,6 +102,7 @@ export function EmployeeForm({
   isLoading = false,
   onChange,
 }: EmployeeFormProps) {
+  const { toast } = useToast()
   const [gender, setGender] = useState(initialValues?.gender || "")
   const [sameAsPermanent, setSameAsPermanent] = useState(false)
 
@@ -156,6 +172,55 @@ export function EmployeeForm({
     },
   })
 
+  // Load saved form data on component mount
+  useEffect(() => {
+    const savedFormData = localStorage.getItem(FORM_STORAGE_KEY)
+    if (savedFormData) {
+      try {
+        const parsedData = JSON.parse(savedFormData)
+        // Convert string dates back to Date objects
+        const formDataWithDates = {
+          ...parsedData,
+          dateOfBirth: parsedData.dateOfBirth ? new Date(parsedData.dateOfBirth) : new Date(),
+          employeeOnboardingDate: parsedData.employeeOnboardingDate ? new Date(parsedData.employeeOnboardingDate) : new Date(),
+          policeVerificationDate: parsedData.policeVerificationDate ? new Date(parsedData.policeVerificationDate) : new Date(),
+          trainingCertificateDate: parsedData.trainingCertificateDate ? new Date(parsedData.trainingCertificateDate) : new Date(),
+          medicalCertificateDate: parsedData.medicalCertificateDate ? new Date(parsedData.medicalCertificateDate) : new Date(),
+          currentCompanyJoiningDate: parsedData.currentCompanyJoiningDate ? new Date(parsedData.currentCompanyJoiningDate) : new Date(),
+        }
+        form.reset(formDataWithDates)
+        setGender(formDataWithDates.gender)
+        setSameAsPermanent(formDataWithDates.presentAddress === formDataWithDates.permanentAddress)
+        
+        toast({
+          title: "Form Data Restored",
+          description: "Your previous form data has been restored.",
+        })
+      } catch (error) {
+        console.error("Error restoring form data:", error)
+        localStorage.removeItem(FORM_STORAGE_KEY)
+      }
+    }
+  }, [])
+
+  // Save form data as user types
+  useEffect(() => {
+    const subscription = form.watch((value) => {
+      // Don't save file inputs
+      const formDataToSave = {
+        ...value,
+        photo: null,
+        aadhaar: null,
+        panCard: null,
+        bankPassbook: null,
+        markSheet: null,
+        otherDocument: null,
+      }
+      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formDataToSave))
+    })
+    return () => subscription.unsubscribe()
+  }, [form])
+
   useEffect(() => {
     const subscription = form.watch(() => {
       onChange?.()
@@ -164,8 +229,50 @@ export function EmployeeForm({
   }, [form, onChange])
 
   // Handle form submission
-  const handleFormSubmit = (values: z.infer<typeof employeeFormSchema>) => {
-    onSubmit(values as EmployeeFormValues)
+  const handleFormSubmit = async (values: z.infer<typeof employeeFormSchema>) => {
+    try {
+      // Format dates to DD-MM-YYYY
+      const formattedValues = {
+        ...values,
+        dateOfBirth: formatDateToDDMMYYYY(values.dateOfBirth),
+        employeeOnboardingDate: formatDateToDDMMYYYY(values.employeeOnboardingDate),
+        policeVerificationDate: formatDateToDDMMYYYY(values.policeVerificationDate),
+        trainingCertificateDate: formatDateToDDMMYYYY(values.trainingCertificateDate),
+        medicalCertificateDate: formatDateToDDMMYYYY(values.medicalCertificateDate),
+        currentCompanyJoiningDate: values.currentCompanyJoiningDate 
+          ? formatDateToDDMMYYYY(values.currentCompanyJoiningDate)
+          : undefined,
+      }
+
+      await onSubmit(formattedValues as unknown as EmployeeFormValues)
+      
+      // Clear saved form data on successful submission
+      localStorage.removeItem(FORM_STORAGE_KEY)
+      
+      toast({
+        title: "Success",
+        description: "Employee details saved successfully",
+      })
+    } catch (error) {
+      console.error("Form submission error:", error)
+      
+      // Handle different types of errors
+      let errorMessage = "Failed to save employee details. Please try again."
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'string') {
+        errorMessage = error
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String(error.message)
+      }
+
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      })
+    }
   }
 
   // Handle same as permanent address checkbox
@@ -227,7 +334,7 @@ export function EmployeeForm({
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -251,7 +358,7 @@ export function EmployeeForm({
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name</FormLabel>
+                    <FormLabel>First Name <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter first name" {...field} />
                     </FormControl>
@@ -264,7 +371,7 @@ export function EmployeeForm({
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name</FormLabel>
+                    <FormLabel>Last Name <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter last name" {...field} />
                     </FormControl>
@@ -277,7 +384,7 @@ export function EmployeeForm({
                 name="dateOfBirth"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Date of Birth</FormLabel>
+                    <FormLabel>Date of Birth <span className="text-red-500">*</span></FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
@@ -288,7 +395,7 @@ export function EmployeeForm({
                 name="gender"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gender</FormLabel>
+                    <FormLabel>Gender <span className="text-red-500">*</span></FormLabel>
                     <Select onValueChange={(value) => handleGenderChange(value)} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -312,7 +419,7 @@ export function EmployeeForm({
                 name="fatherName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Father's Name</FormLabel>
+                    <FormLabel>Father's Name <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter father's name" {...field} />
                     </FormControl>
@@ -325,7 +432,7 @@ export function EmployeeForm({
                 name="motherName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mother's Name</FormLabel>
+                    <FormLabel>Mother's Name <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter mother's name" {...field} />
                     </FormControl>
@@ -353,7 +460,7 @@ export function EmployeeForm({
                 name="bloodGroup"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Blood Group</FormLabel>
+                    <FormLabel>Blood Group <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter blood group" {...field} />
                     </FormControl>
@@ -366,7 +473,7 @@ export function EmployeeForm({
                 name="employeeOnboardingDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Employee Onboarding Date</FormLabel>
+                    <FormLabel>Employee Onboarding Date <span className="text-red-500">*</span></FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
@@ -377,7 +484,7 @@ export function EmployeeForm({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
+                    <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -401,7 +508,7 @@ export function EmployeeForm({
                 name="recruitedBy"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Recruited By</FormLabel>
+                    <FormLabel>Recruited By <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter recruiter name" {...field} />
                     </FormControl>
@@ -414,7 +521,7 @@ export function EmployeeForm({
                 name="highestEducationQualification"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Highest Education Qualification</FormLabel>
+                    <FormLabel>Highest Education Qualification <span className="text-red-500">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -438,7 +545,7 @@ export function EmployeeForm({
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel>Category <span className="text-red-500">*</span></FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -472,7 +579,7 @@ export function EmployeeForm({
                 name="mobileNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobile Number</FormLabel>
+                    <FormLabel>Mobile Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter mobile number" {...field} />
                     </FormControl>
@@ -485,7 +592,7 @@ export function EmployeeForm({
                 name="aadhaarNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Aadhaar Number</FormLabel>
+                    <FormLabel>Aadhaar Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter Aadhaar number" {...field} />
                     </FormControl>
@@ -499,7 +606,7 @@ export function EmployeeForm({
               name="permanentAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Permanent Address</FormLabel>
+                  <FormLabel>Permanent Address <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter permanent address" {...field} />
                   </FormControl>
@@ -521,7 +628,7 @@ export function EmployeeForm({
               name="presentAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Present Address</FormLabel>
+                  <FormLabel>Present Address <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter present address" {...field} disabled={sameAsPermanent} />
                   </FormControl>
@@ -535,7 +642,7 @@ export function EmployeeForm({
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>City <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter city" {...field} />
                     </FormControl>
@@ -548,7 +655,7 @@ export function EmployeeForm({
                 name="district"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>District</FormLabel>
+                    <FormLabel>District <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter district" {...field} />
                     </FormControl>
@@ -561,7 +668,7 @@ export function EmployeeForm({
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>State</FormLabel>
+                    <FormLabel>State <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter state" {...field} />
                     </FormControl>
@@ -574,7 +681,7 @@ export function EmployeeForm({
                 name="pincode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pincode</FormLabel>
+                    <FormLabel>Pincode <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -591,6 +698,7 @@ export function EmployeeForm({
           </CardContent>
         </Card>
 
+        {/* Commenting out Employment Details section for now
         <Card>
           <CardHeader>
             <CardTitle>Employment Details</CardTitle>
@@ -701,6 +809,7 @@ export function EmployeeForm({
             </div>
           </CardContent>
         </Card>
+        */}
 
         <Card>
           <CardHeader>
@@ -713,7 +822,7 @@ export function EmployeeForm({
                 name="bankAccountNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank Account Number</FormLabel>
+                    <FormLabel>Bank Account Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank account number" {...field} />
                     </FormControl>
@@ -726,7 +835,7 @@ export function EmployeeForm({
                 name="ifscCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>IFSC Code</FormLabel>
+                    <FormLabel>IFSC Code <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter IFSC code" {...field} />
                     </FormControl>
@@ -739,7 +848,7 @@ export function EmployeeForm({
                 name="bankName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank Name</FormLabel>
+                    <FormLabel>Bank Name <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank name" {...field} />
                     </FormControl>
@@ -752,7 +861,7 @@ export function EmployeeForm({
                 name="bankCity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank City</FormLabel>
+                    <FormLabel>Bank City <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank city" {...field} />
                     </FormControl>
@@ -775,7 +884,7 @@ export function EmployeeForm({
                 name="pfUanNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>PF UAN Number</FormLabel>
+                    <FormLabel>PF UAN Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter PF UAN number" {...field} />
                     </FormControl>
@@ -788,7 +897,7 @@ export function EmployeeForm({
                 name="esicNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ESIC Number</FormLabel>
+                    <FormLabel>ESIC Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter ESIC number" {...field} />
                     </FormControl>
@@ -801,7 +910,7 @@ export function EmployeeForm({
                 name="policeVerificationNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Police Verification Number</FormLabel>
+                    <FormLabel>Police Verification Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter police verification number" {...field} />
                     </FormControl>
@@ -814,7 +923,7 @@ export function EmployeeForm({
                 name="policeVerificationDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Police Verification Date</FormLabel>
+                    <FormLabel>Police Verification Date <span className="text-red-500">*</span></FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
@@ -825,7 +934,7 @@ export function EmployeeForm({
                 name="trainingCertificateNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Training Certificate Number</FormLabel>
+                    <FormLabel>Training Certificate Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter training certificate number" {...field} />
                     </FormControl>
@@ -838,7 +947,7 @@ export function EmployeeForm({
                 name="trainingCertificateDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Training Certificate Date</FormLabel>
+                    <FormLabel>Training Certificate Date <span className="text-red-500">*</span></FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
@@ -849,7 +958,7 @@ export function EmployeeForm({
                 name="medicalCertificateNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Medical Certificate Number</FormLabel>
+                    <FormLabel>Medical Certificate Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter medical certificate number" {...field} />
                     </FormControl>
@@ -862,7 +971,7 @@ export function EmployeeForm({
                 name="medicalCertificateDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Medical Certificate Date</FormLabel>
+                    <FormLabel>Medical Certificate Date <span className="text-red-500">*</span></FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormMessage />
                   </FormItem>
@@ -883,7 +992,7 @@ export function EmployeeForm({
                 name="referenceName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Name</FormLabel>
+                    <FormLabel>Reference Name <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference name" {...field} />
                     </FormControl>
@@ -896,7 +1005,7 @@ export function EmployeeForm({
                 name="referenceAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Address</FormLabel>
+                    <FormLabel>Reference Address <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference address" {...field} />
                     </FormControl>
@@ -909,7 +1018,7 @@ export function EmployeeForm({
                 name="referenceNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Number</FormLabel>
+                    <FormLabel>Reference Number <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference number" {...field} />
                     </FormControl>

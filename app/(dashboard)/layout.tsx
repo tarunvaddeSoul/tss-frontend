@@ -27,16 +27,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
-      {/* Craze-style contained border */}
-      <div className="craze-border-container-fullscreen">
-        <div className="flex h-screen overflow-hidden bg-card rounded-2xl">
-          <Sidebar />
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <Header />
-            <main className="flex-1 overflow-auto p-6">{children}</main>
-          </div>
-        </div>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>
     </div>
   )

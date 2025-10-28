@@ -4,61 +4,91 @@
 
 @layer base {
   :root {
-    /* Main brand colors */
-    --background: 210 40% 97%; /* subtle blue tint */
-    --foreground: 224 71% 4%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
-    --primary: 215 68% 24%; /* deep blue */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 9% 46%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 200 100% 60%; /* vibrant blue-cyan accent */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 74% 42%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 142 71% 45%; /* green */
-    --success-foreground: 210 40% 98%;
-    --warning: 48 100% 67%; /* yellow */
-    --warning-foreground: 224 71% 4%;
-    --info: 200 100% 60%; /* cyan/blue */
-    --info-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 215 68% 24%;
+    /* Tulsyan Security Solutions Brand Colors */
+    /* Primary - Security Red */
+    --primary: 358 70% 42%; /* #B42025 */
+    --primary-foreground: 0 0% 100%; /* White on primary */
+    --primary-dark: 358 69% 33%; /* #8C1A1D */
+    --primary-light: 358 61% 57%; /* #D94B4F */
+    
+    /* Secondary - Steel Charcoal */
+    --secondary: 240 3% 17%; /* #2B2B2D */
+    --secondary-foreground: 0 0% 100%; /* White on secondary */
+    --secondary-light: 240 2% 37%; /* #5C5C5F */
+    
+    /* Base Colors */
+    --background: 240 8% 98%; /* Slightly off-white for better contrast */
+    --foreground: 240 3% 17%; /* #2B2B2D */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 240 3% 17%; /* #2B2B2D */
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 240 3% 17%; /* #2B2B2D */
+    
+    /* Surface & Muted */
+    --surface: 240 4% 95%; /* Slightly darker for better visibility */
+    --muted: 240 4% 95%; /* Slightly darker for better visibility */
+    --muted-foreground: 240 2% 37%; /* #5C5C5F */
+    
+    /* Accent */
+    --accent: 358 70% 42%; /* Match primary */
+    --accent-foreground: 0 0% 100%;
+    
+    /* Status Colors */
+    --success: 139 63% 33%; /* #1F8A3E */
+    --success-foreground: 0 0% 100%;
+    --warning: 41 100% 45%; /* #E6A100 */
+    --warning-foreground: 240 3% 17%;
+    --info: 218 83% 56%; /* #2F80ED */
+    --info-foreground: 0 0% 100%;
+    --destructive: 0 66% 47%; /* #C62828 */
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders & Inputs */
+    --border: 240 5% 90%; /* More visible borders */
+    --input: 240 5% 90%; /* More visible inputs */
+    --ring: 358 70% 42%; /* Match primary */
+    
+    /* Border Radius */
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 224 30% 12%;
-    --foreground: 210 40% 98%;
-    --card: 224 30% 16%;
-    --card-foreground: 210 40% 98%;
-    --popover: 224 30% 12%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 215 60% 50%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 215 25% 27%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 215 30% 22%;
-    --muted-foreground: 215 20.2% 75%;
-    --accent: 200 100% 60%; /* keep accent consistent */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 72% 45%;
-    --destructive-foreground: 210 40% 98%;
-    --success: 142 71% 45%;
-    --success-foreground: 210 40% 98%;
-    --warning: 48 100% 67%;
-    --warning-foreground: 210 40% 98%;
-    --info: 200 100% 60%;
-    --info-foreground: 210 40% 98%;
-    --border: 215 28% 25%;
-    --input: 215 28% 25%;
-    --ring: 215 60% 50%;
+    /* Dark Mode - Inverted for security theme */
+    --primary: 358 60% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 358 70% 42%; /* Original primary */
+    --primary-light: 358 55% 65%;
+    
+    --secondary: 240 2% 37%; /* Lighter secondary */
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 240 3% 60%;
+    
+    --background: 240 3% 12%; /* Dark background */
+    --foreground: 0 0% 98%;
+    --card: 240 3% 16%; /* Dark card */
+    --card-foreground: 0 0% 98%;
+    --popover: 240 3% 12%;
+    --popover-foreground: 0 0% 98%;
+    
+    --surface: 240 3% 10%;
+    --muted: 240 3% 10%;
+    --muted-foreground: 240 2% 60%;
+    
+    --accent: 358 60% 50%;
+    --accent-foreground: 0 0% 100%;
+    
+    --success: 139 60% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 41 90% 55%;
+    --warning-foreground: 240 3% 12%;
+    --info: 218 75% 60%;
+    --info-foreground: 0 0% 100%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 240 3% 20%;
+    --input: 240 3% 20%;
+    --ring: 358 60% 50%;
   }
 }
 
@@ -73,39 +103,82 @@
   }
 
   html {
-    font-size: 15px;
+    font-size: 16px;
   }
+  
+  /* Better readability with larger text */
+  body {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  
+  /* Larger heading sizes */
+  h1 { font-size: 2.5rem; font-weight: 700; }
+  h2 { font-size: 2rem; font-weight: 600; }
+  h3 { font-size: 1.75rem; font-weight: 600; }
+  h4 { font-size: 1.5rem; font-weight: 600; }
+  h5 { font-size: 1.25rem; font-weight: 500; }
+  h6 { font-size: 1.125rem; font-weight: 500; }
 }
 
 @layer utilities {
+  /* Glass Effect - Security theme */
   .glass-effect {
-    @apply bg-background/80 backdrop-blur-lg border border-white/10;
+    @apply bg-background/95 backdrop-blur-md border border-border/50 shadow-sm;
   }
 
+  /* Brand Gradient Text */
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-info;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary-light to-primary;
   }
 
+  /* Security Red Gradient Border */
   .gradient-border {
     @apply relative;
     &::before {
       content: "";
-      @apply absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-r from-primary to-accent -z-10;
+      @apply absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-r from-primary via-primary-light to-primary -z-10;
     }
   }
 
-  .gradient-bg {
-    @apply bg-gradient-to-r from-primary/20 via-accent/20 to-info/20;
+    /* Subtle Brand Background */
+    .gradient-bg {
+      @apply bg-gradient-to-br from-surface via-background to-surface;
+    }
+
+  /* Security Card Effect */
+  .security-card {
+    @apply bg-card border-2 border-border/60 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:border-primary/30;
+    background-color: hsl(var(--card));
   }
 
+  /* Oval Gradient Background */
   .oval-gradient {
     @apply relative overflow-hidden;
     &::before {
       content: "";
-      @apply absolute inset-0 bg-gradient-to-r from-primary/30 to-accent/30 rounded-[60%] blur-3xl -z-10;
+      @apply absolute inset-0 bg-gradient-to-r from-primary/20 to-primary-light/20 rounded-[60%] blur-3xl -z-10;
     }
   }
 
+  /* Status Badge Utilities */
+  .badge-success {
+    @apply text-success bg-success/10 border border-success/20;
+  }
+  
+  .badge-warning {
+    @apply text-warning bg-warning/10 border border-warning/20;
+  }
+  
+  .badge-info {
+    @apply text-info bg-info/10 border border-info/20;
+  }
+  
+  .badge-danger {
+    @apply text-destructive bg-destructive/10 border border-destructive/20;
+  }
+
+  /* Legacy support */
   .success {
     color: hsl(var(--success));
     background: hsl(var(--success) / 0.1);

@@ -12,6 +12,8 @@ import type {
   ApiResponse,
 } from "@/types/auth"
 import { getErrorMessage } from "./api"
+import { setTokens, clearTokens } from "./token"
+import { AxiosError } from "axios"
 
 // API endpoints configuration
 const AUTH_ENDPOINTS = {
@@ -32,17 +34,13 @@ const authService = {
       const response = await api.post<AuthAPIResponse>(AUTH_ENDPOINTS.LOGIN, credentials)
 
       // Store the tokens in localStorage
-      if (response.data.data.tokens.accessToken) {
-        localStorage.setItem("accessToken", response.data.data.tokens.accessToken)
-      }
-
-      if (response.data.data.tokens.refreshToken) {
-        localStorage.setItem("refreshToken", response.data.data.tokens.refreshToken)
-      }
-
+      setTokens(response.data.data.tokens.accessToken, response.data.data.tokens.refreshToken)
+      console.log('Login response:', response.data)
       return response.data
     } catch (error) {
-      throw new Error(getErrorMessage(error))
+      console.log('Login error:', JSON.stringify((error as AxiosError).response?.data, null, 2))
+      // Pass original axios error with response data
+      throw error
     }
   },
 
@@ -51,13 +49,7 @@ const authService = {
       const response = await api.post<AuthAPIResponse>(AUTH_ENDPOINTS.SIGNUP, credentials)
 
       // Store the tokens in localStorage
-      if (response.data.data.tokens.accessToken) {
-        localStorage.setItem("accessToken", response.data.data.tokens.accessToken)
-      }
-
-      if (response.data.data.tokens.refreshToken) {
-        localStorage.setItem("refreshToken", response.data.data.tokens.refreshToken)
-      }
+      setTokens(response.data.data.tokens.accessToken, response.data.data.tokens.refreshToken)
 
       return response.data
     } catch (error) {
@@ -77,8 +69,7 @@ const authService = {
       // Continue with logout even if the API call fails
     } finally {
       // Always remove the tokens from localStorage
-      localStorage.removeItem("accessToken")
-      localStorage.removeItem("refreshToken")
+      clearTokens()
     }
 
     return Promise.resolve()
@@ -140,6 +131,7 @@ const authService = {
   },
 
   isAuthenticated(): boolean {
+    if (typeof window === "undefined") return false
     return !!localStorage.getItem("accessToken")
   },
 }

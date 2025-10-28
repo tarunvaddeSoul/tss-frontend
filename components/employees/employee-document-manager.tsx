@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Eye, Download, Upload, X, FileText, ImageIcon } from "lucide-react"
+import { Eye, Download, Upload, X, FileText, ImageIcon, AlertCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,17 @@ import {
 } from "@/components/ui/dialog"
 import { employeeService } from "@/services/employeeService"
 import type { IEmployeeDocumentUploads, UpdateEmployeeDocumentUploadsDto } from "@/types/employee"
+
+// File validation constants
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif"]
+const ALLOWED_DOCUMENT_TYPES = ["application/pdf"]
+const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES]
+
+interface FileValidationResult {
+  isValid: boolean
+  error?: string
+}
 
 interface EmployeeDocumentManagerProps {
   employeeId: string
@@ -50,6 +62,8 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
   const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: File | null }>({})
   const [otherDocumentRemarks, setOtherDocumentRemarks] = useState("")
   const [hasChanges, setHasChanges] = useState(false)
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null)
+  const [previewIsPDF, setPreviewIsPDF] = useState(false)
 
   // Load documents
   useEffect(() => {
@@ -70,8 +84,37 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
     }
   }
 
+  // Validate file
+  const validateFile = (file: File): FileValidationResult => {
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        isValid: false,
+        error: `File size exceeds ${MAX_FILE_SIZE / (1024 * 1024)}MB limit`,
+      }
+    }
+
+    // Check file type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return {
+        isValid: false,
+        error: "Invalid file type. Only images and PDF files are allowed",
+      }
+    }
+
+    return { isValid: true }
+  }
+
   // Handle file selection
   const handleFileSelect = (documentType: string, file: File | null) => {
+    if (file) {
+      const validation = validateFile(file)
+      if (!validation.isValid) {
+        toast.error(validation.error || "Invalid file")
+        return
+      }
+    }
+
     setSelectedFiles((prev) => ({
       ...prev,
       [documentType]: file,
@@ -111,15 +154,65 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
     }
   }
 
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl)
+      }
+    }
+  }, [previewBlobUrl])
+
   // Handle document preview
-  const handlePreview = (url: string, title: string) => {
+  const handlePreview = async (url: string, title: string) => {
     if (!url) {
       toast.error("Document not available")
       return
     }
-    setPreviewUrl(url)
-    setPreviewTitle(title)
-    setShowPreview(true)
+
+    try {
+      // Fetch the file to check its Content-Type
+      const response = await fetch(url)
+      if (!response.ok) {
+        toast.error("Failed to load document")
+        return
+      }
+
+      const blob = await response.blob()
+      const contentType = response.headers.get("Content-Type") || blob.type
+
+      // Check if it's a PDF based on Content-Type
+      const isPDF = contentType.includes("application/pdf") || contentType.includes("pdf")
+
+      if (isPDF) {
+        // For PDFs, use blob URL in iframe
+        const blobUrl = URL.createObjectURL(blob)
+        setPreviewBlobUrl(blobUrl)
+        setPreviewUrl(blobUrl)
+        setPreviewIsPDF(true)
+      } else {
+        // For images, use direct URL
+        setPreviewUrl(url)
+        setPreviewIsPDF(false)
+      }
+
+      setPreviewTitle(title)
+      setShowPreview(true)
+    } catch (error) {
+      console.error("Error loading document for preview:", error)
+      toast.error("Failed to load document preview")
+    }
+  }
+
+  const handleClosePreview = () => {
+    if (previewBlobUrl) {
+      URL.revokeObjectURL(previewBlobUrl)
+      setPreviewBlobUrl(null)
+    }
+    setShowPreview(false)
+    setPreviewUrl("")
+    setPreviewTitle("")
+    setPreviewIsPDF(false)
   }
 
   // Handle document download
@@ -191,6 +284,13 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>File Requirements</AlertTitle>
+            <AlertDescription>
+              Maximum file size: {MAX_FILE_SIZE / (1024 * 1024)}MB. Allowed formats: PDF, JPEG, PNG, GIF
+            </AlertDescription>
+          </Alert>
           {documentFields.map((field) => (
             <div key={field.key} className="space-y-3">
               <div className="flex items-center justify-between">
@@ -242,6 +342,9 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {getFileIcon(selectedFiles[field.key]!.name)}
                   <span>Selected: {selectedFiles[field.key]!.name}</span>
+                  <span className="text-xs">
+                    ({(selectedFiles[field.key]!.size / 1024).toFixed(2)} KB)
+                  </span>
                   <Button variant="ghost" size="sm" onClick={() => handleFileSelect(field.key, null)}>
                     <X className="h-3 w-3" />
                   </Button>
@@ -291,7 +394,7 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
       </Card>
 
       {/* Document Preview Dialog */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+      <Dialog open={showPreview} onOpenChange={handleClosePreview}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
@@ -310,9 +413,13 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
 
           <div className="flex-1 min-h-[60vh]">
             {previewUrl && (
-              <div className="w-full h-full flex items-center justify-center bg-muted rounded-lg">
-                {previewUrl.toLowerCase().includes(".pdf") || previewTitle.toLowerCase().includes("pdf") ? (
-                  <iframe src={previewUrl} className="w-full h-[60vh] border-0 rounded" title={previewTitle} />
+              <div className="w-full h-full flex items-center justify-center bg-muted rounded-lg p-4">
+                {previewIsPDF ? (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-[60vh] border rounded"
+                    title={previewTitle}
+                  />
                 ) : (
                   <img
                     src={previewUrl || "/placeholder.svg"}
@@ -325,7 +432,7 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
+            <Button variant="outline" onClick={handleClosePreview}>
               Close
             </Button>
           </DialogFooter>

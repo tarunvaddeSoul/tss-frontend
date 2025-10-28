@@ -1,4 +1,4 @@
-import api from "./api"
+import api, { getErrorMessage } from "./api"
 import { convertToCustomDateFormat } from "@/lib/utils"
 
 // Types will be imported from types/employee.ts
@@ -24,7 +24,7 @@ export const employeeService = {
       return response.data.data
     } catch (error) {
       console.error("Error fetching employees:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -35,7 +35,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching employee with ID ${id}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -68,7 +68,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error("Error creating employee:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -79,7 +79,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error updating employee with ID ${id}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -90,7 +90,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error deleting employee with ID ${id}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -101,7 +101,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error("Error deleting multiple employees:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -112,7 +112,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching contact details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -122,7 +122,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error updating contact details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -133,7 +133,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching bank details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -143,7 +143,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error updating bank details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -154,7 +154,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching additional details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -164,7 +164,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error updating additional details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -175,7 +175,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching reference details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -185,7 +185,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error updating reference details for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -196,7 +196,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching documents for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -215,7 +215,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error uploading document for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -226,7 +226,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching document uploads for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -256,33 +256,41 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error updating document uploads for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
   // Download document
   async downloadEmployeeDocument(documentUrl: string, filename: string) {
     try {
-      const response = await fetch(documentUrl, {
-        method: "GET",
-      })
+      const response = await fetch(documentUrl);
 
       if (!response.ok) {
-        throw new Error("Failed to download document")
+        throw new Error("Failed to download document");
       }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+  
+      const blob = await response.blob();
+  
+      // ✅ Detect mime and extension
+      const contentType = response.headers.get("Content-Type") || "application/octet-stream";
+      let extension = "";
+  
+      if (contentType.includes("jpeg")) extension = ".jpg";
+      if (contentType.includes("png")) extension = ".png";
+      if (contentType.includes("pdf")) extension = ".pdf";
+  
+      const finalName = filename ? filename + extension : `file${extension}`;
+  
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = finalName;
+      a.click();
+  
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error downloading document:", error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -293,7 +301,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching employment history for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -303,7 +311,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error creating employment history for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -313,7 +321,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error updating employment history for employee ${id}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -323,7 +331,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error closing employment for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 
@@ -334,7 +342,7 @@ export const employeeService = {
       return response.data
     } catch (error) {
       console.error(`Error fetching active employment for employee ${employeeId}:`, error)
-      throw error
+      throw new Error(getErrorMessage(error))
     }
   },
 }

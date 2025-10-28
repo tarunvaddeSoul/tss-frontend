@@ -9,16 +9,16 @@ import { Header } from "@/components/layout/header"
 import { AuthProvider, useAuth } from "@/hooks/use-auth"
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth()
+  const { user, isInitializing } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isInitializing && !user) {
       router.push("/login")
     }
-  }, [user, isLoading, router])
+  }, [user, isInitializing, router])
 
-  if (isLoading) {
+  if (isInitializing) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
 

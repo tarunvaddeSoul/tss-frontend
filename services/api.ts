@@ -2,10 +2,11 @@ import axios from "axios"
 import type { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios"
 import authService from "./auth"
 import { toast } from "@/components/ui/use-toast"
+import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./token"
 
 
 // Get the API URL from environment variables
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "https://5a0a-2401-4900-4160-352c-78b9-36e-2494-85cd.ngrok-free.app"
+const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003"
 
 // Create the axios instance
 const api = axios.create({
@@ -18,39 +19,35 @@ const api = axios.create({
 
 // Helper function to extract error message from API response
 export function getErrorMessage(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError
-    if (axiosError.response) {
-      const data = axiosError.response.data as any
-      if (data?.message) {
-        return Array.isArray(data.message) ? data.message[0] : data.message
-      }
-      if (data?.error) {
-        return data.error
-      }
-      return `Request failed with status ${axiosError.response.status}`
+  // Handle Axios errors with response data
+  if (error && typeof error === "object" && "response" in error) {
+    const axiosError = error as { response?: { data?: { message?: string } } }
+    if (axiosError.response?.data?.message) {
+      return axiosError.response.data.message
     }
-    if (axiosError.request && !axiosError.response) {
-      return "Network error. Please check your internet connection."
-    }
-    return axiosError.message || "An unexpected error occurred."
   }
+  
+  // Handle Error objects
   if (error instanceof Error) {
     return error.message
   }
-  return "An unexpected error occurred."
+  
+  // Handle objects with message property
+  if (error && typeof error === "object" && "message" in error) {
+    return String(error.message)
+  }
+  
+  // Default fallback
+  return "An unexpected error occurred"
 }
 
 // Request interceptor for adding the auth token
 api.interceptors.request.use(
   (config: import("axios").InternalAxiosRequestConfig): import("axios").InternalAxiosRequestConfig => {
     // Only add the token if we're in a browser environment
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("accessToken")
-
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
+    const token = getAccessToken()
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`
     }
 
     return config
@@ -61,6 +58,26 @@ api.interceptors.request.use(
 )
 
 // Response interceptor for handling token expiration
+let isRefreshing = false
+let refreshQueue: Array<{
+  resolve: (value: any) => void
+  reject: (reason?: any) => void
+}> = []
+
+function enqueueRefresh<T = any>() {
+  return new Promise<T>((resolve, reject) => {
+    refreshQueue.push({ resolve, reject })
+  })
+}
+
+function flushQueue(error: any, token: string | null) {
+  refreshQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error)
+    else resolve(token)
+  })
+  refreshQueue = []
+}
+
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
@@ -68,25 +85,38 @@ api.interceptors.response.use(
     if (typeof window === "undefined") {
       return Promise.reject(error)
     }
-    // Prevent infinite loop: don't refresh if already tried, or if the request is to the refresh endpoint
-    const isRefreshRequest = originalRequest.url?.includes("/refresh-token") // adjust path as needed
-    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
+    // Prevent infinite loop: don't refresh if already tried, or if the request is to the refresh endpoint or login/signup
+    const isRefreshRequest = originalRequest.url?.includes("/refresh-token")
+    const isAuthRequest = originalRequest.url?.includes("/login") || originalRequest.url?.includes("/register") || originalRequest.url?.includes("/forgot-password") || originalRequest.url?.includes("/reset-password")
+    
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest && !isAuthRequest) {
       originalRequest._retry = true
       try {
-        const refreshToken = localStorage.getItem("refreshToken")
+        if (isRefreshing) {
+          await enqueueRefresh()
+          const token = getAccessToken()
+          if (originalRequest.headers && token) {
+            originalRequest.headers.Authorization = `Bearer ${token}`
+          }
+          return axios(originalRequest)
+        }
+
+        isRefreshing = true
+        const refreshToken = getRefreshToken()
         if (refreshToken) {
           const response = await authService.refreshToken(refreshToken)
+          setTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken)
+          flushQueue(null, response.data.tokens.accessToken)
+          isRefreshing = false
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${response.data.tokens.accessToken}`
           }
-          localStorage.setItem("accessToken", response.data.tokens.accessToken)
-          localStorage.setItem("refreshToken", response.data.tokens.refreshToken)
           return axios(originalRequest)
         }
       } catch (refreshError) {
-        // Always clear tokens and redirect on unrecoverable error
-        localStorage.removeItem("accessToken")
-        localStorage.removeItem("refreshToken")
+        isRefreshing = false
+        flushQueue(refreshError, null)
+        clearTokens()
         toast({
           title: "Authentication Failed",
           description: getErrorMessage(refreshError),
@@ -94,14 +124,13 @@ api.interceptors.response.use(
         })
         setTimeout(() => {
           window.location.href = "/login"
-        }, 1500)
+        }, 1000)
         return Promise.reject(refreshError)
       }
     }
     // If the refresh request itself fails, just clear tokens and redirect
     if (isRefreshRequest && error.response?.status === 401) {
-      localStorage.removeItem("accessToken")
-      localStorage.removeItem("refreshToken")
+      clearTokens()
       toast({
         title: "Authentication Failed",
         description: getErrorMessage(error),
@@ -112,6 +141,18 @@ api.interceptors.response.use(
       }, 1500)
       return Promise.reject(error)
     }
+    
+    // For auth-related errors (login/signup), don't show toast or redirect - let the component handle it
+    if (isAuthRequest) {
+      return Promise.reject(error)
+    }
+    
+    // Handle 401 errors (only if not an auth request)
+    if (error.response?.status === 401 && !isAuthRequest && !isRefreshRequest) {
+      // Don't show toast or redirect for auth errors, just reject
+      return Promise.reject(error)
+    }
+    
     // Handle 403 Forbidden errors (insufficient permissions)
     if (error.response?.status === 403) {
       toast({

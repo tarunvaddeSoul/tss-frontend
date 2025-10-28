@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -13,13 +12,13 @@ import {
   ClipboardCheck,
   DollarSign,
   ChevronRight,
-  ChevronLeft,
   ChevronDown,
   LogOut,
-  Shield,
   Settings,
   HelpCircle,
   Mail,
+  Menu,
+  X,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -29,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
 interface SidebarProps {
   className?: string
@@ -52,18 +52,9 @@ const navItems: NavItem[] = [
     href: "/employees",
     icon: Users,
     subItems: [
-      {
-        title: "List Employees",
-        href: "/employees",
-      },
-      {
-        title: "Add Employee",
-        href: "/employees/add",
-      },
-      {
-        title: 'Advanced Search',
-        href: '/employees/advanced-search'
-      }
+      { title: "List Employees", href: "/employees" },
+      { title: "Add Employee", href: "/employees/add" },
+      { title: "Advanced Search", href: "/employees/advanced-search" },
     ],
   },
   {
@@ -71,14 +62,8 @@ const navItems: NavItem[] = [
     href: "/companies",
     icon: Building2,
     subItems: [
-      {
-        title: "List Companies",
-        href: "/companies",
-      },
-      {
-        title: "Add Company",
-        href: "/companies/add",
-      },
+      { title: "List Companies", href: "/companies" },
+      { title: "Add Company", href: "/companies/add" },
     ],
   },
   {
@@ -96,45 +81,31 @@ const navItems: NavItem[] = [
     href: "/payroll",
     icon: DollarSign,
     subItems: [
-      {
-        title: "Calculate Payroll",
-        href: "/payroll/calculate",
-      },
-      {
-        title: "Reports",
-        href: "/payroll/reports",
-      },
+      { title: "Calculate Payroll", href: "/payroll/calculate" },
+      { title: "Reports", href: "/payroll/reports" },
     ],
   },
 ]
 
 export function Sidebar({ className }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false)
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
-  const [isMobile, setIsMobile] = useState(false)
-  const [helpDialogOpen, setHelpDialogOpen] = useState(false)
-  const pathname = usePathname()
   const { user, logout } = useAuth()
+  const pathname = usePathname()
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
+  const [helpDialogOpen, setHelpDialogOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
-  // Check if we're on mobile and handle resize
+  // Detect mobile view
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 1024
-      setIsMobile(mobile)
-      if (mobile && !collapsed) {
-        setCollapsed(true)
-      }
-    }
-
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
     checkMobile()
     window.addEventListener("resize", checkMobile)
     return () => window.removeEventListener("resize", checkMobile)
-  }, [collapsed])
+  }, [])
 
   // Initialize expanded state based on current path
   useEffect(() => {
     const newExpandedItems: Record<string, boolean> = {}
-
     navItems.forEach((item) => {
       if (item.subItems) {
         const isActive = item.subItems.some(
@@ -143,38 +114,19 @@ export function Sidebar({ className }: SidebarProps) {
         newExpandedItems[item.href] = isActive
       }
     })
-
     setExpandedItems(newExpandedItems)
   }, [pathname])
 
-  const toggleExpand = (href: string, event: React.MouseEvent) => {
-    event.preventDefault()
-    event.stopPropagation()
-
-    setExpandedItems((prev) => ({
-      ...prev,
-      [href]: !prev[href],
-    }))
+  const toggleExpand = (href: string) => {
+    setExpandedItems((prev) => ({ ...prev, [href]: !prev[href] }))
   }
 
-  const toggleCollapse = () => {
-    setCollapsed(!collapsed)
-    // Close all expanded items when collapsing
-    if (!collapsed) {
-      setExpandedItems({})
-    }
-  }
-
-  const handleHelpClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setHelpDialogOpen(true)
-  }
+  const handleHelpClick = () => setHelpDialogOpen(true)
 
   const handleSendEmail = () => {
     window.location.href = "mailto:vaddeofficial@gmail.com?subject=TSS Support Request"
   }
 
-  // Check if a nav item or any of its subitems is active
   const isNavItemActive = (item: NavItem) => {
     if (pathname === item.href) return true
     if (item.subItems) {
@@ -183,170 +135,224 @@ export function Sidebar({ className }: SidebarProps) {
     return false
   }
 
-  return (
-    <>
-      <aside
-        className={cn(
-          "flex flex-col bg-card text-card-foreground border-r transition-all duration-300 h-screen",
-          collapsed ? "w-[70px]" : "w-[280px]",
-          className,
+  // Desktop Sidebar Component
+  const DesktopSidebar = ({ collapsed }: { collapsed: boolean }) => (
+    <aside
+      className={cn(
+        "hidden lg:flex flex-col bg-card text-card-foreground border-r transition-all duration-300 h-screen",
+        collapsed ? "w-[70px]" : "w-[280px]",
+        className,
+      )}
+    >
+      {/* Logo */}
+      <div className="flex items-center h-16 px-4 border-b">
+        {!collapsed ? (
+          <div className="flex items-center gap-2 flex-1">
+            <Image src="/tss-logo.png" alt="TSS Logo" width={32} height={32} priority />
+            <span className="font-bold text-xl">Tulsyan</span>
+          </div>
+        ) : (
+          <div className="flex justify-center w-full">
+            <Image src="/tss-logo.png" alt="TSS Logo" width={32} height={32} priority />
+          </div>
         )}
-      >
-        {/* Sidebar header */}
-        <div className="flex items-center h-16 px-4 border-b">
-          {!collapsed ? (
-            <div className="flex items-center gap-2 flex-1">
-              <Image
-                src="/tss-logo.png"
-                alt="TSS Logo"
-                width={56}
-                height={56}
-                className="h-8 w-8 object-contain"
-                priority
-              />
-              <span className="font-bold text-xl">Tulsyan</span>
-            </div>
-          ) : (
-            <div className="flex justify-center w-full">
-              <Image
-                src="/tss-logo.png"
-                alt="TSS Logo"
-                width={56}
-                height={56}
-                className="h-8 w-8 object-contain"
-                priority
-              />
-            </div>
-          )}
+      </div>
 
-          {!isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleCollapse}
-              className={cn("rounded-full hover:bg-muted", collapsed && "mx-auto")}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            </Button>
-          )}
+      {/* User Profile */}
+      {!collapsed && user && (
+        <div className="flex items-center gap-3 p-4 border-b">
+          <Avatar>
+            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+          </div>
         </div>
+      )}
 
-        {/* User profile */}
-        {!collapsed && (
+      {/* Navigation */}
+      <ScrollArea className="flex-1 px-2 py-4">
+        <nav className="space-y-1">
+          {navItems.map((item) => {
+            const isActive = isNavItemActive(item)
+            const Icon = item.icon
+
+            return (
+              <div key={item.href}>
+                {item.subItems ? (
+                  <button
+                    onClick={() => toggleExpand(item.href)}
+                    className={cn(
+                      "w-full flex items-center h-10 px-3 rounded-md transition-colors",
+                      collapsed ? "justify-center" : "justify-between",
+                      isActive && !expandedItems[item.href]
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon size={20} />
+                      {!collapsed && <span className="text-sm">{item.title}</span>}
+                    </div>
+                    {!collapsed && <ChevronDown size={16} className={cn(expandedItems[item.href] && "rotate-180")} />}
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "w-full flex items-center h-10 px-3 rounded-md transition-colors",
+                      collapsed ? "justify-center" : "",
+                      isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    <Icon size={20} />
+                    {!collapsed && <span className="ml-3 text-sm">{item.title}</span>}
+                  </Link>
+                )}
+
+                {/* Subitems */}
+                {item.subItems && expandedItems[item.href] && !collapsed && (
+                  <div className="mt-1 ml-4 pl-4 border-l space-y-1">
+                    {item.subItems.map((subItem) => (
+                      <Link
+                        key={subItem.href}
+                        href={subItem.href}
+                        className={cn(
+                          "flex items-center h-9 px-3 rounded-md transition-colors",
+                          pathname === subItem.href
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-current mr-3" />
+                        <span className="text-sm">{subItem.title}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </nav>
+      </ScrollArea>
+
+      {/* Footer Actions */}
+      <div className="p-3 border-t space-y-1">
+        {!collapsed ? (
+          <>
+            <Button variant="ghost" className="w-full justify-start h-9" asChild>
+              <Link href="/settings/profile">
+                <Settings size={18} className="mr-2" />
+                Settings
+              </Link>
+            </Button>
+            <Button variant="ghost" className="w-full justify-start h-9" onClick={handleHelpClick}>
+              <HelpCircle size={18} className="mr-2" />
+              Help
+            </Button>
+            <Button variant="ghost" className="w-full justify-start h-9 text-destructive" onClick={logout}>
+              <LogOut size={18} className="mr-2" />
+              Logout
+            </Button>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link href="/settings/profile">
+                      <Settings size={18} />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Settings</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={handleHelpClick}>
+                    <HelpCircle size={18} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Help</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={logout}>
+                    <LogOut size={18} className="text-destructive" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Logout</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+      </div>
+    </aside>
+  )
+
+  // Mobile Sidebar Component
+  const MobileSidebar = () => (
+    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+      <SheetContent side="left" className="w-[280px] p-0">
+        <SheetHeader className="p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Image src="/tss-logo.png" alt="TSS Logo" width={32} height={32} priority />
+            <SheetTitle>Tulsyan</SheetTitle>
+          </div>
+        </SheetHeader>
+
+        {user && (
           <div className="flex items-center gap-3 p-4 border-b">
             <Avatar>
-              <AvatarImage src={user?.avatar || ""} alt={user?.name || "User"} />
-              <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email || "user@example.com"}</p>
+              <p className="text-sm font-medium truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
           </div>
         )}
 
-        {/* Navigation */}
         <ScrollArea className="flex-1 px-2 py-4">
-          <nav className="space-y-2">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const isActive = isNavItemActive(item)
+              const Icon = item.icon
 
               return (
-                <div key={item.href} className="relative">
-                  {/* Main nav item */}
-                  <Link
-                    href={item.subItems ? "#" : item.href}
-                    onClick={item.subItems ? (e) => toggleExpand(item.href, e) : undefined}
-                    className={cn(
-                      "flex items-center h-10 px-2 rounded-md transition-colors group",
-                      isActive && !item.subItems && "bg-primary text-primary-foreground",
-                      isActive && item.subItems && "bg-muted",
-                      !isActive && "hover:bg-muted/50",
-                      collapsed && "justify-center",
-                    )}
-                  >
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center justify-center w-6 h-6">
-                            <item.icon
-                              size={20}
-                              className={cn(
-                                "flex-shrink-0",
-                                isActive && !item.subItems && "text-primary-foreground",
-                                isActive && item.subItems && "text-primary",
-                              )}
-                            />
-                          </div>
-                        </TooltipTrigger>
-                        {collapsed && <TooltipContent side="right">{item.title}</TooltipContent>}
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    {!collapsed && (
-                      <>
-                        <span className={cn("ml-2 text-sm", isActive && item.subItems && "text-primary font-medium")}>
-                          {item.title}
-                        </span>
-
-                        {item.subItems && (
-                          <ChevronDown
-                            size={16}
-                            className={cn(
-                              "ml-auto transition-transform duration-200",
-                              expandedItems[item.href] && "transform rotate-180",
-                            )}
-                          />
-                        )}
-                      </>
-                    )}
-                  </Link>
-
-                  {/* Subitems */}
-                  {item.subItems && (
+                <div key={item.href}>
+                  {item.subItems ? (
                     <>
-                      {/* Collapsed state: show in tooltip */}
-                      {collapsed && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="mt-1 flex justify-center">
-                                <div className="h-1 w-1 rounded-full bg-muted-foreground" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="p-0">
-                              <div className="flex flex-col min-w-[180px] p-1 bg-card rounded-md shadow-md">
-                                {item.subItems.map((subItem) => (
-                                  <Link
-                                    key={subItem.href}
-                                    href={subItem.href}
-                                    className={cn(
-                                      "flex items-center h-9 px-3 rounded-md transition-colors",
-                                      pathname === subItem.href
-                                        ? "bg-primary/10 text-primary font-medium"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                                    )}
-                                  >
-                                    <span className="h-5 w-5 flex items-center justify-center">
-                                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                    </span>
-                                    <span className="text-sm">{subItem.title}</span>
-                                  </Link>
-                                ))}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-
-                      {/* Expanded state: show inline */}
-                      {!collapsed && expandedItems[item.href] && (
+                      <button
+                        onClick={() => toggleExpand(item.href)}
+                        className={cn(
+                          "w-full flex items-center justify-between h-10 px-3 rounded-md transition-colors",
+                          isActive && !expandedItems[item.href]
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted",
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon size={20} />
+                          <span className="text-sm">{item.title}</span>
+                        </div>
+                        <ChevronDown size={16} className={cn(expandedItems[item.href] && "rotate-180")} />
+                      </button>
+                      {expandedItems[item.href] && (
                         <div className="mt-1 ml-4 pl-4 border-l space-y-1">
                           {item.subItems.map((subItem) => (
                             <Link
                               key={subItem.href}
                               href={subItem.href}
+                              onClick={() => setMobileOpen(false)}
                               className={cn(
                                 "flex items-center h-9 px-3 rounded-md transition-colors",
                                 pathname === subItem.href
@@ -354,15 +360,25 @@ export function Sidebar({ className }: SidebarProps) {
                                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                               )}
                             >
-                              <span className="h-5 w-5 flex items-center justify-center">
-                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                              </span>
+                              <span className="h-1.5 w-1.5 rounded-full bg-current mr-3" />
                               <span className="text-sm">{subItem.title}</span>
                             </Link>
                           ))}
                         </div>
                       )}
                     </>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "w-full flex items-center h-10 px-3 rounded-md transition-colors",
+                        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+                      )}
+                    >
+                      <Icon size={20} />
+                      <span className="ml-3 text-sm">{item.title}</span>
+                    </Link>
                   )}
                 </div>
               )
@@ -370,69 +386,30 @@ export function Sidebar({ className }: SidebarProps) {
           </nav>
         </ScrollArea>
 
-        {/* Footer actions */}
         <div className="p-3 border-t space-y-1">
-          {!collapsed ? (
-            <>
-              <Button variant="ghost" className="w-full justify-start h-10" asChild>
-                <Link href="/settings/profile">
-                  <Settings size={18} className="mr-2" />
-                  <span className="text-sm">Settings</span>
-                </Link>
-              </Button>
-              <Button variant="ghost" className="w-full justify-start h-10" onClick={handleHelpClick}>
-                <HelpCircle size={18} className="mr-2" />
-                <span className="text-sm">Help & Support</span>
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start h-10 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => logout()}
-              >
-                <LogOut size={18} className="mr-2" />
-                <span className="text-sm">Logout</span>
-              </Button>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link href="/settings/profile">
-                        <Settings size={18} />
-                      </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Settings</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={handleHelpClick}>
-                      <HelpCircle size={18} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Help & Support</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={() => logout()}>
-                      <LogOut size={18} className="text-destructive" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Logout</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
+          <Button variant="ghost" className="w-full justify-start h-9" asChild>
+            <Link href="/settings/profile">
+              <Settings size={18} className="mr-2" />
+              Settings
+            </Link>
+          </Button>
+          <Button variant="ghost" className="w-full justify-start h-9" onClick={handleHelpClick}>
+            <HelpCircle size={18} className="mr-2" />
+            Help
+          </Button>
+          <Button variant="ghost" className="w-full justify-start h-9 text-destructive" onClick={logout}>
+            <LogOut size={18} className="mr-2" />
+            Logout
+          </Button>
         </div>
-      </aside>
+      </SheetContent>
+    </Sheet>
+  )
+
+  return (
+    <>
+      <MobileSidebar />
+      <DesktopSidebar collapsed={false} />
 
       {/* Help & Support Dialog */}
       <Dialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen}>
@@ -457,5 +434,19 @@ export function Sidebar({ className }: SidebarProps) {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+export function MobileMenuToggle() {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  return (
+    <button
+      onClick={() => setMobileOpen(!mobileOpen)}
+      className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
+      aria-label="Toggle menu"
+    >
+      {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+    </button>
   )
 }

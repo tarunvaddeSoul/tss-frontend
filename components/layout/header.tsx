@@ -17,26 +17,24 @@ import Link from "next/link"
 export function Header() {
   const { user, logout } = useAuth()
 
-  // Get initials from user's name
   const getInitials = (name: string | undefined) => {
     if (!name) return "U"
-
     const nameParts = name.trim().split(/\s+/)
     if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase()
-
     return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase()
   }
 
   return (
-    <header className="border-b bg-card">
+    <header className="border-b bg-card sticky top-0 z-40">
       <div className="flex h-16 items-center px-4 justify-between">
-        <div className="font-semibold text-lg md:hidden">TSS</div>
+        {/* Mobile logo - hidden on desktop */}
+        <div className="font-semibold text-lg lg:hidden">TSS</div>
+
+        {/* Desktop spacer */}
+        <div className="hidden lg:block" />
 
         <div className="ml-auto flex items-center space-x-4">
-          {/* Modern Theme Toggle */}
           <ThemeToggle />
-
-          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">

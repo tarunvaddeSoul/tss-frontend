@@ -11,9 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
-import { ApiError } from "@/components/ui/api-error"
 import { motion } from "framer-motion"
-import { getErrorMessage } from "@/services/api"
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -24,7 +22,6 @@ type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>
 export default function ForgotPasswordPage() {
   const { forgotPassword } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   const form = useForm<ForgotPasswordFormValues>({
@@ -36,13 +33,12 @@ export default function ForgotPasswordPage() {
 
   async function onSubmit(data: ForgotPasswordFormValues) {
     setIsLoading(true)
-    setError(null)
 
     try {
       await forgotPassword(data)
       setSuccess(true)
     } catch (err) {
-      setError(getErrorMessage(err))
+      // Error is already handled by toast in useAuth
       console.error("Forgot password error:", err)
     } finally {
       setIsLoading(false)
@@ -89,16 +85,6 @@ export default function ForgotPasswordPage() {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ApiError title="Request Failed" message={error} />
-                </motion.div>
-              )}
-
               <FormField
                 control={form.control}
                 name="email"

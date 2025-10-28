@@ -11,9 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
-import { ApiError } from "@/components/ui/api-error"
 import { motion } from "framer-motion"
-import { getErrorMessage } from "@/services/api"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -25,7 +23,6 @@ type LoginFormValues = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const { login } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -37,12 +34,11 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true)
-    setError(null)
 
     try {
       await login(data)
     } catch (err) {
-      setError(getErrorMessage(err))
+      // Error is already handled by toast in useAuth
       console.error("Login error:", err)
     } finally {
       setIsLoading(false)
@@ -67,16 +63,6 @@ export default function LoginPage() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ApiError title="Login Failed" message={error} />
-              </motion.div>
-            )}
-
             <FormField
               control={form.control}
               name="email"

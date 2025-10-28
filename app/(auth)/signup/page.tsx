@@ -12,11 +12,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/hooks/use-auth"
-import { ApiError } from "@/components/ui/api-error"
 import { motion } from "framer-motion"
 import { Role } from "@/types/auth"
 import { departmentService } from "@/services/departmentService"
-import { getErrorMessage } from "@/services/api"
 
 const signupSchema = z
   .object({
@@ -43,7 +41,6 @@ interface Department {
 export default function SignupPage() {
   const { signup } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [departments, setDepartments] = useState<Department[]>([])
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(true)
 
@@ -77,14 +74,13 @@ export default function SignupPage() {
 
   async function onSubmit(data: SignupFormValues) {
     setIsLoading(true)
-    setError(null)
 
     try {
       // Remove confirmPassword as it's not needed in the API
       const { confirmPassword, ...signupData } = data
       await signup(signupData)
     } catch (err) {
-      setError(getErrorMessage(err))
+      // Error is already handled by toast in useAuth
       console.error("Signup error:", err)
     } finally {
       setIsLoading(false)
@@ -109,16 +105,6 @@ export default function SignupPage() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ApiError title="Signup Failed" message={error} />
-              </motion.div>
-            )}
-
             <FormField
               control={form.control}
               name="name"

@@ -12,9 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/hooks/use-auth"
-import { ApiError } from "@/components/ui/api-error"
 import { motion } from "framer-motion"
-import { getErrorMessage } from "@/services/api"
 
 const resetPasswordSchema = z
   .object({
@@ -31,7 +29,6 @@ type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>
 export default function ResetPasswordPage() {
   const { resetPassword } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
@@ -46,12 +43,10 @@ export default function ResetPasswordPage() {
 
   async function onSubmit(data: ResetPasswordFormValues) {
     if (!token) {
-      setError("Reset token is missing. Please use the link from your email.")
       return
     }
 
     setIsLoading(true)
-    setError(null)
 
     try {
       await resetPassword({
@@ -60,7 +55,7 @@ export default function ResetPasswordPage() {
       })
       setSuccess(true)
     } catch (err) {
-      setError(getErrorMessage(err))
+      // Error is already handled by toast in useAuth
       console.error("Reset password error:", err)
     } finally {
       setIsLoading(false)
@@ -77,10 +72,9 @@ export default function ResetPasswordPage() {
           <CardTitle className="text-2xl font-bold text-center">Invalid Reset Link</CardTitle>
         </CardHeader>
         <CardContent>
-          <ApiError
-            title="Invalid Reset Link"
-            message="The password reset link is invalid or missing a token. Please request a new password reset."
-          />
+          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md text-sm">
+            <strong>Invalid Reset Link:</strong> The password reset link is invalid or missing a token. Please request a new password reset.
+          </div>
           <Button variant="outline" asChild className="w-full mt-4">
             <Link href="/forgot-password">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -128,16 +122,6 @@ export default function ResetPasswordPage() {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ApiError title="Reset Failed" message={error} />
-                </motion.div>
-              )}
-
               <FormField
                 control={form.control}
                 name="newPassword"

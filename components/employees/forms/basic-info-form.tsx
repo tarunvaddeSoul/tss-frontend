@@ -11,26 +11,47 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { employeeService } from "@/services/employeeService"
 import type { UpdateEmployeeDto, Employee } from "@/types/employee"
+import { format } from "date-fns"
 
 const basicInfoSchema = z.object({
   title: z.string().optional(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  dateOfBirth: z.string().optional(),
+  dateOfBirth: z.date().optional(),
   gender: z.string().min(1, "Gender is required"),
   fatherName: z.string().min(1, "Father's name is required"),
   motherName: z.string().min(1, "Mother's name is required"),
   husbandName: z.string().optional(),
   bloodGroup: z.string().min(1, "Blood group is required"),
-  employeeOnboardingDate: z.string().optional(),
+  employeeOnboardingDate: z.date().optional(),
   status: z.string().min(1, "Status is required"),
   category: z.string().min(1, "Category is required"),
   recruitedBy: z.string().min(1, "Recruiter name is required"),
   age: z.number().optional(),
 })
+
+// Helper function to parse DD-MM-YYYY to Date
+const parseDateFromDDMMYYYY = (dateString?: string) => {
+  if (!dateString) return undefined
+  try {
+    if (/^\d{2}-\d{2}-\d{4}$/.test(dateString)) {
+      const [day, month, year] = dateString.split("-").map(Number)
+      return new Date(year, month - 1, day)
+    }
+    return new Date(dateString)
+  } catch {
+    return undefined
+  }
+}
+
+// Helper function to format Date to DD-MM-YYYY
+const formatDateToDDMMYYYY = (date: Date) => {
+  return format(date, "dd-MM-yyyy")
+}
 
 interface BasicInfoFormProps {
   employee: Employee
@@ -47,13 +68,13 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
       title: employee.title || "",
       firstName: employee.firstName || "",
       lastName: employee.lastName || "",
-      dateOfBirth: employee.dateOfBirth || "",
+      dateOfBirth: parseDateFromDDMMYYYY(employee.dateOfBirth) || undefined,
       gender: employee.gender || "",
       fatherName: employee.fatherName || "",
       motherName: employee.motherName || "",
       husbandName: employee.husbandName || "",
       bloodGroup: employee.bloodGroup || "",
-      employeeOnboardingDate: employee.employeeOnboardingDate || "",
+      employeeOnboardingDate: parseDateFromDDMMYYYY(employee.employeeOnboardingDate) || undefined,
       status: employee.status || "ACTIVE",
       category: employee.category || "",
       recruitedBy: employee.recruitedBy || "",
@@ -68,8 +89,11 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
       // Optimistic update
       onUpdate(values as any)
 
+      // Format dates to DD-MM-YYYY format for backend
       const updateData: any = {
         ...values,
+        dateOfBirth: values.dateOfBirth ? formatDateToDDMMYYYY(values.dateOfBirth) : undefined,
+        employeeOnboardingDate: values.employeeOnboardingDate ? formatDateToDDMMYYYY(values.employeeOnboardingDate) : undefined,
         age: values.age || undefined,
       }
 
@@ -181,6 +205,24 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
                     <FormControl>
                       <Input placeholder="Enter last name" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="dateOfBirth"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Date of Birth</FormLabel>
+                    <DatePicker 
+                      date={field.value} 
+                      onSelect={(date) => {
+                        field.onChange(date)
+                        setHasChanges(true)
+                      }} 
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -328,6 +370,24 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
                     <FormControl>
                       <Input placeholder="Enter recruiter name" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="employeeOnboardingDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Employee Onboarding Date</FormLabel>
+                    <DatePicker 
+                      date={field.value} 
+                      onSelect={(date) => {
+                        field.onChange(date)
+                        setHasChanges(true)
+                      }} 
+                    />
                     <FormMessage />
                   </FormItem>
                 )}

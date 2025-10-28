@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import * as RechartsPrimitive from "recharts"
-
 import { cn } from "@/lib/utils"
+
+// Dynamic import in component to reduce initial bundle
+let RechartsPrimitive: any = null
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
@@ -38,13 +39,20 @@ const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     config: ChartConfig
-    children: React.ComponentProps<
-      typeof RechartsPrimitive.ResponsiveContainer
-    >["children"]
+    children: React.ReactNode
   }
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId()
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
+  const [ResponsiveContainer, setResponsiveContainer] = React.useState<any>(null)
+
+  React.useEffect(() => {
+    // Dynamically import Recharts only when needed
+    import("recharts").then((mod) => {
+      RechartsPrimitive = mod
+      setResponsiveContainer(() => mod.ResponsiveContainer)
+    })
+  }, [])
 
   return (
     <ChartContext.Provider value={{ config }}>
@@ -58,9 +66,15 @@ const ChartContainer = React.forwardRef<
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
-          {children}
-        </RechartsPrimitive.ResponsiveContainer>
+        {ResponsiveContainer ? (
+          <ResponsiveContainer>
+            {children}
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+            Loading chart...
+          </div>
+        )}
       </div>
     </ChartContext.Provider>
   )
@@ -100,18 +114,17 @@ ${colorConfig
   )
 }
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+const ChartTooltip = ({ children, ...props }: any) => children
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-    React.ComponentProps<"div"> & {
+  React.ComponentProps<"div"> & {
       hideLabel?: boolean
       hideIndicator?: boolean
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
-    }
+    } & any
 >(
   (
     {
@@ -185,7 +198,7 @@ const ChartTooltipContent = React.forwardRef<
       >
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
-          {payload.map((item, index) => {
+          {payload.map((item: any, index: number) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color || item.payload.fill || item.color
@@ -256,15 +269,14 @@ const ChartTooltipContent = React.forwardRef<
 )
 ChartTooltipContent.displayName = "ChartTooltip"
 
-const ChartLegend = RechartsPrimitive.Legend
+const ChartLegend = ({ children, ...props }: any) => children
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+  React.ComponentProps<"div"> & {
       hideIcon?: boolean
       nameKey?: string
-    }
+    } & any
 >(
   (
     { className, hideIcon = false, payload, verticalAlign = "bottom", nameKey },
@@ -285,7 +297,7 @@ const ChartLegendContent = React.forwardRef<
           className
         )}
       >
-        {payload.map((item) => {
+        {payload.map((item: any) => {
           const key = `${nameKey || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 

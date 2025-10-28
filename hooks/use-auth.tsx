@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, createContext, useContext, useCallback } from "react"
+import { useState, useEffect, createContext, useContext, useRef } from "react"
 import { useRouter } from "next/navigation"
 import authService from "@/services/auth"
 import type {
@@ -15,12 +15,12 @@ import type {
 } from "@/types/auth"
 import { toast } from "@/components/ui/use-toast"
 
-// Check if we're in a browser environment
 const isBrowser = typeof window !== "undefined"
 
 interface AuthContextType {
   user: User | null
   isLoading: boolean
+  isInitializing: boolean
   isAuthenticated: boolean
   login: (credentials: LoginCredentials) => Promise<void>
   signup: (credentials: SignupCredentials) => Promise<void>
@@ -32,59 +32,58 @@ interface AuthContextType {
   updateUser: (data: UpdateUserCredentials) => Promise<void>
 }
 
-// Create the context with a default undefined value
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const router = useRouter()
+  const hasInitialized = useRef(false)
 
-  // Function to fetch the current user
-  const fetchCurrentUser = useCallback(async () => {
-    if (!isBrowser) return
-    try {
-      if (authService.isAuthenticated()) {
-        const userData = await authService.getCurrentUser()
-        setUser(userData)
-        setIsAuthenticated(true)
-      } else {
-        setUser(null)
-        setIsAuthenticated(false)
-      }
-    } catch (error: any) {
-      // If getting the current user fails, log the user out and show a toast
-      await authService.logout()
+  // Fetch current user from API
+  const fetchCurrentUser = async () => {
+    if (!isBrowser || !authService.isAuthenticated()) {
       setUser(null)
       setIsAuthenticated(false)
-      toast({
-        title: "Session Expired",
-        description: error.message || "Your session has expired. Please log in again.",
-        variant: "destructive",
-      })
-      router.push("/login")
+      return
     }
-  }, [router])
 
-  // Initialize auth state
+    try {
+      const userData = await authService.getCurrentUser()
+      setUser(userData)
+      setIsAuthenticated(true)
+    } catch (error: any) {
+      // Token is invalid, clear everything and log out
+      setUser(null)
+      setIsAuthenticated(false)
+      if (isBrowser) {
+        localStorage.removeItem("accessToken")
+        localStorage.removeItem("refreshToken")
+      }
+    }
+  }
+
+  // Initialize auth state once on mount
   useEffect(() => {
+    if (hasInitialized.current) return
+    hasInitialized.current = true
+
     const initAuth = async () => {
-      setIsLoading(true)
       await fetchCurrentUser()
-      setIsLoading(false)
+      setIsInitializing(false)
     }
 
     initAuth()
-  }, [fetchCurrentUser])
+  }, []) // Only run once on mount
 
-  // Login function
+  // Login
   const login = async (credentials: LoginCredentials) => {
     setIsLoading(true)
     try {
       const response = await authService.login(credentials)
-      setUser(response.data.user)
-      setIsAuthenticated(true)
+      await fetchCurrentUser() // Refresh user state
       router.push("/dashboard")
       toast({
         title: "Login successful",
@@ -92,26 +91,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variant: "default",
       })
     } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Unable to login. Please try again."
       toast({
         title: "Login failed",
-        description: error.message || "Unable to login. Please try again.",
+        description: message,
         variant: "destructive",
       })
-      setUser(null)
-      setIsAuthenticated(false)
-      throw error // Re-throw to allow the login page to handle it
+      throw error
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Signup function
+  // Signup
   const signup = async (credentials: SignupCredentials) => {
     setIsLoading(true)
     try {
       const response = await authService.signup(credentials)
-      setUser(response.data.user)
-      setIsAuthenticated(true)
+      await fetchCurrentUser() // Refresh user state
       router.push("/dashboard")
       toast({
         title: "Account created",
@@ -119,20 +116,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variant: "default",
       })
     } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Unable to sign up. Please try again."
       toast({
         title: "Signup failed",
-        description: error.message || "Unable to sign up. Please try again.",
+        description: message,
         variant: "destructive",
       })
-      setUser(null)
-      setIsAuthenticated(false)
-      throw error // Re-throw to allow the signup page to handle it
+      throw error
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Logout function
+  // Logout
   const logout = async () => {
     setIsLoading(true)
     try {
@@ -146,9 +142,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variant: "default",
       })
     } catch (error: any) {
+      // Even if API call fails, clear local state
+      setUser(null)
+      setIsAuthenticated(false)
+      if (isBrowser) {
+        localStorage.removeItem("accessToken")
+        localStorage.removeItem("refreshToken")
+      }
+      router.push("/login")
       toast({
-        title: "Logout failed",
-        description: error.message || "Unable to logout. Please try again.",
+        title: "Error",
+        description: "Failed to logout properly.",
         variant: "destructive",
       })
     } finally {
@@ -156,14 +160,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Function to refresh user data
+  // Refresh user data
   const refreshUser = async () => {
     setIsLoading(true)
-    await fetchCurrentUser()
-    setIsLoading(false)
+    try {
+      await fetchCurrentUser()
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  // Change password function
+  // Change password
   const changePassword = async (credentials: ChangePasswordCredentials) => {
     setIsLoading(true)
     try {
@@ -185,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Forgot password function
+  // Forgot password
   const forgotPassword = async (credentials: ForgotPasswordCredentials) => {
     setIsLoading(true)
     try {
@@ -207,7 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Reset password function
+  // Reset password
   const resetPassword = async (credentials: ResetPasswordCredentials) => {
     setIsLoading(true)
     try {
@@ -230,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Update user function
+  // Update user
   const updateUser = async (data: UpdateUserCredentials) => {
     setIsLoading(true)
     try {
@@ -254,10 +261,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Create the context value object
   const contextValue: AuthContextType = {
     user,
     isLoading,
+    isInitializing,
     isAuthenticated,
     login,
     signup,

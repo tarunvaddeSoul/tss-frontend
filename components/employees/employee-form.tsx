@@ -698,7 +698,6 @@ export function EmployeeForm({
           </CardContent>
         </Card>
 
-        {/* Commenting out Employment Details section for now
         <Card>
           <CardHeader>
             <CardTitle>Employment Details</CardTitle>
@@ -809,7 +808,7 @@ export function EmployeeForm({
             </div>
           </CardContent>
         </Card>
-        */}
+       
 
         <Card>
           <CardHeader>

@@ -12,6 +12,7 @@ import { companyService } from "@/services/companyService"
 import type { EmployeeFormValues } from "@/types/employee"
 import { useEffect } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { getErrorMessage } from "@/services/api"
 
 export default function AddEmployeePage() {
     const [designations, setDesignations] = useState<{ value: string; label: string }[]>([])
@@ -55,10 +56,10 @@ export default function AddEmployeePage() {
                     })) ?? []
                 )
             } catch (error) {
-                console.error("Error fetching form data:", error)
+                console.error("Error fetching form data:", getErrorMessage(error))
                 toast({
                     title: "Error",
-                    description: "Failed to load form data. Please try again.",
+                    description: getErrorMessage(error) || "Failed to load form data. Please try again.",
                     variant: "destructive",
                 })
             } finally {
@@ -82,10 +83,10 @@ export default function AddEmployeePage() {
             // Redirect to employee list
             router.push("/employees/list")
         } catch (error) {
-            console.error("Error creating employee:", error)
+            console.error("Error creating employee:", getErrorMessage(error))
             toast({
                 title: "Error",
-                description: "Failed to create employee. Please try again.",
+                description: getErrorMessage(error) || "Failed to create employee. Please try again.",
                 variant: "destructive",
             })
         } finally {

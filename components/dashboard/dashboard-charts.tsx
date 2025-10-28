@@ -37,23 +37,23 @@ export function DashboardCharts({ data, companyEmployeeCounts }: DashboardCharts
       percentage: ((company.employeeCount / totalEmployees) * 100).toFixed(1),
     }))
 
-  // Color palette for charts
+  // Color palette for charts - using brand colors
   const colors = [
-    "from-blue-500 to-cyan-500",
-    "from-purple-500 to-pink-500",
-    "from-green-500 to-emerald-500",
-    "from-orange-500 to-red-500",
-    "from-indigo-500 to-purple-500",
-    "from-teal-500 to-blue-500",
+    "from-primary-light to-primary",
+    "from-info/60 to-info",
+    "from-success/60 to-success",
+    "from-warning/60 to-warning",
+    "from-secondary to-secondary-light",
+    "from-primary to-primary-dark",
   ]
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Department Distribution */}
-      <Card className="backdrop-blur-sm bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-300">
+      <Card className="security-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-500" />
+            <BarChart3 className="h-5 w-5 text-primary" />
             By Department
           </CardTitle>
           <CardDescription>Employee distribution across departments</CardDescription>
@@ -62,13 +62,13 @@ export function DashboardCharts({ data, companyEmployeeCounts }: DashboardCharts
           {departmentData.map((dept, index) => (
             <div key={dept.name} className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{dept.name.replace(/_/g, " ")}</span>
+                <span className="text-base font-medium">{dept.name.replace(/_/g, " ")}</span>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{dept.count}</Badge>
-                  <span className="text-xs text-muted-foreground">{dept.percentage}%</span>
+                  <span className="text-sm text-muted-foreground">{dept.percentage}%</span>
                 </div>
               </div>
-              <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+              <div className="relative h-2 bg-surface rounded-full overflow-hidden">
                 <div
                   className={`absolute left-0 top-0 h-full bg-gradient-to-r ${colors[index % colors.length]} transition-all duration-500 ease-out`}
                   style={{ width: `${dept.percentage}%` }}
@@ -80,10 +80,10 @@ export function DashboardCharts({ data, companyEmployeeCounts }: DashboardCharts
       </Card>
 
       {/* Designation Distribution */}
-      <Card className="backdrop-blur-sm bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-300">
+      <Card className="security-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <PieChart className="h-5 w-5 text-purple-500" />
+            <PieChart className="h-5 w-5 text-info" />
             By Designation
           </CardTitle>
           <CardDescription>Employee distribution by job roles</CardDescription>
@@ -98,7 +98,7 @@ export function DashboardCharts({ data, companyEmployeeCounts }: DashboardCharts
                   <span className="text-xs text-muted-foreground">{designation.percentage}%</span>
                 </div>
               </div>
-              <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+              <div className="relative h-2 bg-surface rounded-full overflow-hidden">
                 <div
                   className={`absolute left-0 top-0 h-full bg-gradient-to-r ${colors[(index + 2) % colors.length]} transition-all duration-500 ease-out`}
                   style={{ width: `${designation.percentage}%` }}
@@ -110,10 +110,10 @@ export function DashboardCharts({ data, companyEmployeeCounts }: DashboardCharts
       </Card>
 
       {/* Company Employee Distribution */}
-      <Card className="backdrop-blur-sm bg-white/5 border-white/10 hover:bg-white/10 transition-all duration-300">
+      <Card className="security-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-green-500" />
+            <Building2 className="h-5 w-5 text-success" />
             By Company
           </CardTitle>
           <CardDescription>Employee distribution across companies</CardDescription>
@@ -131,7 +131,7 @@ export function DashboardCharts({ data, companyEmployeeCounts }: DashboardCharts
                     <span className="text-xs text-muted-foreground">{company.percentage}%</span>
                   </div>
                 </div>
-                <div className="relative h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="relative h-2 bg-surface rounded-full overflow-hidden">
                   <div
                     className={`absolute left-0 top-0 h-full bg-gradient-to-r ${colors[(index + 4) % colors.length]} transition-all duration-500 ease-out`}
                     style={{ width: `${company.percentage}%` }}

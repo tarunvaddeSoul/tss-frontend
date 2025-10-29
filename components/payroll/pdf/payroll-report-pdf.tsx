@@ -1,61 +1,14 @@
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from "@react-pdf/renderer"
+import { Document, Text, View, StyleSheet, PDFDownloadLink } from "@react-pdf/renderer"
 import { FileDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCurrentDateTime, type PayrollReportRecord } from "@/utils/payroll-export"
+import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 
 const styles = StyleSheet.create({
-  page: {
-    flexDirection: "column",
-    backgroundColor: "#ffffff",
-    padding: 30,
-    fontSize: 10,
-  },
-  header: {
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#666666",
-    marginBottom: 10,
-  },
-  metadata: {
-    fontSize: 9,
-    color: "#888888",
-  },
-  table: {
-    display: "flex",
-    width: "auto",
-    borderStyle: "solid",
-    borderWidth: 1,
-    borderColor: "#000000",
-    marginBottom: 20,
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#000000",
-    borderBottomStyle: "solid",
-    minHeight: 25,
-    alignItems: "center",
-  },
-  tableHeader: {
-    backgroundColor: "#f0f0f0",
-    fontWeight: "bold",
-  },
-  tableCell: {
-    padding: 4,
-    fontSize: 8,
-    textAlign: "left",
-    borderRightWidth: 1,
-    borderRightColor: "#000000",
-    borderRightStyle: "solid",
-  },
+  table: brandStyles.table,
+  tableRow: { ...brandStyles.tableRow, minHeight: 22, alignItems: "center" },
+  tableHeader: brandStyles.tableHeader,
+  tableCell: { ...brandStyles.tableCell, fontSize: 9 },
   col1: { width: "12%" }, // Employee ID
   col2: { width: "15%" }, // Company
   col3: { width: "8%" }, // Month
@@ -66,40 +19,7 @@ const styles = StyleSheet.create({
   col8: { width: "8%" }, // ESIC
   col9: { width: "8%" }, // Bonus
   col10: { width: "11%" }, // Deductions
-  summary: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: "#f8f9fa",
-    borderWidth: 1,
-    borderColor: "#dee2e6",
-    borderStyle: "solid",
-  },
-  summaryTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 5,
-  },
-  summaryLabel: {
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  summaryValue: {
-    fontSize: 10,
-  },
-  footer: {
-    position: "absolute",
-    bottom: 30,
-    left: 30,
-    right: 30,
-    textAlign: "center",
-    fontSize: 8,
-    color: "#666666",
-  },
+  summaryRow: brandStyles.row,
 })
 
 interface PayrollReportPDFProps {
@@ -117,17 +37,14 @@ const PayrollReportPDF = ({ data, title, totalRecords }: PayrollReportPDFProps) 
   const totalESIC = data.reduce((sum, record) => sum + (record.salaryData.esic || 0), 0)
 
   return (
-    <Document>
-      <Page size="A4" orientation="landscape" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>Payroll Report</Text>
-          <Text style={styles.metadata}>
-            Generated on {new Date().toLocaleDateString()} | Total Records: {totalRecords} | Showing: {data.length}{" "}
-            records
-          </Text>
-        </View>
+    <Document
+      title={`${title} - Payroll Report`}
+      author={BRAND.name}
+      subject="Payroll Report"
+      keywords="Tulsyan Security Solutions, Payroll, Report"
+    >
+      <BrandPage orientation="landscape">
+        <PdfHeader title={title} subtitle={`Payroll Report • Total: ${totalRecords} • Showing: ${data.length}`} />
 
         {/* Table */}
         <View style={styles.table}>
@@ -169,33 +86,31 @@ const PayrollReportPDF = ({ data, title, totalRecords }: PayrollReportPDFProps) 
         </View>
 
         {/* Summary */}
-        <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>Summary</Text>
+        <Section title="Summary">
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Gross Salary:</Text>
-            <Text style={styles.summaryValue}>₹{totalGrossSalary.toLocaleString()}</Text>
+            <Text style={brandStyles.label}>Total Gross Salary:</Text>
+            <Text style={brandStyles.value}>₹{totalGrossSalary.toLocaleString()}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Net Salary:</Text>
-            <Text style={styles.summaryValue}>₹{totalNetSalary.toLocaleString()}</Text>
+            <Text style={brandStyles.label}>Total Net Salary:</Text>
+            <Text style={brandStyles.value}>₹{totalNetSalary.toLocaleString()}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Deductions:</Text>
-            <Text style={styles.summaryValue}>₹{totalDeductions.toLocaleString()}</Text>
+            <Text style={brandStyles.label}>Total Deductions:</Text>
+            <Text style={brandStyles.value}>₹{totalDeductions.toLocaleString()}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total PF:</Text>
-            <Text style={styles.summaryValue}>₹{totalPF.toLocaleString()}</Text>
+            <Text style={brandStyles.label}>Total PF:</Text>
+            <Text style={brandStyles.value}>₹{totalPF.toLocaleString()}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total ESIC:</Text>
-            <Text style={styles.summaryValue}>₹{totalESIC.toLocaleString()}</Text>
+            <Text style={brandStyles.label}>Total ESIC:</Text>
+            <Text style={brandStyles.value}>₹{totalESIC.toLocaleString()}</Text>
           </View>
-        </View>
+        </Section>
 
-        {/* Footer */}
-        <Text style={styles.footer}>This is a computer-generated report. Generated by TSS Payroll System.</Text>
-      </Page>
+        <PdfFooter rightNote="This is a computer-generated report" />
+      </BrandPage>
     </Document>
   )
 }

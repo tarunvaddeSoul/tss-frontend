@@ -1,42 +1,8 @@
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
+import { Document, Text, View, StyleSheet } from "@react-pdf/renderer"
 import type { Employee } from "@/types/employee"
+import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 
 const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    backgroundColor: "#f8f9fa",
-  },
-  header: {
-    flexDirection: "row",
-    marginBottom: 30,
-    borderBottomWidth: 2,
-    borderBottomColor: "#D12702",
-    paddingBottom: 15,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#D12702",
-  },
-  section: {
-    marginBottom: 20,
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 5,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 15,
-    color: "#D12702",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    paddingBottom: 8,
-  },
-  row: {
-    flexDirection: "row",
-    marginBottom: 10,
-  },
   column: {
     flexDirection: "column",
     flexGrow: 1,
@@ -44,27 +10,29 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   heading: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "bold",
-    color: "#4a5568",
-    marginBottom: 3,
+    color: "#4b5563",
+    marginBottom: 2,
   },
   text: {
-    fontSize: 11,
-    color: "#2d3748",
+    fontSize: 10,
+    color: "#111827",
   },
 })
 
 const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Employee Details</Text>
-      </View>
+  <Document
+    title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+    author={BRAND.name}
+    subject="Employee Profile"
+    keywords="Tulsyan Security Solutions, Employee, Profile"
+  >
+    <BrandPage>
+      <PdfHeader title="Employee Profile" subtitle={`${employee.firstName} ${employee.lastName}`} />
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
-        <View style={styles.row}>
+      <Section title="Personal Information">
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Name</Text>
             <Text style={styles.text}>{`${employee.title || ""} ${employee.firstName} ${employee.lastName}`}</Text>
@@ -74,7 +42,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.id}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Date of Birth</Text>
             <Text style={styles.text}>{employee.dateOfBirth}</Text>
@@ -84,7 +52,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.gender}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Father's Name</Text>
             <Text style={styles.text}>{employee.fatherName}</Text>
@@ -95,18 +63,17 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
           </View>
         </View>
         {employee.husbandName && (
-          <View style={styles.row}>
+          <View style={brandStyles.row}>
             <View style={styles.column}>
               <Text style={styles.heading}>Husband's Name</Text>
               <Text style={styles.text}>{employee.husbandName}</Text>
             </View>
           </View>
         )}
-      </View>
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Employment Details</Text>
-        <View style={styles.row}>
+      <Section title="Employment Details">
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Designation</Text>
             <Text style={styles.text}>{employee.designationName}</Text>
@@ -116,7 +83,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.employeeDepartmentName}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Company</Text>
             <Text style={styles.text}>{employee.companyName}</Text>
@@ -126,7 +93,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.dateOfJoining}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Recruited By</Text>
             <Text style={styles.text}>{employee.recruitedBy}</Text>
@@ -136,17 +103,16 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.salary}</Text>
           </View>
         </View>
-      </View>
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Contact Information</Text>
-        <View style={styles.row}>
+      <Section title="Contact Information">
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Mobile Number</Text>
             <Text style={styles.text}>{employee.mobileNumber}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Present Address</Text>
             <Text style={styles.text}>{employee.presentAddress}</Text>
@@ -156,7 +122,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.permanentAddress}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>City</Text>
             <Text style={styles.text}>{employee.city}</Text>
@@ -166,7 +132,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.district}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>State</Text>
             <Text style={styles.text}>{employee.state}</Text>
@@ -176,11 +142,10 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.pincode}</Text>
           </View>
         </View>
-      </View>
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Additional Information</Text>
-        <View style={styles.row}>
+      <Section title="Additional Information">
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Category</Text>
             <Text style={styles.text}>{employee.category}</Text>
@@ -190,17 +155,16 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.bloodGroup}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Highest Education</Text>
             <Text style={styles.text}>{employee.highestEducationQualification}</Text>
           </View>
         </View>
-      </View>
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Bank Details</Text>
-        <View style={styles.row}>
+      <Section title="Bank Details">
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Bank Name</Text>
             <Text style={styles.text}>{employee.bankName}</Text>
@@ -210,7 +174,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.bankAccountNumber}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>IFSC Code</Text>
             <Text style={styles.text}>{employee.ifscCode}</Text>
@@ -220,11 +184,10 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.bankCity}</Text>
           </View>
         </View>
-      </View>
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Other Details</Text>
-        <View style={styles.row}>
+      <Section title="Other Details">
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>PF UAN Number</Text>
             <Text style={styles.text}>{employee.pfUanNumber}</Text>
@@ -234,14 +197,16 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => (
             <Text style={styles.text}>{employee.esicNumber}</Text>
           </View>
         </View>
-        <View style={styles.row}>
+        <View style={brandStyles.row}>
           <View style={styles.column}>
             <Text style={styles.heading}>Aadhaar Number</Text>
             <Text style={styles.text}>{employee.aadhaarNumber}</Text>
           </View>
         </View>
-      </View>
-    </Page>
+      </Section>
+
+      <PdfFooter rightNote="This is a computer-generated document" />
+    </BrandPage>
   </Document>
 )
 

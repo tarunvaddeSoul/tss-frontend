@@ -21,7 +21,8 @@ export const employeeService = {
   async getEmployees(params?: EmployeeSearchParams) {
     try {
       const response = await api.get("/employees", { params })
-      return response.data.data
+      // Return the full response including data array and total count
+      return response.data
     } catch (error) {
       console.error("Error fetching employees:", error)
       throw new Error(getErrorMessage(error))

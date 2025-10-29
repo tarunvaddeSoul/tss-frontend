@@ -12,11 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Pagination,
-  PaginationItem,
-  PaginationLink,
-} from "@/components/ui/pagination"
+import { Pagination } from "@/components/ui/pagination"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +39,7 @@ export default function CompaniesPage() {
     sortOrder: "asc",
   })
   const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -58,7 +56,10 @@ export default function CompaniesPage() {
       setIsLoading(true)
       const response = await companyService.getCompanies(searchParams)
       setCompanies(response.data?.companies || [])
-      setTotalPages(Math.ceil((response.data?.total || 0) / (searchParams.limit || 10)))
+      const total = response.data?.total || 0
+      setTotalCount(total)
+      const limit = searchParams.limit || 10
+      setTotalPages(Math.ceil(total / limit))
     } catch (error) {
       console.error("Error fetching companies:", error)
       toast({
@@ -139,18 +140,6 @@ export default function CompaniesPage() {
     setDeleteDialogOpen(true)
   }
 
-  // Generate pagination items
-  const paginationItems = []
-  for (let i = 1; i <= totalPages; i++) {
-    paginationItems.push(
-      <PaginationItem key={i}>
-        <PaginationLink isActive={searchParams.page === i} onClick={() => handlePageChange(i)}>
-          {i}
-        </PaginationLink>
-      </PaginationItem>,
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -196,12 +185,39 @@ export default function CompaniesPage() {
       {/* Companies Table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle>Companies List</CardTitle>
-          <CardDescription>
-            {isLoading
-              ? "Loading companies..."
-              : `Showing ${companies.length} of ${totalPages * (searchParams.limit || 10)} companies`}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Companies List</CardTitle>
+              <CardDescription>
+                {isLoading
+                  ? "Loading companies..."
+                  : `Showing ${companies.length} of ${totalCount} companies`}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <Select
+                value={String(searchParams.limit)}
+                onValueChange={(value) =>
+                  setSearchParams({
+                    ...searchParams,
+                    limit: Number(value),
+                    page: 1, // Reset to first page when changing limit
+                  })
+                }
+              >
+                <SelectTrigger className="w-[80px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="rounded-md border">

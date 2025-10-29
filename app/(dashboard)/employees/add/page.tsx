@@ -75,13 +75,18 @@ export default function AddEmployeePage() {
         try {
             const createEmployeeResponse = await employeeService.createEmployee(values)
             console.log("(handleSubmit) Employee created successfully:", JSON.stringify(createEmployeeResponse, null, 2))
+            
+            // Show success toast with improved message
             toast({
-                title: "Success",
-                description: "Employee created successfully",
+                title: "Success! 🎉",
+                description: "Employee created successfully. Redirecting to employee list...",
+                variant: "default",
             })
 
-            // Redirect to employee list
-            router.push("/employees/list")
+            // Delay redirect to ensure toast is visible
+            setTimeout(() => {
+                router.push("/employees/list")
+            }, 1500)
         } catch (error) {
             console.error("Error creating employee:", getErrorMessage(error))
             toast({
@@ -89,7 +94,6 @@ export default function AddEmployeePage() {
                 description: getErrorMessage(error) || "Failed to create employee. Please try again.",
                 variant: "destructive",
             })
-        } finally {
             setIsLoading(false)
         }
     }

@@ -5,14 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
+import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, ChevronDown, ChevronUp, FileDown } from "lucide-react"
@@ -25,7 +18,7 @@ import type { CompanyPayrollMonth } from "@/types/payroll"
 
 export function CompanyReports() {
   const { toast } = useToast()
-  const { companies, loading: loadingCompanies } = useCompany()
+  const { companies, isLoading: loadingCompanies } = useCompany()
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("")
   const [companyName, setCompanyName] = useState<string>("")
@@ -120,7 +113,7 @@ export function CompanyReports() {
                 </SelectTrigger>
                 <SelectContent>
                   {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
+                    <SelectItem key={company.id ?? ""} value={company.id ?? ""}>
                       {company.name}
                     </SelectItem>
                   ))}
@@ -235,31 +228,7 @@ export function CompanyReports() {
 
               {totalPages > 1 && (
                 <div className="mt-4">
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                        />
-                      </PaginationItem>
-
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                        <PaginationItem key={p}>
-                          <PaginationLink isActive={page === p} onClick={() => setPage(p)}>
-                            {p}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                          className={page === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
+                  <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
                 </div>
               )}
             </>

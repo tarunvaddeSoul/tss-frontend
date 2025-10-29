@@ -20,6 +20,8 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react"
+import { AssignEmploymentDialog } from "@/components/employees/assign-employment-dialog"
+import { TerminateEmploymentDialog } from "@/components/employees/terminate-employment-dialog"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -149,7 +151,8 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
   const [departments, setDepartments] = useState<EmployeeDepartments[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showAssignDialog, setShowAssignDialog] = useState(false)
+  const [showTerminateDialog, setShowTerminateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedHistory, setSelectedHistory] = useState<IEmployeeEmploymentHistory | null>(null)
 
@@ -199,63 +202,13 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
     loadData()
   }, [employee.id])
 
-  // Handle adding new employment history
-  const handleAddEmploymentHistory = async (data: z.infer<typeof employmentHistorySchema>) => {
+  // Handle refresh after assignment/termination
+  const handleEmploymentChange = async () => {
     try {
-      setIsSubmitting(true);
-
-      const createData: CreateEmploymentHistoryDto = {
-        companyId: data.companyId,
-        departmentId: data.departmentId,
-        designationId: data.designationId,
-        salary: data.salary,
-        joiningDate: format(data.joiningDate, "dd-MM-yyyy"),
-        status: data.isActive ? Status.ACTIVE : Status.INACTIVE,
-      };
-
-      const response = await employeeService.createEmploymentHistory(employee.id, createData);
-
-      if (response.statusCode === 201) {
-        toast({
-          title: "Success",
-          description: "Employment history added successfully!"
-        });
-
-        // Refresh employment histories
-        const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id);
-        setEmploymentHistories(updatedHistories.data || []);
-
-        // Close dialog and reset form
-        setShowAddDialog(false);
-        form.reset({
-          companyId: "",
-          departmentId: "",
-          designationId: "",
-          joiningDate: new Date(),
-          leavingDate: undefined,
-          salary: 0,
-          isActive: false,
-        });
-      } else {
-        throw new Error(response.message || "Failed to add employment history");
-      }
+      const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id);
+      setEmploymentHistories(updatedHistories.data || []);
     } catch (error) {
-      console.error("Error adding employment history:", error);
-      let errorMessage = "Failed to add employment history";
-      
-      if (error instanceof AxiosError && error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
+      console.error("Error refreshing employment history:", error);
     }
   };
 
@@ -342,75 +295,18 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
     }
   };
 
-  // Handle closing current employment
-  const handleCloseEmployment = async (historyId: string) => {
-    try {
-      setIsSubmitting(true);
-
-      // First check if this is actually the active employment
-      const employmentToClose = employmentHistories.find(h => h.id === historyId);
-      if (!employmentToClose) {
-        toast({
-          title: "Error",
-          description: "Employment record not found",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (employmentToClose.status !== Status.ACTIVE) {
-        toast({
-          title: "Error",
-          description: "This employment is already inactive",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const response = await employeeService.closeEmployment(employee.id, {
-        leavingDate: format(new Date(), "dd-MM-yyyy"),
+  // Handle opening terminate dialog
+  const handleOpenTerminate = (history: IEmployeeEmploymentHistory) => {
+    if (history.status !== Status.ACTIVE) {
+      toast({
+        title: "Cannot Terminate",
+        description: "Only active employment can be terminated.",
+        variant: "destructive"
       });
-
-      if (response.statusCode === 200) {
-        toast({
-          title: "Success",
-          description: EMPLOYMENT_MESSAGES.CLOSE_SUCCESS
-        });
-
-        // Refresh employment histories
-        const updatedHistories = await employeeService.getEmployeeEmploymentHistory(employee.id);
-        setEmploymentHistories(updatedHistories.data || []);
-      } else {
-        throw new Error(response.message || EMPLOYMENT_MESSAGES.CLOSE_ERROR);
-      }
-    } catch (error) {
-      console.error("Error closing employment:", error);
-
-      // Handle specific error cases
-      if (error instanceof Error) {
-        if (error.message.includes("No active employment found")) {
-          toast({
-            title: "Error",
-            description: "This employment is no longer active. Please refresh the page.",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: error.message || EMPLOYMENT_MESSAGES.CLOSE_ERROR,
-            variant: "destructive"
-          });
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: EMPLOYMENT_MESSAGES.CLOSE_ERROR,
-          variant: "destructive"
-        });
-      }
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+    setSelectedHistory(history);
+    setShowTerminateDialog(true);
   };
 
   // Handle edit button click
@@ -476,202 +372,14 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
           <Briefcase className="h-5 w-5" />
           Employment History
         </CardTitle>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add New Employment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Employment Record</DialogTitle>
-              <DialogDescription>
-                {EMPLOYMENT_GUIDANCE.add}
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleAddEmploymentHistory)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="companyId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company <span className="text-red-500">*</span></FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select company" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {companyOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value ?? ""}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="designationId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Job Role <span className="text-red-500">*</span></FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select job role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {designationOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="departmentId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Department <span className="text-red-500">*</span></FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {departmentOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="salary"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Salary <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Enter monthly salary"
-                            {...field}
-                            onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="joiningDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
-                        <DatePicker date={field.value} onSelect={field.onChange} />
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox 
-                          checked={field.value} 
-                          onCheckedChange={(checked) => {
-                            field.onChange(checked);
-                            // Clear leaving date when making active
-                            if (checked) {
-                              form.setValue("leavingDate", undefined, { 
-                                shouldValidate: true,
-                                shouldDirty: true,
-                                shouldTouch: true
-                              });
-                            }
-                          }} 
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Current Employment</FormLabel>
-                        <p className="text-sm text-muted-foreground">
-                          {EMPLOYMENT_GUIDANCE.active}
-                        </p>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="leavingDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>End Date {!form.watch("isActive") && <span className="text-red-500">*</span>}</FormLabel>
-                      {form.watch("isActive") ? (
-                        <div className="text-sm text-muted-foreground">Not applicable for current employment</div>
-                      ) : (
-                        <DatePicker 
-                          date={field.value} 
-                          onSelect={(date) => {
-                            field.onChange(date);
-                            form.trigger("leavingDate");
-                          }}
-                        />
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      "Add Employment Record"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => setShowAssignDialog(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Assign New Employment
+        </Button>
       </CardHeader>
 
       <CardContent className="p-0">
@@ -680,9 +388,9 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
             <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No Employment History</h3>
             <p className="text-muted-foreground mb-4">This employee has no employment history records yet.</p>
-            <Button onClick={() => setShowAddDialog(true)}>
+            <Button onClick={() => setShowAssignDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add First Employment
+              Assign First Employment
             </Button>
           </div>
         ) : (
@@ -756,39 +464,15 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                           <Edit className="h-4 w-4" />
                         </Button>
                         {history.status === Status.ACTIVE && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                title="End current employment"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>End Current Employment</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to end this employment? This will:
-                                  <ul className="list-disc list-inside mt-2">
-                                    <li>Mark this employment as inactive</li>
-                                    <li>Set today as the leaving date</li>
-                                    <li>Allow you to add a new employment record</li>
-                                  </ul>
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleCloseEmployment(history.id || "")}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  End Employment
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Terminate employment"
+                            onClick={() => handleOpenTerminate(history)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -799,6 +483,28 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
           </ScrollArea>
         )}
       </CardContent>
+
+      {/* Assign New Employment Dialog */}
+      <AssignEmploymentDialog
+        employee={employee}
+        open={showAssignDialog}
+        onOpenChange={setShowAssignDialog}
+        onSuccess={handleEmploymentChange}
+      />
+
+      {/* Terminate Employment Dialog */}
+      {selectedHistory && (
+        <TerminateEmploymentDialog
+          employee={employee}
+          employment={selectedHistory}
+          open={showTerminateDialog}
+          onOpenChange={setShowTerminateDialog}
+          onSuccess={() => {
+            handleEmploymentChange()
+            setSelectedHistory(null)
+          }}
+        />
+      )}
 
       {/* Edit Employment History Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>

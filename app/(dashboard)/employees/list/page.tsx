@@ -46,6 +46,7 @@ import { Employee, EmployeeSearchParams, IEmployeeEmploymentHistory } from "@/ty
 import { Company } from "@/types/company"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { TerminateEmployeeDialog } from "@/components/employees/terminate-employee-dialog"
 // import { EmployeeViewPDF } from "@/components/employees/employee-view-pdf"
 // import { PDFViewer } from "@/components/pdf-viewer"
 
@@ -66,6 +67,8 @@ export default function EmployeeListPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<string>("details")
+  const [terminateDialogOpen, setTerminateDialogOpen] = useState(false)
+  const [employeeToTerminate, setEmployeeToTerminate] = useState<Employee | null>(null)
   const [searchParams, setSearchParams] = useState<EmployeeSearchParams>({
     page: 1,
     limit: 10,
@@ -200,9 +203,17 @@ export default function EmployeeListPage() {
     router.push(`/employees/view/${id}`)
   }
 
-  const handleDelete = (id: string) => {
-    // Handle delete logic
-    console.log("Delete employee with ID:", id)
+  const handleTerminate = (employee: Employee) => {
+    if (employee.status === "INACTIVE") {
+      toast.error("Employee is already terminated from TSS")
+      return
+    }
+    setEmployeeToTerminate(employee)
+    setTerminateDialogOpen(true)
+  }
+
+  const handleTerminationSuccess = () => {
+    fetchEmployees() // Refresh the list
   }
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
@@ -434,9 +445,17 @@ export default function EmployeeListPage() {
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(employee.id)}>
-                              <Trash className="h-4 w-4" />
-                            </Button>
+                            {employee.status !== "INACTIVE" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleTerminate(employee)}
+                                title="Terminate from TSS"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -563,6 +582,19 @@ export default function EmployeeListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Terminate Employee Dialog */}
+      {employeeToTerminate && (
+        <TerminateEmployeeDialog
+          employee={employeeToTerminate}
+          open={terminateDialogOpen}
+          onOpenChange={(open) => {
+            setTerminateDialogOpen(open)
+            if (!open) setEmployeeToTerminate(null)
+          }}
+          onSuccess={handleTerminationSuccess}
+        />
+      )}
     </div>
   )
 }

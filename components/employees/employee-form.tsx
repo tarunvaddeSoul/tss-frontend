@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Upload } from "lucide-react"
+import { Upload, User, Phone, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
 
@@ -12,9 +12,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { cn } from "@/lib/utils"
 import type { EmployeeFormValues } from "@/types/employee"
 
 interface EmployeeFormProps {
@@ -27,16 +31,18 @@ interface EmployeeFormProps {
   onChange?: () => void
 }
 
-// Create a schema for form validation
+// Create a schema for form validation - Employment Details are now optional
 const employeeFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  // Employment Details - all optional
   currentCompanyDesignationId: z.string().optional(),
   currentCompanyDepartmentId: z.string().optional(),
   currentCompanyJoiningDate: z.date().optional(),
-  mobileNumber: z.string().regex(/^\d{10}$/, "Invalid mobile number"),
   currentCompanyId: z.string().optional(),
+  currentCompanySalary: z.number().optional(),
+  mobileNumber: z.string().regex(/^\d{10}$/, "Invalid mobile number"),
   recruitedBy: z.string().min(1, "Recruiter name is required"),
   gender: z.string().min(1, "Gender is required"),
   status: z.string().default("ACTIVE"),
@@ -76,7 +82,6 @@ const employeeFormSchema = z.object({
   markSheet: z.any().optional(),
   otherDocument: z.any().optional(),
   otherDocumentRemarks: z.string().optional(),
-  currentCompanySalary: z.number().optional(),
   aadhaarNumber: z.string().regex(/^\d{12}$/, "Invalid Aadhaar number"),
 })
 
@@ -105,10 +110,24 @@ export function EmployeeForm({
   const { toast } = useToast()
   const [gender, setGender] = useState(initialValues?.gender || "")
   const [sameAsPermanent, setSameAsPermanent] = useState(false)
+  const [currentStep, setCurrentStep] = useState(0)
+  const [stepsWithErrors, setStepsWithErrors] = useState<Set<number>>(new Set())
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // Define form steps
+  const steps = [
+    { id: "basic", title: "Basic Information", icon: User, description: "Personal details and contact information" },
+    { id: "employment", title: "Employment", icon: Briefcase, description: "Employment details (optional)", optional: true },
+    { id: "bank", title: "Bank Details", icon: CreditCard, description: "Banking information" },
+    { id: "additional", title: "Additional Details", icon: FileText, description: "PF, ESIC, and certificates" },
+    { id: "reference", title: "Reference", icon: Building2, description: "Reference information" },
+    { id: "documents", title: "Documents", icon: FileText, description: "Upload documents" },
+  ]
 
   // Initialize the form with default values
   const form = useForm<z.infer<typeof employeeFormSchema>>({
     resolver: zodResolver(employeeFormSchema),
+    mode: "onChange", // Validate on change for immediate feedback
     defaultValues: {
       title: initialValues?.title || "",
       firstName: initialValues?.firstName || "",
@@ -228,8 +247,100 @@ export function EmployeeForm({
     return () => subscription.unsubscribe()
   }, [form, onChange])
 
+  // Validate all steps and identify which steps have errors
+  const validateAllSteps = () => {
+    const errors = form.formState.errors
+    const errorSteps = new Set<number>()
+    
+    // Define which fields belong to which step
+    const stepFields: Record<number, (keyof z.infer<typeof employeeFormSchema>)[]> = {
+      0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'], // Basic Information
+      1: [], // Employment (optional)
+      2: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'], // Bank Details
+      3: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'], // Additional Details
+      4: ['referenceName', 'referenceAddress', 'referenceNumber'], // Reference
+      5: [], // Documents (optional)
+    }
+    
+    // Check each step for errors
+    Object.keys(stepFields).forEach((stepIndex) => {
+      const stepNum = parseInt(stepIndex)
+      const fields = stepFields[stepNum]
+      
+      // Skip optional steps (employment, documents)
+      if (stepNum === 1 || stepNum === 5) return
+      
+      const hasError = fields.some((field) => errors[field])
+      if (hasError) {
+        errorSteps.add(stepNum)
+      }
+    })
+    
+    setStepsWithErrors(errorSteps)
+    return errorSteps.size === 0
+  }
+
+  // Find first error field and scroll to it
+  const scrollToFirstError = () => {
+    const errors = form.formState.errors
+    const fieldNames = Object.keys(errors) as (keyof typeof errors)[]
+    
+    if (fieldNames.length > 0) {
+      const firstErrorField = fieldNames[0]
+      
+      // Find which step contains this field
+      const stepFields: Record<number, string[]> = {
+        0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'],
+        2: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'],
+        3: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'],
+        4: ['referenceName', 'referenceAddress', 'referenceNumber'],
+      }
+      
+      let targetStep = 0
+      for (const [stepIndex, fields] of Object.entries(stepFields)) {
+        if (fields.includes(firstErrorField)) {
+          targetStep = parseInt(stepIndex)
+          break
+        }
+      }
+      
+      // Navigate to step with error
+      setCurrentStep(targetStep)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      
+      // Try to scroll to the actual field
+      setTimeout(() => {
+        const errorElement = document.querySelector(`[name="${firstErrorField}"]`)
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          ;(errorElement as HTMLElement).focus()
+        }
+      }, 300)
+    }
+  }
+
   // Handle form submission
   const handleFormSubmit = async (values: z.infer<typeof employeeFormSchema>) => {
+    // Trigger validation
+    const isValid = await form.trigger()
+    
+    if (!isValid) {
+      // Validate all steps to show error indicators
+      validateAllSteps()
+      
+      // Show error toast
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please fill in all required fields. Check the highlighted steps for errors.",
+      })
+      
+      // Scroll to first error
+      scrollToFirstError()
+      
+      return
+    }
+    
     try {
       // Format dates to DD-MM-YYYY
       const formattedValues = {
@@ -249,10 +360,8 @@ export function EmployeeForm({
       // Clear saved form data on successful submission
       localStorage.removeItem(FORM_STORAGE_KEY)
       
-      toast({
-        title: "Success",
-        description: "Employee details saved successfully",
-      })
+      // Clear error indicators
+      setStepsWithErrors(new Set())
     } catch (error) {
       console.error("Form submission error:", error)
       
@@ -274,6 +383,28 @@ export function EmployeeForm({
       })
     }
   }
+  
+  // Watch for form errors and update step indicators
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+    
+    const subscription = form.watch(() => {
+      // Debounce validation updates
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        validateAllSteps()
+      }, 500)
+    })
+    
+    // Initial validation
+    validateAllSteps()
+    
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeoutId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.formState.errors])
 
   // Handle same as permanent address checkbox
   const handleSameAsPermanentChange = (checked: boolean) => {
@@ -285,8 +416,99 @@ export function EmployeeForm({
 
   // Handle gender change
   const handleGenderChange = (value: string) => {
-    setGender(value)
-    form.setValue("gender", value)
+    setGender(value || "")
+    form.setValue("gender", value || "")
+  }
+
+  // Navigation handlers
+  const handleNext = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }
+
+  const handleStepClick = (stepIndex: number) => {
+    setCurrentStep(stepIndex)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  // Helper to make Select clearable - wraps with FormControl for use in FormField
+  const ClearableSelect = ({ field, placeholder, children }: any) => {
+    const handleValueChange = (value: string) => {
+      if (value === "__clear__") {
+        // Set to undefined to properly clear
+        field.onChange(undefined)
+      } else {
+        field.onChange(value)
+      }
+    }
+    
+    // Check if field has a value (not empty string or undefined)
+    const hasValue = field.value && field.value !== ""
+    
+    return (
+      <FormControl>
+        <Select
+          value={hasValue ? String(field.value) : undefined}
+          onValueChange={handleValueChange}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {hasValue && (
+              <>
+                <SelectItem 
+                  value="__clear__" 
+                  className="text-muted-foreground focus:text-muted-foreground hover:bg-muted"
+                >
+                  <div className="flex items-center gap-2">
+                    <X className="h-4 w-4" />
+                    <span>Clear selection</span>
+                  </div>
+                </SelectItem>
+                <SelectSeparator />
+              </>
+            )}
+            {children}
+          </SelectContent>
+        </Select>
+      </FormControl>
+    )
+  }
+
+  // Helper to make DatePicker clearable (DatePicker already has built-in clear button)
+  const ClearableDatePicker = ({ field, label, required }: any) => {
+    const handleDateSelect = (date: Date | null) => {
+      // DatePicker passes null when cleared, we convert to undefined for form
+      field.onChange(date || undefined)
+    }
+    
+    // Use nullish coalescing to properly handle undefined/null conversion
+    const dateValue = field.value ?? null
+    
+    return (
+      <FormItem className="flex flex-col">
+        <FormLabel>
+          {typeof label === 'string' ? label : label}
+          {required && <span className="text-red-500">*</span>}
+        </FormLabel>
+        <DatePicker 
+          key={`date-${dateValue ? dateValue.getTime() : 'null'}`}
+          date={dateValue} 
+          onSelect={handleDateSelect} 
+        />
+        <FormMessage />
+      </FormItem>
+    )
   }
 
   const titleOptions = [
@@ -320,14 +542,201 @@ export function EmployeeForm({
     { value: "POST_GRADUATE", label: "POST GRADUATE" },
   ]
 
+  // Calculate form completion progress
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    const calculateProgress = () => {
+      const formValues = form.getValues()
+      const totalFields = 40 // Approximate total required fields
+      let completedFields = 0
+
+      // Basic Details
+      if (formValues.firstName && formValues.lastName && formValues.title) completedFields += 3
+      if (formValues.dateOfBirth) completedFields++
+      if (formValues.gender) completedFields++
+      if (formValues.fatherName) completedFields++
+      if (formValues.motherName) completedFields++
+      if (formValues.bloodGroup) completedFields++
+      if (formValues.employeeOnboardingDate) completedFields++
+      if (formValues.status) completedFields++
+      if (formValues.recruitedBy) completedFields++
+      if (formValues.highestEducationQualification) completedFields++
+      if (formValues.category) completedFields++
+
+      // Contact Details
+      if (formValues.mobileNumber && formValues.mobileNumber.length === 10) completedFields++
+      if (formValues.aadhaarNumber && formValues.aadhaarNumber.length === 12) completedFields++
+      if (formValues.permanentAddress) completedFields++
+      if (formValues.presentAddress) completedFields++
+      if (formValues.city) completedFields++
+      if (formValues.district) completedFields++
+      if (formValues.state) completedFields++
+      if (formValues.pincode) completedFields++
+
+      // Bank Details
+      if (formValues.bankAccountNumber) completedFields++
+      if (formValues.ifscCode) completedFields++
+      if (formValues.bankName) completedFields++
+      if (formValues.bankCity) completedFields++
+
+      // Additional Details
+      if (formValues.pfUanNumber) completedFields++
+      if (formValues.esicNumber) completedFields++
+      if (formValues.policeVerificationNumber) completedFields++
+      if (formValues.policeVerificationDate) completedFields++
+      if (formValues.trainingCertificateNumber) completedFields++
+      if (formValues.trainingCertificateDate) completedFields++
+      if (formValues.medicalCertificateNumber) completedFields++
+      if (formValues.medicalCertificateDate) completedFields++
+
+      // Reference Details
+      if (formValues.referenceName) completedFields++
+      if (formValues.referenceAddress) completedFields++
+      if (formValues.referenceNumber) completedFields++
+
+      return Math.round((completedFields / totalFields) * 100)
+    }
+
+    const subscription = form.watch(() => {
+      setProgress(calculateProgress())
+    })
+    // Initial calculation
+    setProgress(calculateProgress())
+    return () => subscription.unsubscribe()
+  }, [form])
+
+  const CurrentStepIcon = steps[currentStep]?.icon || User
+
+  // Calculate total errors
+  const totalErrors = Object.keys(form.formState.errors).length
+
   return (
     <Form {...form}>
-      <form id="employee-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      <form id="employee-form" ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+        {/* Validation Error Alert */}
+        {totalErrors > 0 && (
+          <Alert variant="destructive" className="border-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Validation Errors</AlertTitle>
+            <AlertDescription>
+              Please fix {totalErrors} error{totalErrors > 1 ? 's' : ''} in the form before submitting. 
+              {stepsWithErrors.size > 0 && (
+                <span> Check step{stepsWithErrors.size > 1 ? 's' : ''}: {Array.from(stepsWithErrors).map(i => steps[i].title).join(', ')}</span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Progress Indicator */}
+        <Card className="border-primary/20">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Form Completion</span>
+                <span className="text-muted-foreground">{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+              
+              {/* Step Indicator */}
+              <div className="flex items-center justify-between pt-2">
+                <div className="flex items-center gap-2">
+                  <CurrentStepIcon className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">
+                    Step {currentStep + 1} of {steps.length}: {steps[currentStep]?.title}
+                  </span>
+                  {steps[currentStep]?.optional && (
+                    <Badge variant="outline" className="text-xs">Optional</Badge>
+                  )}
+                </div>
+              </div>
+              
+              {/* Visual Stepper */}
+              <div className="flex items-center justify-between pt-2">
+                {steps.map((step, index) => {
+                  const StepIcon = step.icon
+                  const isActive = index === currentStep
+                  const isCompleted = index < currentStep
+                  const isClickable = isCompleted || !step.optional
+                  
+                  return (
+                    <div key={step.id} className="flex items-center flex-1">
+                      <div
+                        onClick={() => isClickable && handleStepClick(index)}
+                        className={cn(
+                          "flex flex-col items-center cursor-pointer transition-all relative",
+                          isClickable ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-50"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all relative",
+                            isActive && "border-primary bg-primary text-primary-foreground",
+                            isCompleted && !stepsWithErrors.has(index) && "border-green-500 bg-green-500 text-white",
+                            stepsWithErrors.has(index) && "border-destructive bg-destructive/10 text-destructive border-2",
+                            !isActive && !isCompleted && !stepsWithErrors.has(index) && "border-muted bg-background"
+                          )}
+                        >
+                          {stepsWithErrors.has(index) ? (
+                            <AlertCircle className="h-5 w-5" />
+                          ) : (
+                            <StepIcon className="h-5 w-5" />
+                          )}
+                        </div>
+                        {stepsWithErrors.has(index) && (
+                          <div className="absolute -top-1 -right-1">
+                            <div className="w-3 h-3 bg-destructive rounded-full border-2 border-background" />
+                          </div>
+                        )}
+                        <div className="mt-2 text-center">
+                          <div className={cn(
+                            "text-xs font-medium",
+                            isActive && "text-primary",
+                            isCompleted && !stepsWithErrors.has(index) && "text-green-600",
+                            stepsWithErrors.has(index) && "text-destructive font-semibold",
+                            !isActive && !isCompleted && !stepsWithErrors.has(index) && "text-muted-foreground"
+                          )}>
+                            {step.title}
+                          </div>
+                          {step.optional && (
+                            <Badge variant="outline" className="mt-1 text-xs">Optional</Badge>
+                          )}
+                          {stepsWithErrors.has(index) && (
+                            <Badge variant="destructive" className="mt-1 text-xs">Has Errors</Badge>
+                          )}
+                        </div>
+                      </div>
+                      {index < steps.length - 1 && (
+                        <div
+                          className={cn(
+                            "h-0.5 mx-2 flex-1 transition-all",
+                            isCompleted ? "bg-green-500" : "bg-muted"
+                          )}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Step Content */}
+        {currentStep === 0 && (
+          /* Step 1: Basic Information (merged Basic + Contact) */
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                <CardTitle>Basic Information</CardTitle>
+              </div>
+              <CardDescription>Enter personal details and contact information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Personal Details Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Personal Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={form.control}
@@ -335,20 +744,13 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select title" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {titleOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ClearableSelect field={field} placeholder="Select title">
+                      {titleOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -383,11 +785,7 @@ export function EmployeeForm({
                 control={form.control}
                 name="dateOfBirth"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date of Birth <span className="text-red-500">*</span></FormLabel>
-                    <DatePicker date={field.value} onSelect={field.onChange} />
-                    <FormMessage />
-                  </FormItem>
+                  <ClearableDatePicker field={field} label="Date of Birth" required />
                 )}
               />
               <FormField
@@ -396,20 +794,50 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gender <span className="text-red-500">*</span></FormLabel>
-                    <Select onValueChange={(value) => handleGenderChange(value)} defaultValue={field.value}>
-                      <FormControl>
+                    <FormControl>
+                      <Select
+                        value={field.value && field.value !== "" ? field.value : undefined}
+                        onValueChange={(value) => {
+                          if (value === "__clear__") {
+                            field.onChange("")
+                            setGender("")
+                            // Trigger validation immediately
+                            form.trigger("gender")
+                          } else {
+                            // Update field value directly for immediate validation
+                            field.onChange(value)
+                            setGender(value)
+                            // Trigger validation immediately
+                            form.trigger("gender")
+                          }
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {genderOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        <SelectContent>
+                          {field.value && field.value !== "" && (
+                            <>
+                              <SelectItem 
+                                value="__clear__" 
+                                className="text-muted-foreground focus:text-muted-foreground hover:bg-muted"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <X className="h-4 w-4" />
+                                  <span>Clear selection</span>
+                                </div>
+                              </SelectItem>
+                              <SelectSeparator />
+                            </>
+                          )}
+                          {genderOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -472,11 +900,7 @@ export function EmployeeForm({
                 control={form.control}
                 name="employeeOnboardingDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Employee Onboarding Date <span className="text-red-500">*</span></FormLabel>
-                    <DatePicker date={field.value} onSelect={field.onChange} />
-                    <FormMessage />
-                  </FormItem>
+                  <ClearableDatePicker field={field} label="Employee Onboarding Date" required />
                 )}
               />
               <FormField
@@ -485,20 +909,13 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {statusOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ClearableSelect field={field} placeholder="Select status">
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -522,20 +939,13 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Highest Education Qualification <span className="text-red-500">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select qualification" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {educationQualificationOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ClearableSelect field={field} placeholder="Select qualification">
+                      {educationQualificationOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -546,33 +956,23 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category <span className="text-red-500">*</span></FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categoryOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ClearableSelect field={field} placeholder="Select category">
+                      {categoryOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+              </div>
+              
+              {/* Contact Details Section */}
+              <div className="space-y-4 pt-6 border-t">
+                <h3 className="text-lg font-semibold">Contact Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -695,24 +1095,29 @@ export function EmployeeForm({
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Employment Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        {currentStep === 1 && (
+          /* Step 2: Employment Details - Optional */
+          <Card className="border-dashed">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>Employment Details</CardTitle>
+                  <Badge variant="outline" className="ml-2">Optional</Badge>
+                </div>
+                <CardDescription>Employment information can be added later if not available now</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="currentCompanyJoiningDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Company Date of Joining</FormLabel>
-                    <DatePicker date={field.value} onSelect={field.onChange} />
-                    <FormMessage />
-                  </FormItem>
+                  <ClearableDatePicker field={field} label="Company Date of Joining" />
                 )}
               />
               <FormField
@@ -739,20 +1144,13 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Designation</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select designation" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {designations.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ClearableSelect field={field} placeholder="Select designation">
+                      {designations.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -763,20 +1161,13 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employee Department</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {employeeDepartments.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ClearableSelect field={field} placeholder="Select department">
+                      {employeeDepartments.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -787,34 +1178,33 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select company" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {companies.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ClearableSelect field={field} placeholder="Select company">
+                      {companies.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
-       
+              </CardContent>
+            </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        {currentStep === 2 && (
+          /* Step 3: Bank Details */
+          <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  <CardTitle>Bank Details</CardTitle>
+                </div>
+                <CardDescription>Enter banking information for salary processing</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -869,14 +1259,21 @@ export function EmployeeForm({
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        {currentStep === 3 && (
+          /* Step 4: Additional Details */
+          <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <CardTitle>Additional Details</CardTitle>
+                </div>
+                <CardDescription>Provide PF, ESIC, and certificate information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -921,11 +1318,7 @@ export function EmployeeForm({
                 control={form.control}
                 name="policeVerificationDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Police Verification Date <span className="text-red-500">*</span></FormLabel>
-                    <DatePicker date={field.value} onSelect={field.onChange} />
-                    <FormMessage />
-                  </FormItem>
+                  <ClearableDatePicker field={field} label="Police Verification Date" required />
                 )}
               />
               <FormField
@@ -945,11 +1338,7 @@ export function EmployeeForm({
                 control={form.control}
                 name="trainingCertificateDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Training Certificate Date <span className="text-red-500">*</span></FormLabel>
-                    <DatePicker date={field.value} onSelect={field.onChange} />
-                    <FormMessage />
-                  </FormItem>
+                  <ClearableDatePicker field={field} label="Training Certificate Date" required />
                 )}
               />
               <FormField
@@ -969,22 +1358,25 @@ export function EmployeeForm({
                 control={form.control}
                 name="medicalCertificateDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Medical Certificate Date <span className="text-red-500">*</span></FormLabel>
-                    <DatePicker date={field.value} onSelect={field.onChange} />
-                    <FormMessage />
-                  </FormItem>
+                  <ClearableDatePicker field={field} label="Medical Certificate Date" required />
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Reference Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+        {currentStep === 4 && (
+          /* Step 5: Reference Details */
+          <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <CardTitle>Reference Details</CardTitle>
+                </div>
+                <CardDescription>Provide reference person information</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={form.control}
@@ -1026,18 +1418,25 @@ export function EmployeeForm({
                 )}
               />
             </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Document Uploads</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="photo"
+        {currentStep === 5 && (
+          /* Step 6: Documents */
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <CardTitle>Document Uploads</CardTitle>
+              </div>
+              <CardDescription>Upload required documents and certificates</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="photo"
                 render={({ field: { value, onChange, ...field } }) => (
                   <FormItem>
                     <FormLabel>Photo Upload</FormLabel>
@@ -1195,14 +1594,54 @@ export function EmployeeForm({
                 />
               )}
             </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Navigation Buttons */}
+        <Card className="border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrevious}
+                disabled={currentStep === 0 || isLoading}
+                className="flex items-center gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              <div className="text-sm text-muted-foreground text-center">
+                {progress === 100 && currentStep === steps.length - 1 ? (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Ready to submit!</span>
+                  </div>
+                ) : (
+                  <span>Step {currentStep + 1} of {steps.length}</span>
+                )}
+              </div>
+              
+              {currentStep < steps.length - 1 ? (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isLoading}
+                  className="flex items-center gap-2"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button type="submit" disabled={isLoading} size="lg" className="min-w-[120px]">
+                  {isLoading ? "Submitting..." : "Submit"}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
-
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Submitting..." : "Submit"}
-          </Button>
-        </div>
       </form>
     </Form>
   )

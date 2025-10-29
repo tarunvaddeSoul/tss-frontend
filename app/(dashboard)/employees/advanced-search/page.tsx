@@ -52,6 +52,7 @@ export default function AdvancedEmployeeSearch() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
   const router = useRouter()
 
@@ -91,7 +92,7 @@ export default function AdvancedEmployeeSearch() {
     try {
       const params = {
         page: currentPage,
-        limit: 10,
+        limit: limit,
         searchText: formValues.searchText,
         designationId: formValues.designationId,
         employeeDepartmentId: formValues.employeeDepartmentId,
@@ -108,8 +109,9 @@ export default function AdvancedEmployeeSearch() {
       }
 
       const response = await employeeService.getEmployees(params)
-      setEmployees(response.data)
-      setTotalPages(Math.ceil(response.total / 10))
+      setEmployees(response.data?.data || [])
+      const totalCount = response.data?.total || 0
+      setTotalPages(Math.ceil(totalCount / params.limit))
     } catch (error) {
       console.error("Error fetching employees:", error)
     } finally {
@@ -370,8 +372,33 @@ export default function AdvancedEmployeeSearch() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Search Results</CardTitle>
-          <CardDescription>Showing {employees.length} results</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Search Results</CardTitle>
+              <CardDescription>Showing {employees.length} results</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <Select
+                value={String(limit)}
+                onValueChange={(value) => {
+                  setLimit(Number(value))
+                  setPage(1) // Reset to first page when changing limit
+                  fetchEmployees(1)
+                }}
+              >
+                <SelectTrigger className="w-[80px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (

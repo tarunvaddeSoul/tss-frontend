@@ -162,7 +162,7 @@ export default function AdvancedEmployeeSearch() {
   }
 
   const handleIdClick = (id: string) => {
-    router.push(`/employees/${id}`)
+    router.push(`/employees/view/${id}`)
   }
 
   const handleAgeRangeChange = (value: number[]) => {

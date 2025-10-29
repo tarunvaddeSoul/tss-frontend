@@ -43,6 +43,7 @@ interface AdvancedSearchFormValues {
   sortOrder: "asc" | "desc"
   startDate: Date | null
   endDate: Date | null
+  status: string
 }
 
 export default function AdvancedEmployeeSearch() {
@@ -71,6 +72,7 @@ export default function AdvancedEmployeeSearch() {
       sortOrder: "asc",
       startDate: null,
       endDate: null,
+      status: "",
     },
   })
 
@@ -93,19 +95,20 @@ export default function AdvancedEmployeeSearch() {
       const params = {
         page: currentPage,
         limit: limit,
-        searchText: formValues.searchText,
-        designationId: formValues.designationId,
-        employeeDepartmentId: formValues.employeeDepartmentId,
-        companyId: formValues.companyId,
-        gender: formValues.gender,
-        category: formValues.category,
-        highestEducationQualification: formValues.highestEducationQualification,
+        searchText: formValues.searchText || undefined,
+        designationId: formValues.designationId && formValues.designationId !== "all" ? formValues.designationId : undefined,
+        employeeDepartmentId: formValues.employeeDepartmentId && formValues.employeeDepartmentId !== "all" ? formValues.employeeDepartmentId : undefined,
+        companyId: formValues.companyId && formValues.companyId !== "all" ? formValues.companyId : undefined,
+        gender: formValues.gender && formValues.gender !== "all" ? formValues.gender : undefined,
+        category: formValues.category && formValues.category !== "all" ? formValues.category : undefined,
+        highestEducationQualification: formValues.highestEducationQualification && formValues.highestEducationQualification !== "all" ? formValues.highestEducationQualification : undefined,
         minAge: formValues.ageRange[0],
         maxAge: formValues.ageRange[1],
         sortBy: formValues.sortBy || "lastName",
         sortOrder: formValues.sortOrder || "asc",
         startDate: formValues.startDate ? formatDateToDDMMYYYY(formValues.startDate) : undefined,
         endDate: formValues.endDate ? formatDateToDDMMYYYY(formValues.endDate) : undefined,
+        status: formValues.status && formValues.status !== "all" ? formValues.status : undefined,
       }
 
       const response = await employeeService.getEmployees(params)
@@ -303,7 +306,7 @@ export default function AdvancedEmployeeSearch() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
                   <Select onValueChange={(value) => setValue("gender", value)} value={formValues.gender}>
@@ -330,6 +333,20 @@ export default function AdvancedEmployeeSearch() {
                       <SelectItem value="ST">ST</SelectItem>
                       <SelectItem value="OBC">OBC</SelectItem>
                       <SelectItem value="GENERAL">GENERAL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select onValueChange={(value) => setValue("status", value)} value={formValues.status}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="INACTIVE">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

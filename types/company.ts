@@ -130,6 +130,7 @@ export interface CompanySearchParams {
   sortBy?: string
   sortOrder?: "asc" | "desc"
   searchText?: string
+  status?: string
 }
 
 // Response interfaces

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Search, Edit, Trash2, Eye, ArrowUpDown } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Eye, ArrowUpDown, XCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +28,7 @@ import { toast } from "@/components/ui/use-toast"
 import { companyService } from "@/services/companyService"
 import type { Company, CompanySearchParams } from "@/types/company"
 import { CompanyViewDialog } from "@/components/companies/company-view-dialog"
+import { TerminateCompanyDialog } from "@/components/companies/terminate-company-dialog"
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
@@ -42,7 +43,8 @@ export default function CompaniesPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [terminateDialogOpen, setTerminateDialogOpen] = useState(false)
+  const [companyToTerminate, setCompanyToTerminate] = useState<Company | null>(null)
 
   const router = useRouter()
 
@@ -111,33 +113,22 @@ export default function CompaniesPage() {
     setViewDialogOpen(true)
   }
 
-  // Handle delete company
-  const handleDeleteCompany = async () => {
-    if (!selectedCompany?.id) return
-
-    try {
-      await companyService.deleteCompany(selectedCompany.id)
-      fetchCompanies() // Refresh the list
-      setDeleteDialogOpen(false)
-
-      toast({
-        title: "Success",
-        description: "Company deleted successfully",
-      })
-    } catch (error) {
-      console.error("Error deleting company:", error)
+  // Handle terminate company
+  const handleTerminate = (company: Company) => {
+    if (company.status === "INACTIVE") {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to delete company. Please try again.",
+        title: "Already Terminated",
+        description: "This company is already terminated from TSS.",
       })
+      return
     }
+    setCompanyToTerminate(company)
+    setTerminateDialogOpen(true)
   }
 
-  // Confirm delete
-  const confirmDelete = (company: Company) => {
-    setSelectedCompany(company)
-    setDeleteDialogOpen(true)
+  const handleTerminationSuccess = () => {
+    fetchCompanies() // Refresh the list
   }
 
   return (
@@ -157,27 +148,54 @@ export default function CompaniesPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Search Companies</CardTitle>
-          <CardDescription>Find companies by name, contact person, or other details</CardDescription>
+          <CardDescription>Find companies by name, contact person, status, or other details</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="flex items-center space-x-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                name="searchText"
-                placeholder="Search companies..."
-                defaultValue={searchParams.searchText || ""}
-                className="pl-8"
-              />
+          <form onSubmit={handleSearch} className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  name="searchText"
+                  placeholder="Search companies..."
+                  defaultValue={searchParams.searchText || ""}
+                  className="pl-8"
+                />
+              </div>
+              <Select
+                value={searchParams.status || "all"}
+                onValueChange={(value) =>
+                  setSearchParams({
+                    ...searchParams,
+                    status: value === "all" ? undefined : value,
+                    page: 1,
+                  })
+                }
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button type="submit">Search</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setSearchParams({
+                    ...searchParams,
+                    searchText: undefined,
+                    status: undefined,
+                  })
+                }
+              >
+                Clear
+              </Button>
             </div>
-            <Button type="submit">Search</Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSearchParams({ ...searchParams, searchText: undefined })}
-            >
-              Clear
-            </Button>
           </form>
         </CardContent>
       </Card>
@@ -318,15 +336,17 @@ export default function CompaniesPage() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => confirmDelete(company)}
-                            title="Delete Company"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {company.status !== "INACTIVE" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleTerminate(company)}
+                              title="Terminate from TSS"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -374,23 +394,18 @@ export default function CompaniesPage() {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the company "{selectedCompany?.name}". This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteCompany} className="bg-red-600 hover:bg-red-700">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Terminate Company Dialog */}
+      {companyToTerminate && (
+        <TerminateCompanyDialog
+          company={companyToTerminate}
+          open={terminateDialogOpen}
+          onOpenChange={(open) => {
+            setTerminateDialogOpen(open)
+            if (!open) setCompanyToTerminate(null)
+          }}
+          onSuccess={handleTerminationSuccess}
+        />
+      )}
     </div>
   )
 }

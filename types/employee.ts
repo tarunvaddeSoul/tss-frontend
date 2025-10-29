@@ -324,4 +324,5 @@ export interface EmployeeSearchParams {
   sortOrder?: "asc" | "desc"
   startDate?: string
   endDate?: string
+  status?: string
 }

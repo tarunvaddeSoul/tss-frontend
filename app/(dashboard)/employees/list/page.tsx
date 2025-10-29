@@ -32,17 +32,13 @@ import { departmentService } from "@/services/departmentService"
 import { companyService } from "@/services/companyService"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Pagination,
-  PaginationItem,
-  PaginationLink,
-} from "@/components/ui/pagination"
+import { Pagination } from "@/components/ui/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -75,6 +71,7 @@ export default function EmployeeListPage() {
     limit: 10,
   })
   const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [designations, setDesignations] = useState<Designation[]>([])
   const [employeeDepartments, setEmployeeDepartments] = useState<EmployeeDepartment[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
@@ -102,8 +99,11 @@ export default function EmployeeListPage() {
     try {
       setLoading(true)
       const response = await employeeService.getEmployees(searchParams)
-      setEmployees(response.data)
-      setTotalPages(Math.ceil(response.data.total / 10))
+      setEmployees(response.data?.data || [])
+      const total = response.data?.total || 0
+      setTotalCount(total)
+      const limit = searchParams.limit || 10
+      setTotalPages(Math.ceil(total / limit))
     } catch (error) {
       console.error("Error fetching employees:", error)
     } finally {
@@ -220,18 +220,6 @@ export default function EmployeeListPage() {
     return `${firstName[0]}${lastName[0]}`.toUpperCase()
   }
 
-  // Generate pagination items
-  const paginationItems = []
-  for (let i = 1; i <= totalPages; i++) {
-    paginationItems.push(
-      <PaginationItem key={i}>
-        <PaginationLink isActive={searchParams.page === i} onClick={() => handlePageChange(i)}>
-          {i}
-        </PaginationLink>
-      </PaginationItem>,
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -346,7 +334,37 @@ export default function EmployeeListPage() {
       <ScrollArea className="flex-1">
         <Card>
           <CardHeader>
-            <CardTitle>Employee List</CardTitle>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Employee List</CardTitle>
+                {totalCount > 0 && (
+                  <CardDescription>Showing {employees.length} of {totalCount} employees</CardDescription>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Items per page:</span>
+                <Select
+                  value={String(searchParams.limit)}
+                  onValueChange={(value) =>
+                    setSearchParams({
+                      ...searchParams,
+                      limit: Number(value),
+                      page: 1, // Reset to first page when changing limit
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-[80px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
@@ -434,13 +452,15 @@ export default function EmployeeListPage() {
               </Table>
             </div>
 
-            <div className="mt-4 flex justify-center">
-              <Pagination
-                currentPage={searchParams.page}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
-            </div>
+            {totalPages > 1 && (
+              <div className="mt-4 flex justify-center">
+                <Pagination
+                  currentPage={searchParams.page}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </ScrollArea>

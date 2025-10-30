@@ -70,9 +70,9 @@ export interface DeleteAttendanceDto {
 
 // Response interfaces
 export interface AttendanceResponse {
-  success: boolean
+  statusCode: number
   message: string
-  data: Attendance
+  data: Attendance | null
 }
 
 export interface AttendanceListResponse {
@@ -88,13 +88,13 @@ export interface AttendanceListResponse {
 }
 
 export interface BulkAttendanceResponse {
-  success: boolean
+  statusCode: number
   message: string
   data: {
     created: number
     failed: number
     errors?: string[]
-  }
+  } | null
 }
 
 export interface UploadAttendanceResponse {
@@ -163,4 +163,40 @@ export interface UploadAttendanceFormValues {
   companyId: string
   month: string
   attendanceSheet: File | null
+}
+
+// Active Employees for Month API Response
+export interface ActiveEmployee {
+  id: string
+  firstName: string
+  lastName: string
+  status: string
+  contactDetails?: {
+    mobileNumber?: string
+  }
+  employmentHistories?: Array<{
+    id: string
+    companyId: string
+    joiningDate: string
+    leavingDate: string | null
+    status: string
+    designation?: {
+      name: string
+    }
+    department?: {
+      name: string
+    }
+  }>
+}
+
+export interface ActiveEmployeesResponse {
+  statusCode: number
+  message: string
+  data: {
+    companyId: string
+    companyName: string
+    month: string
+    employees: ActiveEmployee[]
+    count: number
+  } | null
 }

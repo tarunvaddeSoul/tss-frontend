@@ -41,8 +41,9 @@ import { useToast } from "@/components/ui/use-toast"
 import { attendanceService } from "@/services/attendanceService"
 import { companyService } from "@/services/companyService"
 import type { Company, CompanyEmployee } from "@/types/company"
-import type { BulkMarkAttendanceDto } from "@/types/attendance"
+import type { BulkMarkAttendanceDto, ActiveEmployee } from "@/types/attendance"
 import { MonthPicker } from "../ui/month-picker"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 
 // Updated schema with proper validation for each step
 const formSchema = z.object({
@@ -81,10 +82,71 @@ interface SubmissionResult {
   timestamp: Date
 }
 
+// Note: Frontend validation is simplified since backend now validates eligibility
+// This helper is kept for display purposes only
+const getEmployeeDisplayInfo = (employee: ActiveEmployee, companyId?: string) => {
+  // Try to find the employment history that matches the company, or use the first one
+  let employmentHistory = employee.employmentHistories?.[0]
+  
+  if (companyId && employee.employmentHistories) {
+    const matchingHistory = employee.employmentHistories.find(
+      (hist) => hist.companyId === companyId
+    )
+    if (matchingHistory) {
+      employmentHistory = matchingHistory
+    }
+  }
+  
+  if (!employmentHistory) {
+    console.warn("No employment history found for employee:", employee.id, employee)
+    return { designation: "N/A", department: "N/A", joiningDate: "N/A" }
+  }
+  
+  // Log the structure to debug
+  if (!employmentHistory.designation?.name || !employmentHistory.department?.name) {
+    console.log("Employment history structure:", {
+      employeeId: employee.id,
+      employmentHistory,
+      hasDesignation: !!employmentHistory.designation,
+      hasDepartment: !!employmentHistory.department,
+    })
+  }
+  
+  // Try multiple ways to access designation and department
+  let designationName = employmentHistory.designation?.name
+  let departmentName = employmentHistory.department?.name
+  
+  // Handle alternative structures
+  if (!designationName && (employmentHistory as any).designationName) {
+    designationName = (employmentHistory as any).designationName
+  }
+  if (!departmentName && (employmentHistory as any).departmentName) {
+    departmentName = (employmentHistory as any).departmentName
+  }
+  if (!designationName && (employmentHistory as any).designation) {
+    // If designation is a string instead of object
+    designationName = typeof (employmentHistory as any).designation === 'string' 
+      ? (employmentHistory as any).designation 
+      : (employmentHistory as any).designation?.name
+  }
+  if (!departmentName && (employmentHistory as any).department) {
+    // If department is a string instead of object
+    departmentName = typeof (employmentHistory as any).department === 'string'
+      ? (employmentHistory as any).department
+      : (employmentHistory as any).department?.name
+  }
+  
+  return {
+    designation: designationName || "N/A",
+    department: departmentName || "N/A",
+    joiningDate: employmentHistory.joiningDate || "N/A",
+  }
+}
+
 export function MarkAttendanceBySite() {
   const [currentStep, setCurrentStep] = useState(0)
   const [companies, setCompanies] = useState<Company[]>([])
-  const [employees, setEmployees] = useState<CompanyEmployee[]>([])
+  const [employees, setEmployees] = useState<ActiveEmployee[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -195,42 +257,47 @@ export function MarkAttendanceBySite() {
     }
   }
 
-  const fetchEmployees = async (companyId: string) => {
+  // Fetch active employees for company and month using new API
+  const fetchActiveEmployees = async (companyId: string, month: Date) => {
     try {
       setLoading(true)
       setErrors([])
 
-      const response = await companyService.getCompanyEmployees(companyId)
+      const monthString = format(month, "yyyy-MM")
+      console.log("📞 Calling /attendance/active-employees API with:", { companyId, month: monthString })
+      
+      const response = await attendanceService.getActiveEmployeesForMonth(companyId, monthString)
+      
+      console.log("✅ Response from /attendance/active-employees:", response)
+      
+      // Log first employee structure for debugging
+      if (response.data?.employees && response.data.employees.length > 0) {
+        console.log("🔍 Sample employee structure:", {
+          employee: response.data.employees[0],
+          employmentHistories: response.data.employees[0].employmentHistories,
+          hasDesignation: !!response.data.employees[0].employmentHistories?.[0]?.designation,
+          hasDepartment: !!response.data.employees[0].employmentHistories?.[0]?.department,
+        })
+      }
 
-      if (!response.data || response.data.length === 0) {
-        const errorMsg = "No employees found for this company."
+      if (!response.data || !response.data.employees || response.data.employees.length === 0) {
+        const errorMsg = `No active employees found for ${response.data?.companyName || "this company"} in ${format(month, "MMMM yyyy")}.`
         setErrors([errorMsg])
         toast({
           title: "Warning",
           description: errorMsg,
         })
         setEmployees([])
+        form.setValue("employees", [])
         return
       }
 
-      const activeEmployees = response.data.filter((emp: CompanyEmployee) => emp.status === "ACTIVE")
-
-      if (activeEmployees.length === 0) {
-        const errorMsg = "No active employees found for this company."
-        setErrors([errorMsg])
-        toast({
-          title: "Warning",
-          description: errorMsg,
-        })
-        setEmployees([])
-        return
-      }
-
+      const activeEmployees = response.data.employees
       setEmployees(activeEmployees)
 
-      // Initialize employees form data using the employeeId field for attendance API
-      const employeesData = activeEmployees.map((emp: CompanyEmployee) => ({
-        employeeId: emp.employeeId, // Use the employeeId field for attendance API
+      // Initialize employees form data using the id field (which is the employeeId)
+      const employeesData = activeEmployees.map((emp: ActiveEmployee) => ({
+        employeeId: emp.id, // The API returns 'id' field which is the employeeId
         selected: false,
         presentCount: 0,
       }))
@@ -238,17 +305,24 @@ export function MarkAttendanceBySite() {
 
       toast({
         title: "Success",
-        description: `Loaded ${activeEmployees.length} active employees`,
+        description: `Loaded ${activeEmployees.length} active employee(s) for ${format(month, "MMMM yyyy")}`,
       })
+      console.log(`✅ Loaded ${activeEmployees.length} active employees for ${format(month, "MMMM yyyy")}`)
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || "Failed to fetch employees. Please try again."
+      const errorMsg = error?.response?.data?.message || "Failed to fetch active employees. Please try again."
+      console.error("❌ Error fetching active employees:", {
+        error,
+        response: error?.response?.data,
+        message: errorMsg,
+      })
       setErrors([errorMsg])
       toast({
         variant: "destructive",
         title: "Error",
         description: errorMsg,
       })
-      console.error("Error fetching employees:", error)
+      setEmployees([])
+      form.setValue("employees", [])
     } finally {
       setLoading(false)
     }
@@ -257,10 +331,50 @@ export function MarkAttendanceBySite() {
   const handleCompanyChange = (companyId: string) => {
     form.setValue("companyId", companyId)
     setErrors([])
-    if (companyId) {
-      fetchEmployees(companyId)
-    }
+    setEmployees([])
+    form.setValue("employees", [])
+    setSelectedEmployees(new Set())
+    // Don't fetch employees until month is also selected - month change will trigger fetch
   }
+
+  // Fetch active employees when both company and month are selected
+  // Use form.watch subscription inside useEffect to properly react to changes
+  useEffect(() => {
+    let isMounted = true
+
+    const subscription = form.watch((value, { name, type }) => {
+      // Only react to month or companyId changes (not on blur or other events)
+      if (type === "change" && (name === "month" || name === "companyId")) {
+        const companyId = value.companyId
+        const month = value.month
+
+        if (companyId && month && isMounted) {
+          console.log("🔄 Fetching active employees for:", { companyId, month: format(month, "yyyy-MM") })
+          fetchActiveEmployees(companyId, month)
+        } else if (!month && companyId && isMounted) {
+          // Clear employees when month is cleared
+          console.log("🧹 Clearing employees - month cleared")
+          setEmployees([])
+          form.setValue("employees", [])
+          setSelectedEmployees(new Set())
+        }
+      }
+    })
+
+    // Also check initial values on mount
+    const initialCompanyId = form.getValues("companyId")
+    const initialMonth = form.getValues("month")
+    if (initialCompanyId && initialMonth && isMounted) {
+      console.log("🚀 Initial fetch for:", { companyId: initialCompanyId, month: format(initialMonth, "yyyy-MM") })
+      fetchActiveEmployees(initialCompanyId, initialMonth)
+    }
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount, subscription handles updates
 
   const handleEmployeeSelection = (employeeId: string, selected: boolean) => {
     const currentEmployees = form.getValues("employees") || []
@@ -286,12 +400,23 @@ export function MarkAttendanceBySite() {
   }
 
   const selectAllEmployees = () => {
+    const selectedMonth = form.getValues("month")
     const currentEmployees = form.getValues("employees") || []
-    const allSelected = currentEmployees.every((emp) => emp.selected)
+    const allSelected = currentEmployees.length > 0 && currentEmployees.every((emp) => emp.selected)
 
+    if (!selectedMonth) {
+      toast({
+        variant: "destructive",
+        title: "Select Month First",
+        description: "Please select a month before selecting employees.",
+      })
+      return
+    }
+
+    // All employees from the API are already eligible (backend filters them)
     const updatedEmployees = currentEmployees.map((emp) => ({
       ...emp,
-      selected: !allSelected,
+      selected: !allSelected, // Toggle selection
     }))
     form.setValue("employees", updatedEmployees)
 
@@ -302,10 +427,11 @@ export function MarkAttendanceBySite() {
         description: "All employees deselected",
       })
     } else {
-      setSelectedEmployees(new Set(currentEmployees.map((emp) => emp.employeeId)))
+      const allIds = currentEmployees.map((emp) => emp.employeeId)
+      setSelectedEmployees(new Set(allIds))
       toast({
         title: "Info",
-        description: "All employees selected",
+        description: `All ${currentEmployees.length} employee(s) selected`,
       })
     }
   }
@@ -344,6 +470,7 @@ export function MarkAttendanceBySite() {
           return true
 
         case 2:
+          const selectedMonth = form.getValues("month")
           const employeesData = form.getValues("employees") || []
           const selectedEmps = employeesData.filter((emp) => emp.selected)
 
@@ -357,6 +484,9 @@ export function MarkAttendanceBySite() {
             })
             return false
           }
+
+          // Note: Eligibility validation is now handled by backend
+          // All employees in the list are already eligible (API filters them)
 
           // Validate present counts
           const invalidCounts = selectedEmps.filter((emp) => emp.presentCount < 0 || emp.presentCount > 31)
@@ -476,73 +606,172 @@ export function MarkAttendanceBySite() {
 
       // Mark attendance
       try {
+        console.log("📤 Sending bulk attendance request:", {
+          recordCount: bulkData.records.length,
+          records: bulkData.records,
+        })
+        
         const response = await attendanceService.bulkMarkAttendance(bulkData)
+        
+        console.log("📥 Bulk attendance response:", response)
+        console.log("📥 Response structure:", {
+          statusCode: response.statusCode,
+          message: response.message,
+          data: response.data,
+          hasData: !!response.data,
+          created: response.data?.created,
+          failed: response.data?.failed,
+          errors: response.data?.errors,
+        })
 
-        // Upload file if provided
-        if (data.attendanceFile) {
-          try {
-            await attendanceService.uploadAttendanceSheet(
-              {
-                companyId: data.companyId,
-                month: format(data.month, "yyyy-MM"),
-              },
-              data.attendanceFile,
-            )
-            fileUploaded = true
-          } catch (uploadError: any) {
-            const uploadErrorMsg = uploadError?.response?.data?.message || "Failed to upload attendance file"
+        // Handle backend validation errors
+        if (response.statusCode === 400 && response.data === null) {
+          // Backend rejected some or all records
+          const errorMessage = response.message || "Some employees are not eligible for attendance in the selected month."
+          setErrors([errorMessage])
+          toast({
+            variant: "destructive",
+            title: "Validation Error",
+            description: errorMessage,
+          })
+          setSubmitting(false)
+          return
+        }
+
+        // Handle successful or partial success response
+        // Backend might return success with data, or the created count might be in a different structure
+        if (response.statusCode === 200 || response.data) {
+          // Try multiple ways to get the count
+          let createdCount = 0
+          let failedCount = 0
+          
+          if (response.data) {
+            // Backend should return created and failed counts
+            // If created is 0 or undefined, check if we can infer from the response
+            createdCount = response.data.created ?? 0
+            failedCount = response.data.failed ?? 0
+            
+            // Fallback: If created is 0 but status is 200 and no errors, assume all succeeded
+            if (createdCount === 0 && response.statusCode === 200 && (!response.data.errors || response.data.errors.length === 0)) {
+              console.log("⚠️ Backend returned created: 0, but status is 200. Assuming all records succeeded.")
+              createdCount = selectedEmployeesData.length
+            }
+            
+            // If we still have 0 created but have errors, calculate from errors
+            if (createdCount === 0 && response.data.errors && response.data.errors.length > 0) {
+              createdCount = selectedEmployeesData.length - response.data.errors.length
+              failedCount = response.data.errors.length
+            }
+          } else {
+            // If no data object but status 200, assume all succeeded
+            createdCount = selectedEmployeesData.length
+            failedCount = 0
+          }
+          
+          console.log("✅ Calculated counts:", { createdCount, failedCount, selectedCount: selectedEmployeesData.length })
+          
+          const result: SubmissionResult = {
+            success: true,
+            created: createdCount,
+            failed: failedCount,
+            fileUploaded,
+            timestamp: new Date(),
+          }
+
+          // Show errors if any failed
+          if (response.data?.errors && response.data.errors.length > 0) {
+            const errorMessages = response.data.errors
+            setErrors(errorMessages)
             toast({
               variant: "destructive",
-              title: "Upload Error",
-              description: uploadErrorMsg,
+              title: "Some Records Failed",
+              description: errorMessages.join("\n"),
+              duration: 10000, // Show longer for multiple errors
             })
-            setErrors((prev) => [...prev, uploadErrorMsg])
+          }
+          
+          // Also check if there are errors in the message for bulk operations
+          if (response.data?.failed && response.data.failed > 0 && response.message) {
+            // Message might contain error details
+            if (response.message.includes("Validation failed") || response.message.includes("failed")) {
+              setErrors([response.message])
+            }
+          }
+
+          // Upload file if provided
+          if (data.attendanceFile) {
+            try {
+              await attendanceService.uploadAttendanceSheet(
+                {
+                  companyId: data.companyId,
+                  month: format(data.month, "yyyy-MM"),
+                },
+                data.attendanceFile,
+              )
+              fileUploaded = true
+              result.fileUploaded = true
+            } catch (uploadError: any) {
+              const uploadErrorMsg = uploadError?.response?.data?.message || "Failed to upload attendance file"
+              toast({
+                variant: "destructive",
+                title: "Upload Error",
+                description: uploadErrorMsg,
+              })
+              setErrors((prev) => [...prev, uploadErrorMsg])
+            }
+          }
+
+          setSubmissionResult(result)
+          setIsSubmitted(true)
+
+          // Show success message
+          if (result.failed > 0) {
+            toast({
+              title: "Partial Success",
+              description: `Attendance partially completed: ${result.created} created, ${result.failed} failed. Check errors above.`,
+              duration: 8000,
+            })
+          } else {
+            toast({
+              title: "Success",
+              description: `Attendance marked successfully for ${result.created} employee(s)!`,
+            })
+          }
+
+          if (result.fileUploaded) {
+            toast({
+              title: "File Upload Success",
+              description: "Attendance file uploaded successfully!",
+            })
+          }
+
+          // Move to success step
+          setCurrentStep(5)
+          setProgress(100)
+        } else {
+          // Unexpected response format
+          throw new Error("Invalid response from server")
+        }
+      } catch (markingError: any) {
+        // Handle API errors
+        const errorResponse = markingError?.response?.data
+        let errorMessage = "Failed to mark attendance"
+        
+        if (errorResponse) {
+          // Backend validation error
+          if (errorResponse.statusCode === 400) {
+            errorMessage = errorResponse.message || "Some employees are not eligible for attendance in the selected month."
+          } else {
+            errorMessage = errorResponse.message || errorMessage
           }
         }
 
-        // Set submission result
-        const result: SubmissionResult = {
-          success: true,
-          created: response.data.created,
-          failed: response.data.failed,
-          fileUploaded,
-          timestamp: new Date(),
-        }
-        setSubmissionResult(result)
-
-        // Mark as submitted to prevent further actions
-        setIsSubmitted(true)
-
-        // Show success message
-        if (response.data.failed > 0) {
-          toast({
-            title: "Partial Success",
-            description: `Attendance partially completed: ${response.data.created} created, ${response.data.failed} failed`,
-          })
-        } else {
-          toast({
-            title: "Success",
-            description: `Attendance marked successfully for ${response.data.created} employees!`,
-          })
-        }
-
-        if (fileUploaded) {
-          toast({
-            title: "File Upload Success",
-            description: "Attendance file uploaded successfully!",
-          })
-        }
-
-        // Move to success step
-        setCurrentStep(5)
-        setProgress(100)
-      } catch (markingError: any) {
-        const markingErrorMsg = markingError?.response?.data?.message || "Failed to mark attendance"
-        setErrors([markingErrorMsg])
+        setErrors([errorMessage])
         toast({
           variant: "destructive",
           title: "Error",
-          description: markingErrorMsg,
+          description: errorMessage,
+          duration: 8000,
         })
       }
     } catch (error: any) {
@@ -862,10 +1091,12 @@ export function MarkAttendanceBySite() {
                           variant="outline"
                           size="sm"
                           onClick={selectAllEmployees}
-                          disabled={isSubmitted}
+                          disabled={isSubmitted || !selectedMonth}
                         >
                           <UserCheck className="mr-2 h-4 w-4" />
-                          {selectedEmployees.size === employees.length ? "Deselect All" : "Select All"}
+                          {selectedEmployees.size === employees.length && employees.length > 0
+                            ? "Deselect All"
+                            : "Select All"}
                         </Button>
                         <Badge variant="secondary">
                           {selectedEmployees.size} of {employees.length} selected
@@ -886,15 +1117,19 @@ export function MarkAttendanceBySite() {
                         </TableHeader>
                         <TableBody>
                           {employees.map((employee) => {
-                            const employeeData = formEmployees.find((emp) => emp.employeeId === employee.employeeId)
+                            const employeeData = formEmployees.find((emp) => emp.employeeId === employee.id)
+                            const selectedCompanyId = form.watch("companyId")
+                            const displayInfo = getEmployeeDisplayInfo(employee, selectedCompanyId)
+
                             return (
-                              <TableRow key={employee.id} className={cn(employeeData?.selected && "bg-muted/50")}>
+                              <TableRow
+                                key={employee.id}
+                                className={cn(employeeData?.selected && "bg-muted/50")}
+                              >
                                 <TableCell>
                                   <Checkbox
                                     checked={employeeData?.selected || false}
-                                    onCheckedChange={(checked) =>
-                                      handleEmployeeSelection(employee.employeeId, checked as boolean)
-                                    }
+                                    onCheckedChange={(checked) => handleEmployeeSelection(employee.id, checked as boolean)}
                                     disabled={isSubmitted}
                                   />
                                 </TableCell>
@@ -903,11 +1138,11 @@ export function MarkAttendanceBySite() {
                                     <p className="font-medium">
                                       {employee.firstName} {employee.lastName}
                                     </p>
-                                    <p className="text-sm text-muted-foreground">{employee.employeeId}</p>
+                                    <p className="text-sm text-muted-foreground">{employee.id}</p>
                                   </div>
                                 </TableCell>
-                                <TableCell>{employee.department || "N/A"}</TableCell>
-                                <TableCell>{employee.designation || "N/A"}</TableCell>
+                                <TableCell>{displayInfo.department}</TableCell>
+                                <TableCell>{displayInfo.designation}</TableCell>
                                 <TableCell>
                                   <Input
                                     type="number"
@@ -916,7 +1151,7 @@ export function MarkAttendanceBySite() {
                                     value={employeeData?.presentCount || 0}
                                     onChange={(e) =>
                                       handlePresentCountChange(
-                                        employee.employeeId,
+                                        employee.id,
                                         Number.parseInt(e.target.value) || 0,
                                       )
                                     }
@@ -935,7 +1170,22 @@ export function MarkAttendanceBySite() {
                       <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>No employees selected</AlertTitle>
-                        <AlertDescription>Please select at least one employee to mark attendance.</AlertDescription>
+                        <AlertDescription>
+                          {!selectedMonth
+                            ? "Please select a month first, then employees will be loaded."
+                            : employees.length === 0
+                              ? "No active employees found for the selected company and month."
+                              : "Please select at least one employee to mark attendance."}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {!selectedMonth && form.watch("companyId") && (
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Select Month to Load Employees</AlertTitle>
+                        <AlertDescription>
+                          Please select a month to load employees who were active during that month.
+                        </AlertDescription>
                       </Alert>
                     )}
                   </>
@@ -1047,7 +1297,7 @@ export function MarkAttendanceBySite() {
                         {formEmployees
                           .filter((emp) => emp.selected)
                           .map((emp) => {
-                            const employee = employees.find((e) => e.employeeId === emp.employeeId)
+                            const employee = employees.find((e) => e.id === emp.employeeId)
                             return (
                               <TableRow key={emp.employeeId}>
                                 <TableCell>

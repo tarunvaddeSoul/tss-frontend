@@ -10,6 +10,7 @@ import type {
   BulkAttendanceResponse,
   UploadAttendanceResponse,
   AttendanceSearchParams,
+  ActiveEmployeesResponse,
 } from "@/types/attendance"
 
 class AttendanceService {
@@ -202,6 +203,22 @@ class AttendanceService {
       return response.data
     } catch (error) {
       console.error("Error fetching attendance stats:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get active employees for a specific company and month
+   * NEW: Returns only employees who were active during the specified month
+   */
+  async getActiveEmployeesForMonth(companyId: string, month: string): Promise<ActiveEmployeesResponse> {
+    try {
+      const response = await api.get(`${this.baseUrl}/active-employees`, {
+        params: { companyId, month },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Error fetching active employees:", error)
       throw error
     }
   }

@@ -10,7 +10,6 @@ import {
   Download,
   FileText,
   Users,
-  Eye,
   Loader2,
   BarChart3,
   TrendingUp,
@@ -18,6 +17,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Calendar,
+  Eye,
+  Minus,
+  Maximize2,
+  FileSpreadsheet,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -29,30 +32,34 @@ import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 import { useCompany } from "@/hooks/use-company"
-import { attendanceSheetService } from "@/services/attendanceSheetService"
 import { attendanceService } from "@/services/attendanceService"
 import type { Company } from "@/types/company"
-import AttendanceReportPDF from "@/components/pdf/attendance-report-pdf"
-import { PdfPreviewDialog } from "@/components/pdf/pdf-preview-dialog"
+import type { AttendanceReportResponse } from "@/types/attendance"
+import dynamic from "next/dynamic"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
-// Types for attendance data
-interface AttendanceRecord {
-  employeeID: string
-  employeeName: string
-  companyName: string
-  designationName: string
-  departmentName: string
-  presentCount: number
-  attendanceSheetUrl: string
-}
-
-interface CompanyAttendanceRecord {
-  id: string
-  employeeId: string
-  month: string
-  presentCount: number
-  companyId: string
-}
+// Dynamically import PDF preview dialog to prevent SSR issues
+const DynamicPdfPreviewDialog = dynamic(
+  () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
+  {
+    ssr: false,
+  },
+)
 
 // Form validation schema
 const reportsSchema = z.object({
@@ -63,13 +70,15 @@ const reportsSchema = z.object({
 type ReportsFormValues = z.infer<typeof reportsSchema>
 
 export function AttendanceReportsComponent() {
-  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
+  const [reportData, setReportData] = useState<AttendanceReportResponse["data"] | null>(null)
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMonths, setLoadingMonths] = useState(false)
   const [reportGenerated, setReportGenerated] = useState(false)
-  const [sheetUrl, setSheetUrl] = useState<string | null>(null)
   const [pdfOpen, setPdfOpen] = useState(false)
+  const [sheetPreviewOpen, setSheetPreviewOpen] = useState(false)
+  const [sheetPreviewUrl, setSheetPreviewUrl] = useState<string | null>(null)
+  const [sheetPreviewType, setSheetPreviewType] = useState<"pdf" | "image" | "unsupported" | "loading">("loading")
 
   const { toast } = useToast()
   const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
@@ -93,7 +102,7 @@ export function AttendanceReportsComponent() {
     form.setValue("companyId", companyId)
     form.setValue("month", "") // Reset month selection
     setReportGenerated(false)
-    setAttendanceData([])
+    setReportData(null)
 
     if (!companyId) {
       setAvailableMonths([])
@@ -102,13 +111,10 @@ export function AttendanceReportsComponent() {
 
     try {
       setLoadingMonths(true)
-      console.log("companyId", companyId)
       const response = await attendanceService.getAttendanceByCompanyId(companyId)
-      console.log("response", response)
       // Extract unique months from the response
-      const months = response.data?.map((record: CompanyAttendanceRecord) => record.month) || []
+      const months = response.data?.map((record) => record.month) || []
       const uniqueMonths = [...new Set(months)].sort().reverse() // Sort in descending order (newest first)
-
       setAvailableMonths(uniqueMonths)
     } catch (error: any) {
       console.error("Error fetching available months:", error)
@@ -126,26 +132,18 @@ export function AttendanceReportsComponent() {
   const onSubmit = async (data: ReportsFormValues) => {
     try {
       setLoading(true)
-      console.log("data", data)
-      const response = await attendanceService.getAttendanceByCompanyAndMonth({
-        companyId: data.companyId,
-        month: data.month,
-      })
-      console.log("response", response)
-      setAttendanceData(response.data || [])
-      setReportGenerated(true)
-
-      try {
-        const sheetRes = await attendanceSheetService.get(data.companyId, data.month)
-        setSheetUrl(sheetRes.data?.attendanceSheetUrl || null)
-      } catch (_) {
-        setSheetUrl(null)
+      const response = await attendanceService.getAttendanceReport(data.companyId, data.month)
+      
+      if (response.statusCode === 200 && response.data) {
+        setReportData(response.data)
+        setReportGenerated(true)
+        toast({
+          title: "Report Generated",
+          description: `Found ${response.data.records.length} attendance records for ${response.data.company.name} - ${format(parse(response.data.month, "yyyy-MM", new Date()), "MMMM yyyy")}.`,
+        })
+      } else {
+        throw new Error(response.message || "Failed to generate report")
       }
-
-      toast({
-        title: "Report Generated",
-        description: `Found ${response.data?.length || 0} attendance records for the selected period.`,
-      })
     } catch (error: any) {
       console.error("Error generating report:", error)
       toast({
@@ -153,6 +151,8 @@ export function AttendanceReportsComponent() {
         description: error.message || "Failed to generate report. Please try again.",
         variant: "destructive",
       })
+      setReportData(null)
+      setReportGenerated(false)
     } finally {
       setLoading(false)
     }
@@ -160,16 +160,15 @@ export function AttendanceReportsComponent() {
 
   // Generate CSV content
   const generateCSV = () => {
-    if (!attendanceData.length) return ""
+    if (!reportData?.records.length) return ""
 
-    const headers = ["Employee ID", "Employee Name", "Company Name", "Department", "Designation", "Present Days"]
+    const headers = ["Employee ID", "Employee Name", "Department", "Designation", "Present Days"]
     const csvContent = [
       headers.join(","),
-      ...attendanceData.map((record) =>
+      ...reportData.records.map((record) =>
         [
           record.employeeID,
           `"${record.employeeName}"`,
-          `"${record.companyName}"`,
           `"${record.departmentName}"`,
           `"${record.designationName}"`,
           record.presentCount,
@@ -183,17 +182,30 @@ export function AttendanceReportsComponent() {
   // Download CSV file
   const downloadCSV = () => {
     const csvContent = generateCSV()
+    if (!csvContent) {
+      toast({
+        title: "No Data",
+        description: "No attendance data available to download.",
+        variant: "destructive",
+      })
+      return
+    }
+
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
 
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob)
       link.setAttribute("href", url)
-      link.setAttribute("download", `attendance-report-${getSelectedCompanyName()}-${form.watch("month")}.csv`)
+      const monthDisplay = reportData?.month
+        ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
+        : "report"
+      link.setAttribute("download", `attendance-report-${reportData?.company.name || "report"}-${monthDisplay}.csv`)
       link.style.visibility = "hidden"
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      URL.revokeObjectURL(url)
     }
 
     toast({
@@ -202,157 +214,151 @@ export function AttendanceReportsComponent() {
     })
   }
 
-  // Generate and download PDF
-  const downloadPDF = () => {
+  // Open PDF preview
+  const openPDFPreview = () => {
     setPdfOpen(true)
   }
 
-  const previewReport = () => {
-    // Open preview in new window
-    const csvContent = generateCSV()
-    const previewContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Attendance Report Preview</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-          .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2563eb; padding-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-          th { background-color: #2563eb; color: white; font-weight: bold; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-          tr:hover { background-color: #f0f8ff; }
-          .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 20px 0; }
-          .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; }
-          .stat-value { font-size: 28px; font-weight: bold; color: #2563eb; }
-          .stat-label { font-size: 14px; color: #64748b; margin-top: 5px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>📊 Attendance Report</h1>
-            <h2>${getSelectedCompanyName()}</h2>
-            <p><strong>Month:</strong> ${getSelectedMonthDisplay()}</p>
-            <p><strong>Generated on:</strong> ${new Date().toLocaleDateString()}</p>
-          </div>
-          
-          <div class="stats">
-            <div class="stat-card">
-              <div class="stat-value">${stats.totalEmployees}</div>
-              <div class="stat-label">Total Employees</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value">${stats.totalPresent}</div>
-              <div class="stat-label">Total Present Days</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value">${stats.avgAttendance.toFixed(1)}</div>
-              <div class="stat-label">Average Attendance</div>
-            </div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Employee ID</th>
-                <th>Employee Name</th>
-                <th>Department</th>
-                <th>Designation</th>
-                <th>Present Days</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${attendanceData
-                .map(
-                  (record) => `
-                <tr>
-                  <td><strong>${record.employeeID}</strong></td>
-                  <td>${record.employeeName}</td>
-                  <td>${record.departmentName}</td>
-                  <td>${record.designationName}</td>
-                  <td><span style="background: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${record.presentCount}</span></td>
-                </tr>
-              `,
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </div>
-      </body>
-      </html>
-    `
-
-    const previewWindow = window.open("", "_blank")
-    if (previewWindow) {
-      previewWindow.document.write(previewContent)
-      previewWindow.document.close()
-    }
-
-    toast({
-      title: "Report Preview",
-      description: "Report preview has been opened in a new window.",
-    })
-  }
-
   const getSelectedCompanyName = () => {
-    const companyId = form.watch("companyId")
-    const company = companies.find((c) => c.id === companyId)
-    return company?.name || ""
+    return reportData?.company.name || ""
   }
 
   const getSelectedMonthDisplay = () => {
-    const month = form.watch("month")
-    if (!month) return ""
-
+    if (!reportData?.month) return ""
     try {
-      const date = parse(month, "yyyy-MM", new Date())
+      const date = parse(reportData.month, "yyyy-MM", new Date())
       return format(date, "MMMM yyyy")
     } catch {
-      return month
+      return reportData.month
     }
   }
 
-  const calculateStats = () => {
-    if (!attendanceData.length) return { totalEmployees: 0, totalPresent: 0, avgAttendance: 0 }
-
-    const totalEmployees = attendanceData.length
-    const totalPresent = attendanceData.reduce((sum, record) => sum + record.presentCount, 0)
-    const avgAttendance = totalPresent / totalEmployees
-
-    return { totalEmployees, totalPresent, avgAttendance }
+  // Helper function to add cache-busting query parameter to URL
+  const addCacheBuster = (url: string): string => {
+    if (!url) return url
+    const separator = url.includes("?") ? "&" : "?"
+    return `${url}${separator}_t=${Date.now()}`
   }
 
-  const stats = calculateStats()
+  // Handle viewing attendance sheet
+  const handleViewSheet = async () => {
+    if (!reportData?.attendanceSheet?.attendanceSheetUrl) return
+
+    const cacheBustedUrl = addCacheBuster(reportData.attendanceSheet.attendanceSheetUrl)
+    setSheetPreviewUrl(cacheBustedUrl)
+    setSheetPreviewOpen(true)
+    setSheetPreviewType("loading")
+
+    try {
+      const response = await fetch(cacheBustedUrl, {
+        method: "HEAD",
+        cache: "no-store",
+      })
+      const contentType = response.headers.get("Content-Type") || ""
+      const urlLower = reportData.attendanceSheet.attendanceSheetUrl.toLowerCase()
+
+      if (contentType.includes("pdf") || urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+        setSheetPreviewType("pdf")
+        return
+      }
+
+      if (
+        contentType.includes("image") ||
+        contentType.includes("jpeg") ||
+        contentType.includes("jpg") ||
+        contentType.includes("png") ||
+        contentType.includes("gif") ||
+        contentType.includes("webp") ||
+        urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)
+      ) {
+        setSheetPreviewType("image")
+        return
+      }
+
+      if (!contentType || contentType === "application/octet-stream" || contentType.includes("binary")) {
+        setSheetPreviewType("image")
+      } else {
+        setSheetPreviewType("image")
+      }
+    } catch (error) {
+      console.log("HEAD request failed, using URL detection:", error)
+      const urlLower = reportData.attendanceSheet.attendanceSheetUrl.toLowerCase()
+
+      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+        setSheetPreviewType("pdf")
+      } else if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
+        setSheetPreviewType("image")
+      } else {
+        setSheetPreviewType("image")
+      }
+    }
+  }
+
+  const handleDownloadSheet = async () => {
+    if (!reportData?.attendanceSheet?.attendanceSheetUrl) return
+
+    try {
+      const url = addCacheBuster(reportData.attendanceSheet.attendanceSheetUrl)
+      const response = await fetch(url, { cache: "no-store" })
+      if (!response.ok) throw new Error("Failed to download")
+
+      const blob = await response.blob()
+      const contentType = response.headers.get("Content-Type") || "application/octet-stream"
+
+      let extension = ""
+      if (contentType.includes("pdf")) extension = ".pdf"
+      else if (contentType.includes("jpeg") || contentType.includes("jpg")) extension = ".jpg"
+      else if (contentType.includes("png")) extension = ".png"
+      else if (contentType.includes("gif")) extension = ".gif"
+      else if (contentType.includes("webp")) extension = ".webp"
+      else {
+        const urlLower = url.toLowerCase()
+        const match = urlLower.match(/\.([a-z0-9]+)(?:\?|$)/)
+        if (match) extension = `.${match[1]}`
+        else extension = ".jpg"
+      }
+
+      const monthDisplay = reportData.month
+        ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
+        : "sheet"
+      const filename = `attendance-sheet-${reportData.company.name}-${monthDisplay}${extension}`
+      const downloadUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = downloadUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(downloadUrl)
+
+      toast({
+        title: "Download Started",
+        description: "File download started successfully",
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Failed to download the file. Please try again.",
+      })
+    }
+  }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Attendance Reports</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Generate and download comprehensive attendance reports for your companies
-        </p>
-      </div>
-
-      <div className="text-center space-y-2">
-        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <BarChart3 className="w-8 h-8 text-blue-600" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Attendance Reports</h1>
+          <p className="text-muted-foreground">Generate and download comprehensive attendance reports</p>
         </div>
-        <h2 className="text-2xl font-bold">Attendance Reports</h2>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          Generate detailed attendance reports for any company and month. Download reports in PDF or Excel format for
-          further analysis.
-        </p>
       </div>
 
       {/* Form */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
+            <BarChart3 className="w-5 h-5" />
             Generate Report
           </CardTitle>
           <CardDescription>Select a company and month to generate attendance report</CardDescription>
@@ -471,136 +477,149 @@ export function AttendanceReportsComponent() {
       </Card>
 
       {/* Report Results */}
-      {reportGenerated && (
+      {reportGenerated && reportData && (
         <div className="space-y-6">
-          {/* Report Header */}
+          {/* Report Header with Sheet Info */}
           <Card className="border-green-200 bg-green-50">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-green-800">Report Generated Successfully</h3>
                   <p className="text-green-700">
-                    {getSelectedCompanyName()} - {getSelectedMonthDisplay()}
+                    {reportData.company.name} - {getSelectedMonthDisplay()}
                   </p>
+                  {reportData.company.address && (
+                    <p className="text-sm text-green-600 mt-1">{reportData.company.address}</p>
+                  )}
                 </div>
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
-              <div className="mt-3 text-sm">
-                {sheetUrl ? (
-                  <span>
-                    📎 Sheet attached: <a href={sheetUrl} target="_blank" rel="noreferrer" className="text-blue-600">View</a>
-                  </span>
+              <div className="mt-4 flex items-center gap-2">
+                {reportData.attendanceSheet ? (
+                  <>
+                    <Badge variant="outline" className="bg-white">
+                      📎 Sheet attached
+                    </Badge>
+                    <Button variant="outline" size="sm" onClick={handleViewSheet}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Sheet
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleDownloadSheet}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Sheet
+                    </Button>
+                  </>
                 ) : (
-                  <span className="text-muted-foreground">No attendance sheet attached for this month.</span>
+                  <span className="text-sm text-muted-foreground">No attendance sheet attached for this month.</span>
                 )}
               </div>
             </CardContent>
           </Card>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Employees</p>
-                    <p className="text-2xl font-bold text-blue-600">{stats.totalEmployees}</p>
+          <div className="flex justify-center">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl w-full">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Employees</p>
+                      <p className="text-2xl font-bold text-blue-600">{reportData.totals.totalEmployees}</p>
+                    </div>
+                    <Users className="w-8 h-8 text-blue-500" />
                   </div>
-                  <Users className="w-8 h-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Present Days</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.totalPresent}</p>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Minimum Present</p>
+                      <p className="text-2xl font-bold text-orange-600">{reportData.totals.minPresent}</p>
+                    </div>
+                    <Minus className="w-8 h-8 text-orange-500" />
                   </div>
-                  <Clock className="w-8 h-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Average Attendance</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats.avgAttendance.toFixed(1)}</p>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Maximum Present</p>
+                      <p className="text-2xl font-bold text-indigo-600">{reportData.totals.maxPresent}</p>
+                    </div>
+                    <Maximize2 className="w-8 h-8 text-indigo-500" />
                   </div>
-                  <TrendingUp className="w-8 h-8 text-purple-500" />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {/* Download Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Download Report</CardTitle>
+              <CardTitle>Export Report</CardTitle>
               <CardDescription>Download the attendance report in your preferred format</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4">
-                <Button onClick={downloadPDF} variant="outline" size="lg">
+                <Button onClick={openPDFPreview} variant="outline" size="lg">
                   <FileText className="w-5 h-5 mr-2" />
-                  Open PDF Preview
+                  Preview & Download PDF
                 </Button>
                 <Button onClick={downloadCSV} variant="outline" size="lg">
-                  <Download className="w-5 h-5 mr-2" />
+                  <FileSpreadsheet className="w-5 h-5 mr-2" />
                   Download CSV
-                </Button>
-                <Button onClick={previewReport} variant="outline" size="lg">
-                  <Eye className="w-5 h-5 mr-2" />
-                  Preview Report
                 </Button>
               </div>
             </CardContent>
           </Card>
 
           {/* Attendance Data Table */}
-          {attendanceData.length > 0 && (
+          {reportData.records.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Attendance Records</CardTitle>
                 <CardDescription>Detailed attendance data for {getSelectedMonthDisplay()}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 font-medium">Employee ID</th>
-                        <th className="text-left p-3 font-medium">Employee Name</th>
-                        <th className="text-left p-3 font-medium">Department</th>
-                        <th className="text-left p-3 font-medium">Designation</th>
-                        <th className="text-center p-3 font-medium">Present Days</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attendanceData.map((record, index) => (
-                        <tr key={index} className="border-b hover:bg-gray-50">
-                          <td className="p-3">
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee ID</TableHead>
+                        <TableHead>Employee Name</TableHead>
+                        <TableHead>Department</TableHead>
+                        <TableHead>Designation</TableHead>
+                        <TableHead className="text-right">Present Days</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reportData.records.map((record, index) => (
+                        <TableRow key={`${record.employeeID}-${index}`}>
+                          <TableCell>
                             <Badge variant="outline">{record.employeeID}</Badge>
-                          </td>
-                          <td className="p-3 font-medium">{record.employeeName}</td>
-                          <td className="p-3">{record.departmentName}</td>
-                          <td className="p-3">{record.designationName}</td>
-                          <td className="p-3 text-center">
-                            <Badge variant="secondary">{record.presentCount}</Badge>
-                          </td>
-                        </tr>
+                          </TableCell>
+                          <TableCell className="font-medium">{record.employeeName}</TableCell>
+                          <TableCell>{record.departmentName}</TableCell>
+                          <TableCell>{record.designationName}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="secondary" className="font-semibold">
+                              {record.presentCount}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {attendanceData.length === 0 && (
+          {reportData.records.length === 0 && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>No attendance records found for the selected company and month.</AlertDescription>
@@ -608,22 +627,121 @@ export function AttendanceReportsComponent() {
           )}
         </div>
       )}
-        
-      <PdfPreviewDialog
-        open={pdfOpen}
-        onOpenChange={setPdfOpen}
-        title="Attendance Report"
-        description={`${getSelectedCompanyName()} • ${getSelectedMonthDisplay()}`}
-        fileName={`attendance-report-${getSelectedCompanyName()}-${getSelectedMonthDisplay()}`}
-        renderDocument={() => (
-          <AttendanceReportPDF
-            title={`${getSelectedCompanyName()} Attendance`}
-            month={getSelectedMonthDisplay()}
-            // types align with PDF component's AttendanceRecord structure
-            records={attendanceData as any}
-          />
-        )}
-      />
+
+      {/* PDF Preview Dialog */}
+      {reportData && (
+        <DynamicPdfPreviewDialog
+          open={pdfOpen}
+          onOpenChange={setPdfOpen}
+          title={`${reportData.company.name} - Attendance Report`}
+          description={getSelectedMonthDisplay()}
+          fileName={`attendance-report-${reportData.company.name}-${reportData.month}`}
+          renderDocument={async () => {
+            // Dynamically import the component to ensure it's loaded
+            const { default: AttendanceReportPDF } = await import("@/components/pdf/attendance-report-pdf")
+            const records = reportData.records.map((r) => ({
+              employeeID: r.employeeID,
+              employeeName: r.employeeName,
+              companyName: reportData.company.name,
+              designationName: r.designationName,
+              departmentName: r.departmentName,
+              presentCount: r.presentCount,
+              attendanceSheetUrl: reportData.attendanceSheet?.attendanceSheetUrl || "",
+            }))
+            return (
+              <AttendanceReportPDF
+                title={`${reportData.company.name} Attendance`}
+                month={getSelectedMonthDisplay()}
+                records={records}
+              />
+            )
+          }}
+        />
+      )}
+
+      {/* Attendance Sheet Preview Dialog */}
+      <Dialog open={sheetPreviewOpen} onOpenChange={setSheetPreviewOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="flex items-center justify-between">
+              <span>
+                Attendance Sheet - {getSelectedCompanyName()} - {getSelectedMonthDisplay()}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadSheet}
+                >
+                  <Download className="h-4 w-4 mr-2" /> Download
+                </Button>
+              </div>
+            </DialogTitle>
+            <DialogDescription>Attendance sheet document preview</DialogDescription>
+          </DialogHeader>
+          <div className="px-6 pb-6">
+            <div className="border rounded-md overflow-hidden bg-white">
+              {sheetPreviewType === "loading" ? (
+                <div className="flex items-center justify-center h-[70vh]">
+                  <div className="text-center space-y-2">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Loading preview...</p>
+                  </div>
+                </div>
+              ) : sheetPreviewType === "pdf" ? (
+                <iframe
+                  src={sheetPreviewUrl || ""}
+                  className="w-full h-[70vh] border-0"
+                  key={sheetPreviewUrl}
+                />
+              ) : sheetPreviewType === "image" ? (
+                <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                  <img
+                    src={sheetPreviewUrl || ""}
+                    alt="Attendance Sheet"
+                    className="max-w-full max-h-[70vh] object-contain"
+                    crossOrigin="anonymous"
+                    key={sheetPreviewUrl}
+                    onError={(e) => {
+                      console.error("❌ Image load error:", e, "URL:", sheetPreviewUrl)
+                      const urlLower = (sheetPreviewUrl || "").toLowerCase()
+
+                      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+                        setSheetPreviewType("pdf")
+                      } else if (!urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico|pdf)$/i)) {
+                        setSheetPreviewType("pdf")
+                      } else {
+                        setSheetPreviewType("unsupported")
+                      }
+                    }}
+                    onLoad={() => {
+                      console.log("✅ Image loaded successfully:", sheetPreviewUrl)
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[70vh] p-8 text-center space-y-4">
+                  <FileText className="h-16 w-16 text-muted-foreground" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">File Preview Not Available</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      This file type cannot be previewed in the browser.
+                    </p>
+                    <Button onClick={handleDownloadSheet}>
+                      <Download className="h-4 w-4 mr-2" /> Download File
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="px-6 pb-6 border-t">
+            <Button variant="outline" onClick={() => setSheetPreviewOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

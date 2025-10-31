@@ -22,6 +22,7 @@ import {
   UserCheck,
   Clock,
   RotateCcw,
+  Download,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -44,7 +53,8 @@ import type { Company, CompanyEmployee } from "@/types/company"
 import type { BulkMarkAttendanceDto, ActiveEmployee } from "@/types/attendance"
 import { MonthPicker } from "../ui/month-picker"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-
+import { attendanceSheetService } from "@/services/attendanceSheetService"
+import { useRouter } from "next/navigation"
 // Updated schema with proper validation for each step
 const formSchema = z.object({
   companyId: z.string().min(1, "Please select a company"),
@@ -156,6 +166,13 @@ export function MarkAttendanceBySite() {
   const [submissionResult, setSubmissionResult] = useState<SubmissionResult | null>(null)
 
   const { toast } = useToast()
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null)
+  const [sheetLoading, setSheetLoading] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewType, setPreviewType] = useState<"pdf" | "image" | "unsupported" | "loading">("loading")
+
+  const router = useRouter()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -266,6 +283,7 @@ export function MarkAttendanceBySite() {
       const monthString = format(month, "yyyy-MM")
       console.log("📞 Calling /attendance/active-employees API with:", { companyId, month: monthString })
       
+      // Fetch active employees
       const response = await attendanceService.getActiveEmployeesForMonth(companyId, monthString)
       
       console.log("✅ Response from /attendance/active-employees:", response)
@@ -289,25 +307,73 @@ export function MarkAttendanceBySite() {
         })
         setEmployees([])
         form.setValue("employees", [])
+        setSelectedEmployees(new Set())
         return
       }
 
       const activeEmployees = response.data.employees
       setEmployees(activeEmployees)
 
-      // Initialize employees form data using the id field (which is the employeeId)
-      const employeesData = activeEmployees.map((emp: ActiveEmployee) => ({
-        employeeId: emp.id, // The API returns 'id' field which is the employeeId
-        selected: false,
-        presentCount: 0,
-      }))
-      form.setValue("employees", employeesData)
+      // Fetch existing attendance data to pre-fill
+      let existingAttendance: Record<string, number> = {}
+      try {
+        const attendanceResponse = await attendanceService.getAttendanceByCompanyAndMonth({
+          companyId,
+          month: monthString,
+        })
+        
+        if (attendanceResponse.data && Array.isArray(attendanceResponse.data)) {
+          attendanceResponse.data.forEach((record: any) => {
+            // API returns employeeID (uppercase D), not employeeId
+            const empId = record.employeeID || record.employeeId
+            if (empId && typeof record.presentCount === "number" && record.presentCount >= 0) {
+              existingAttendance[empId] = record.presentCount
+            }
+          })
+          console.log("📊 Found existing attendance for:", Object.keys(existingAttendance).length, "employees")
+          console.log("📊 Existing attendance map:", existingAttendance)
+        }
+      } catch (attendanceError) {
+        console.log("ℹ️ No existing attendance found or error fetching:", attendanceError)
+        // Not critical - continue without pre-filled data
+      }
 
+      // Initialize employees form data with existing attendance pre-filled
+      const employeesData = activeEmployees.map((emp: ActiveEmployee) => {
+        // Match employee.id (from active employees) with employeeID (from attendance records)
+        const existingCount = existingAttendance[emp.id]
+        const hasExistingAttendance = existingCount !== undefined
+        
+        if (hasExistingAttendance) {
+          console.log(`✅ Pre-filling attendance for ${emp.id}: ${existingCount} days`)
+        }
+        
+        return {
+          employeeId: emp.id, // The API returns 'id' field which is the employeeId
+          selected: hasExistingAttendance, // Auto-select if attendance exists
+          presentCount: hasExistingAttendance ? existingCount : 0,
+        }
+      })
+      
+      console.log("📊 Employees data with pre-filled attendance:", employeesData.filter(emp => emp.selected))
+      
+      form.setValue("employees", employeesData)
+      
+      // Update selected employees set
+      const selectedIds = employeesData
+        .filter((emp) => emp.selected)
+        .map((emp) => emp.employeeId)
+      setSelectedEmployees(new Set(selectedIds))
+
+      const existingCount = Object.keys(existingAttendance).length
       toast({
         title: "Success",
-        description: `Loaded ${activeEmployees.length} active employee(s) for ${format(month, "MMMM yyyy")}`,
+        description: `Loaded ${activeEmployees.length} active employee(s)${existingCount > 0 ? ` (${existingCount} with existing attendance)` : ""} for ${format(month, "MMMM yyyy")}`,
       })
       console.log(`✅ Loaded ${activeEmployees.length} active employees for ${format(month, "MMMM yyyy")}`)
+      if (existingCount > 0) {
+        console.log(`📊 Pre-filled attendance for ${existingCount} employees`)
+      }
     } catch (error: any) {
       const errorMsg = error?.response?.data?.message || "Failed to fetch active employees. Please try again."
       console.error("❌ Error fetching active employees:", {
@@ -323,6 +389,7 @@ export function MarkAttendanceBySite() {
       })
       setEmployees([])
       form.setValue("employees", [])
+      setSelectedEmployees(new Set())
     } finally {
       setLoading(false)
     }
@@ -392,11 +459,23 @@ export function MarkAttendanceBySite() {
   }
 
   const handlePresentCountChange = (employeeId: string, presentCount: number) => {
+    // Ensure presentCount is >= 0
+    const validCount = Math.max(0, presentCount)
+    
     const currentEmployees = form.getValues("employees") || []
     const updatedEmployees = currentEmployees.map((emp) =>
-      emp.employeeId === employeeId ? { ...emp, presentCount } : emp,
+      emp.employeeId === employeeId 
+        ? { ...emp, presentCount: validCount, selected: true } // Auto-select when editing
+        : emp,
     )
     form.setValue("employees", updatedEmployees)
+    
+    // Update selected employees set if count > 0
+    if (validCount > 0) {
+      const newSelected = new Set(selectedEmployees)
+      newSelected.add(employeeId)
+      setSelectedEmployees(newSelected)
+    }
   }
 
   const selectAllEmployees = () => {
@@ -488,7 +567,7 @@ export function MarkAttendanceBySite() {
           // Note: Eligibility validation is now handled by backend
           // All employees in the list are already eligible (API filters them)
 
-          // Validate present counts
+          // Validate present counts (ensure >= 0 and <= 31)
           const invalidCounts = selectedEmps.filter((emp) => emp.presentCount < 0 || emp.presentCount > 31)
 
           if (invalidCounts.length > 0) {
@@ -640,32 +719,48 @@ export function MarkAttendanceBySite() {
 
         // Handle successful or partial success response
         // Backend might return success with data, or the created count might be in a different structure
-        if (response.statusCode === 200 || response.data) {
+        if (response.statusCode === 200 || response.statusCode === 201 || response.data) {
           // Try multiple ways to get the count
           let createdCount = 0
           let failedCount = 0
           
           if (response.data) {
-            // Backend should return created and failed counts
-            // If created is 0 or undefined, check if we can infer from the response
-            createdCount = response.data.created ?? 0
-            failedCount = response.data.failed ?? 0
-            
-            // Fallback: If created is 0 but status is 200 and no errors, assume all succeeded
-            if (createdCount === 0 && response.statusCode === 200 && (!response.data.errors || response.data.errors.length === 0)) {
-              console.log("⚠️ Backend returned created: 0, but status is 200. Assuming all records succeeded.")
-              createdCount = selectedEmployeesData.length
-            }
-            
-            // If we still have 0 created but have errors, calculate from errors
-            if (createdCount === 0 && response.data.errors && response.data.errors.length > 0) {
-              createdCount = selectedEmployeesData.length - response.data.errors.length
-              failedCount = response.data.errors.length
+            // Check if data is an array (legacy format) or object with created/failed
+            if (Array.isArray(response.data)) {
+              // If data is an array, use array length as created count
+              createdCount = response.data.length
+              failedCount = selectedEmployeesData.length - createdCount
+              console.log("📊 Response data is array, using length:", createdCount)
+            } else if (typeof response.data === 'object' && response.data !== null) {
+              // Backend should return created and failed counts
+              createdCount = response.data.created ?? 0
+              failedCount = response.data.failed ?? 0
+              
+              // Fallback: If created is 0 but status is 200/201 and no errors, assume all succeeded
+              if (createdCount === 0 && (response.statusCode === 200 || response.statusCode === 201) && (!response.data.errors || response.data.errors.length === 0)) {
+                console.log("⚠️ Backend returned created: 0, but status is", response.statusCode, ". Assuming all records succeeded.")
+                createdCount = selectedEmployeesData.length
+              }
+              
+              // If we still have 0 created but have errors, calculate from errors
+              if (createdCount === 0 && response.data.errors && response.data.errors.length > 0) {
+                createdCount = selectedEmployeesData.length - response.data.errors.length
+                failedCount = response.data.errors.length
+              }
             }
           } else {
-            // If no data object but status 200, assume all succeeded
+            // If no data object but status 200/201, assume all succeeded
+            if (response.statusCode === 200 || response.statusCode === 201) {
+              createdCount = selectedEmployeesData.length
+              failedCount = 0
+              console.log("📊 No data in response, assuming all succeeded based on status code:", response.statusCode)
+            }
+          }
+          
+          // Final fallback: If still 0 but we have success status, use submitted count
+          if (createdCount === 0 && (response.statusCode === 200 || response.statusCode === 201)) {
+            console.log("⚠️ Final fallback: Using submitted count as created count")
             createdCount = selectedEmployeesData.length
-            failedCount = 0
           }
           
           console.log("✅ Calculated counts:", { createdCount, failedCount, selectedCount: selectedEmployeesData.length })
@@ -789,8 +884,7 @@ export function MarkAttendanceBySite() {
   }
 
   const resetForm = () => {
-    // Reset all state
-    form.reset()
+    // Reset all state in a controlled manner to avoid infinite loops
     setCurrentStep(0)
     setProgress(0)
     setEmployees([])
@@ -798,6 +892,19 @@ export function MarkAttendanceBySite() {
     setErrors([])
     setIsSubmitted(false)
     setSubmissionResult(null)
+    setSheetUrl(null)
+    setPreviewOpen(false)
+    setPreviewUrl(null)
+    
+    // Reset form after state is cleared to prevent subscription triggers
+    setTimeout(() => {
+      form.reset({
+        companyId: "",
+        month: undefined,
+        employees: [],
+        attendanceFile: undefined,
+      })
+    }, 0)
 
     toast({
       title: "New Session Started",
@@ -808,6 +915,29 @@ export function MarkAttendanceBySite() {
   const selectedCompany = companies.find((c) => c.id === form.watch("companyId"))
   const selectedMonth = form.watch("month")
   const formEmployees = form.watch("employees") || []
+
+  // Fetch attachment status when company or month changes
+  useEffect(() => {
+    const fetchSheet = async () => {
+      const companyId = selectedCompany?.id || form.getValues("companyId")
+      const month = selectedMonth || form.getValues("month")
+      
+      setSheetUrl(null)
+      if (!companyId || !month) return
+      
+      try {
+        setSheetLoading(true)
+        const res = await attendanceSheetService.get(companyId, format(month, "yyyy-MM"))
+        setSheetUrl(res.data?.attendanceSheetUrl || null)
+      } catch (e) {
+        setSheetUrl(null)
+      } finally {
+        setSheetLoading(false)
+      }
+    }
+    fetchSheet()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany?.id, selectedMonth])
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
@@ -833,6 +963,91 @@ export function MarkAttendanceBySite() {
             </div>
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Attachment Status */}
+      {selectedCompany && selectedMonth && (
+        <Card>
+          <CardContent className="pt-6 flex items-center justify-between gap-4">
+            <div className="text-sm">
+              {sheetLoading ? (
+                <span className="text-muted-foreground">Checking attachment...</span>
+              ) : sheetUrl ? (
+                <span>
+                  📎 Sheet attached for <strong>{selectedCompany.name}</strong> — {format(selectedMonth, "MMMM yyyy")} ·
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-blue-600 ml-1"
+                    onClick={async () => {
+                      if (!sheetUrl) return
+                      setPreviewUrl(sheetUrl)
+                      setPreviewOpen(true)
+                      setPreviewType("loading")
+                      
+                      // Detect file type by fetching headers
+                      try {
+                        const response = await fetch(sheetUrl, { method: "HEAD" })
+                        const contentType = response.headers.get("Content-Type") || ""
+                        const urlLower = sheetUrl.toLowerCase()
+                        
+                        // Check for PDF first
+                        if (contentType.includes("pdf") || urlLower.endsWith(".pdf")) {
+                          setPreviewType("pdf")
+                          return
+                        }
+                        
+                        // Check for images - be more comprehensive
+                        if (
+                          contentType.includes("image") ||
+                          contentType.includes("jpeg") ||
+                          contentType.includes("jpg") ||
+                          contentType.includes("png") ||
+                          contentType.includes("gif") ||
+                          contentType.includes("webp") ||
+                          urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)
+                        ) {
+                          setPreviewType("image")
+                          return
+                        }
+                        
+                        // If Content-Type is not helpful, default to trying image first
+                        // (many servers return application/octet-stream for images)
+                        // The img tag's onError will handle if it's not actually an image
+                        if (!contentType || contentType === "application/octet-stream") {
+                          setPreviewType("image")
+                        } else {
+                          setPreviewType("unsupported")
+                        }
+                      } catch (error) {
+                        // Fallback: try to detect from URL
+                        console.log("HEAD request failed, using URL detection:", error)
+                        const urlLower = sheetUrl.toLowerCase()
+                        
+                        if (urlLower.endsWith(".pdf")) {
+                          setPreviewType("pdf")
+                        } else if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
+                          setPreviewType("image")
+                        } else {
+                          // For unknown types, try to load as image first (common case)
+                          // If image load fails, it will fall back to unsupported
+                          setPreviewType("image")
+                        }
+                      }
+                    }}
+                  >
+                    View
+                  </Button>
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  No sheet attached for this month. <a href="/attendance/upload" className="text-blue-600">Upload now</a>
+                </span>
+              )}
+            </div>
+            <Button variant="outline" onClick={() => router.push("/attendance/records")}>View Records</Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Progress Section */}
@@ -1149,14 +1364,20 @@ export function MarkAttendanceBySite() {
                                     min="0"
                                     max="31"
                                     value={employeeData?.presentCount || 0}
-                                    onChange={(e) =>
-                                      handlePresentCountChange(
-                                        employee.id,
-                                        Number.parseInt(e.target.value) || 0,
-                                      )
-                                    }
-                                    disabled={!employeeData?.selected || isSubmitted}
+                                    onChange={(e) => {
+                                      const value = Number.parseInt(e.target.value) || 0
+                                      handlePresentCountChange(employee.id, value)
+                                    }}
+                                    onBlur={(e) => {
+                                      // Ensure value is >= 0 on blur
+                                      const value = Math.max(0, Number.parseInt(e.target.value) || 0)
+                                      if (value !== (employeeData?.presentCount || 0)) {
+                                        handlePresentCountChange(employee.id, value)
+                                      }
+                                    }}
+                                    disabled={isSubmitted}
                                     className="w-20"
+                                    placeholder="0"
                                   />
                                 </TableCell>
                               </TableRow>
@@ -1220,7 +1441,6 @@ export function MarkAttendanceBySite() {
                       <FormControl>
                         <Input
                           type="file"
-                          accept=".xlsx,.xls,.csv,.pdf"
                           onChange={(e) => {
                             const file = e.target.files?.[0]
                             onChange(file)
@@ -1229,7 +1449,7 @@ export function MarkAttendanceBySite() {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>Supported formats: Excel (.xlsx, .xls), CSV (.csv), PDF (.pdf)</FormDescription>
+                      <FormDescription>Upload any file type as attendance proof (PDF, images, documents, etc.)</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1410,6 +1630,169 @@ export function MarkAttendanceBySite() {
 
       {/* Bottom spacing to ensure content is not hidden behind sticky navigation */}
       <div className="h-20" />
+
+      {/* Document Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="flex items-center justify-between">
+              <span>
+                Attendance Sheet - {selectedCompany?.name} - {selectedMonth ? format(selectedMonth, "MMMM yyyy") : ""}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    if (!previewUrl) return
+                    try {
+                      const response = await fetch(previewUrl)
+                      if (!response.ok) throw new Error("Failed to download")
+                      
+                      const blob = await response.blob()
+                      const contentType = response.headers.get("Content-Type") || "application/octet-stream"
+                      
+                      // Detect extension from content type or URL
+                      let extension = ""
+                      if (contentType.includes("pdf")) extension = ".pdf"
+                      else if (contentType.includes("jpeg") || contentType.includes("jpg")) extension = ".jpg"
+                      else if (contentType.includes("png")) extension = ".png"
+                      else if (contentType.includes("gif")) extension = ".gif"
+                      else if (contentType.includes("webp")) extension = ".webp"
+                      else {
+                        // Try to get extension from URL
+                        const urlLower = previewUrl.toLowerCase()
+                        const match = urlLower.match(/\.([a-z0-9]+)(?:\?|$)/)
+                        if (match) extension = `.${match[1]}`
+                        else extension = ".jpg" // Default for images from S3
+                      }
+                      
+                      const filename = `attendance-sheet-${selectedCompany?.name || "sheet"}-${selectedMonth ? format(selectedMonth, "yyyy-MM") : ""}${extension}`
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement("a")
+                      a.href = url
+                      a.download = filename
+                      document.body.appendChild(a)
+                      a.click()
+                      document.body.removeChild(a)
+                      URL.revokeObjectURL(url)
+                      
+                      toast({
+                        title: "Download Started",
+                        description: "File download started successfully",
+                      })
+                    } catch (error) {
+                      toast({
+                        variant: "destructive",
+                        title: "Download Failed",
+                        description: "Failed to download the file. Please try again.",
+                      })
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" /> Download
+                </Button>
+              </div>
+            </DialogTitle>
+          <DialogDescription>Attendance sheet document preview</DialogDescription>
+        </DialogHeader>
+        <div className="px-6 pb-6">
+          <div className="border rounded-md overflow-hidden bg-white">
+            {previewType === "loading" ? (
+              <div className="flex items-center justify-center h-[70vh]">
+                <div className="text-center space-y-2">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Loading preview...</p>
+                </div>
+              </div>
+            ) : previewType === "pdf" ? (
+              <iframe src={previewUrl || ""} className="w-full h-[70vh] border-0" />
+            ) : previewType === "image" ? (
+              <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                <img
+                  src={previewUrl || ""}
+                  alt="Attendance Sheet"
+                  className="max-w-full max-h-[70vh] object-contain"
+                  crossOrigin="anonymous"
+                  onError={(e) => {
+                    console.error("Image load error:", e, "URL:", previewUrl)
+                    // Only switch to unsupported if it's definitely not an image
+                    const urlLower = (previewUrl || "").toLowerCase()
+                    if (!urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
+                      setPreviewType("unsupported")
+                    }
+                  }}
+                  onLoad={() => {
+                    console.log("Image loaded successfully:", previewUrl)
+                  }}
+                />
+              </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[70vh] p-8 text-center space-y-4">
+                  <FileText className="h-16 w-16 text-muted-foreground" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">File Preview Not Available</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      This file type cannot be previewed in the browser.
+                    </p>
+                    <Button
+                      onClick={async () => {
+                        if (!previewUrl) return
+                        try {
+                          const response = await fetch(previewUrl)
+                          if (!response.ok) throw new Error("Failed to download")
+                          
+                          const blob = await response.blob()
+                          const contentType = response.headers.get("Content-Type") || "application/octet-stream"
+                          
+                          // Detect extension from content type
+                          let extension = ""
+                          if (contentType.includes("pdf")) extension = ".pdf"
+                          else if (contentType.includes("jpeg")) extension = ".jpg"
+                          else if (contentType.includes("png")) extension = ".png"
+                          else if (contentType.includes("gif")) extension = ".gif"
+                          else if (contentType.includes("webp")) extension = ".webp"
+                          else if (contentType.includes("word") || contentType.includes("msword")) extension = ".doc"
+                          else if (contentType.includes("excel") || contentType.includes("spreadsheet")) extension = ".xlsx"
+                          else {
+                            // Try to get extension from URL
+                            const urlLower = previewUrl.toLowerCase()
+                            const match = urlLower.match(/\.([a-z0-9]+)(?:\?|$)/)
+                            if (match) extension = `.${match[1]}`
+                          }
+                          
+                          const filename = `attendance-sheet${extension}`
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement("a")
+                          a.href = url
+                          a.download = filename
+                          document.body.appendChild(a)
+                          a.click()
+                          document.body.removeChild(a)
+                          URL.revokeObjectURL(url)
+                        } catch (error) {
+                          toast({
+                            variant: "destructive",
+                            title: "Download Failed",
+                            description: "Failed to download the file. Please try again.",
+                          })
+                        }
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" /> Download File
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="px-6 pb-6 border-t">
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -3,8 +3,11 @@ import api from "./api"
 export interface AttendanceSheet {
   id: string
   companyId: string
+  companyName?: string // Included in list responses
   month: string
   attendanceSheetUrl: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface AttendanceSheetResponse {
@@ -16,7 +19,26 @@ export interface AttendanceSheetResponse {
 export interface AttendanceSheetListResponse {
   statusCode: number
   message: string
-  data: AttendanceSheet | null
+  data: {
+    data: AttendanceSheet[]
+    pagination: {
+      total: number
+      page: number
+      limit: number
+      totalPages: number
+    }
+  } | AttendanceSheet | null // Can be list or single record for backward compatibility
+}
+
+export interface AttendanceSheetListParams {
+  companyId?: string
+  month?: string
+  startMonth?: string
+  endMonth?: string
+  page?: number
+  limit?: number
+  sortBy?: "month" | "companyId" | "createdAt"
+  sortOrder?: "asc" | "desc"
 }
 
 class AttendanceSheetService {
@@ -34,8 +56,15 @@ class AttendanceSheetService {
     return response.data
   }
 
+  // Get single record (backward compatible)
   async get(companyId: string, month: string): Promise<AttendanceSheetResponse> {
     const response = await api.get(this.baseUrl, { params: { companyId, month } })
+    return response.data
+  }
+
+  // List all attendance sheets with optional filters
+  async list(params?: AttendanceSheetListParams): Promise<AttendanceSheetListResponse> {
+    const response = await api.get(this.baseUrl, { params })
     return response.data
   }
 

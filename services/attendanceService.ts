@@ -84,7 +84,7 @@ class AttendanceService {
    */
   async getAttendanceByCompanyId(companyId: string): Promise<AttendanceListResponse> {
     try {
-      const response = await api.get(`${this.baseUrl}/${companyId}`)
+      const response = await api.get(`${this.baseUrl}/records-by-company/${companyId}`)
       return response.data
     } catch (error) {
       console.error("Error fetching attendance by company:", error)

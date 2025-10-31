@@ -200,3 +200,36 @@ export interface ActiveEmployeesResponse {
     count: number
   } | null
 }
+
+// Attendance Report API Response (GET /attendance/reports)
+export interface AttendanceReportResponse {
+  statusCode: number
+  message: string
+  data: {
+    company: {
+      id: string
+      name: string
+      address?: string
+    }
+    month: string // Format: YYYY-MM
+    totals: {
+      totalEmployees: number
+      totalPresent: number
+      averageAttendance: number
+      minPresent: number
+      maxPresent: number
+    }
+    records: Array<{
+      employeeId: string
+      employeeName: string
+      employeeID: string
+      departmentName: string
+      designationName: string
+      presentCount: number
+    }>
+    attendanceSheet: {
+      id: string
+      attendanceSheetUrl: string
+    } | null
+  } | null
+}

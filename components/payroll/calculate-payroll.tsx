@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCompany } from "@/hooks/use-company"
 import { usePayroll, usePayrollAdminInputs } from "@/hooks/use-payroll"
-import { Calendar, Users, Calculator, CheckCircle, AlertCircle, Building2, IndianRupee } from "lucide-react"
+import { Calendar, Users, Calculator, CheckCircle, AlertCircle, Building2, IndianRupee, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import type { PayrollStep, CalculatePayrollDto } from "@/types/payroll"
 import { companyService } from "@/services/companyService"
@@ -41,12 +42,14 @@ const MOCK_EMPLOYEES = [
 ]
 
 export default function CalculatePayroll() {
+    const router = useRouter()
     const [currentStep, setCurrentStep] = useState(1)
     const [steps, setSteps] = useState(PAYROLL_STEPS)
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>("")
     const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
     const [errors, setErrors] = useState<string[]>([])
     const [employees, setEmployees] = useState<CompanyEmployee[]>([])
+    const [isFinalized, setIsFinalized] = useState(false)
 
     const { companies, isLoading: companiesLoading } = useCompany()
     const {
@@ -167,6 +170,7 @@ export default function CalculatePayroll() {
                 payrollRecords,
             })
 
+            setIsFinalized(true)
             updateStepStatus(5, true, false)
         } catch (error) {
             // Error handled in hook
@@ -179,6 +183,7 @@ export default function CalculatePayroll() {
         setSelectedCompanyId("")
         setSelectedMonth(new Date())
         setErrors([])
+        setIsFinalized(false)
         resetCalculation()
         resetInputs()
     }
@@ -441,11 +446,24 @@ export default function CalculatePayroll() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <CheckCircle className="h-5 w-5" />
-                            Review & Finalize Payroll
+                            {isFinalized ? "Payroll Finalized Successfully" : "Review & Finalize Payroll"}
                         </CardTitle>
-                        <CardDescription>Review the calculated payroll and finalize to save the records</CardDescription>
+                        <CardDescription>
+                            {isFinalized
+                                ? "Payroll has been successfully finalized and saved."
+                                : "Review the calculated payroll and finalize to save the records"}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
+                        {/* Success Alert */}
+                        {isFinalized && (
+                            <Alert className="border-green-200 bg-green-50 dark:bg-green-950">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <AlertDescription className="text-green-800 dark:text-green-300">
+                                    <strong>Payroll Finalized!</strong> The payroll records have been successfully saved. You can view them in the Payroll Reports section.
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         {/* Summary */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
@@ -521,8 +539,13 @@ export default function CalculatePayroll() {
                                             <TableCell>
                                                 {record.error ? (
                                                     <Badge variant="destructive">Error</Badge>
+                                                ) : isFinalized ? (
+                                                    <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                                        Finalized
+                                                    </Badge>
                                                 ) : (
-                                                    <Badge variant='default'>Pending</Badge>
+                                                    <Badge variant="default">Pending</Badge>
                                                 )}
                                             </TableCell>
                                         </TableRow>
@@ -532,12 +555,32 @@ export default function CalculatePayroll() {
                         </div>
 
                         <div className="flex justify-between">
-                            <Button variant="outline" onClick={() => setCurrentStep(3)}>
-                                Back to Edit
-                            </Button>
-                            <Button onClick={handleFinalizePayroll} disabled={isFinalizing}>
-                                {isFinalizing ? "Finalizing..." : "Finalize Payroll"}
-                            </Button>
+                            {isFinalized ? (
+                                <>
+                                    <Button variant="outline" onClick={handleReset}>
+                                        Calculate New Payroll
+                                    </Button>
+                                    <Button onClick={() => router.push("/payroll/reports")}>
+                                        View Payroll Reports
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <Button variant="outline" onClick={() => setCurrentStep(3)}>
+                                        Back to Edit
+                                    </Button>
+                                    <Button onClick={handleFinalizePayroll} disabled={isFinalizing}>
+                                        {isFinalizing ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Finalizing...
+                                            </>
+                                        ) : (
+                                            "Finalize Payroll"
+                                        )}
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

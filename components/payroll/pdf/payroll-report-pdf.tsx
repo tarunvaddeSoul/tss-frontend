@@ -1,40 +1,30 @@
-import { Document, Text, View, StyleSheet, PDFDownloadLink } from "@react-pdf/renderer"
-import { FileDown } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { getCurrentDateTime, type PayrollReportRecord } from "@/utils/payroll-export"
+import { Document, Text, View } from "@react-pdf/renderer"
+import type { PayrollReportRecord } from "@/utils/payroll-export"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
-
-const styles = StyleSheet.create({
-  table: brandStyles.table,
-  tableRow: { ...brandStyles.tableRow, minHeight: 22, alignItems: "center" },
-  tableHeader: brandStyles.tableHeader,
-  tableCell: { ...brandStyles.tableCell, fontSize: 9 },
-  col1: { width: "12%" }, // Employee ID
-  col2: { width: "15%" }, // Company
-  col3: { width: "8%" }, // Month
-  col4: { width: "10%" }, // Basic Pay
-  col5: { width: "10%" }, // Gross
-  col6: { width: "10%" }, // Net
-  col7: { width: "8%" }, // PF
-  col8: { width: "8%" }, // ESIC
-  col9: { width: "8%" }, // Bonus
-  col10: { width: "11%" }, // Deductions
-  summaryRow: brandStyles.row,
-})
 
 interface PayrollReportPDFProps {
   data: PayrollReportRecord[]
   title: string
   totalRecords: number
+  startMonth?: string
+  endMonth?: string
 }
 
-const PayrollReportPDF = ({ data, title, totalRecords }: PayrollReportPDFProps) => {
+const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth }: PayrollReportPDFProps) => {
   // Calculate summary statistics
   const totalGrossSalary = data.reduce((sum, record) => sum + (record.salaryData.grossSalary || 0), 0)
   const totalNetSalary = data.reduce((sum, record) => sum + (record.salaryData.netSalary || 0), 0)
   const totalDeductions = data.reduce((sum, record) => sum + (record.salaryData.totalDeductions || 0), 0)
+  const totalBasicPay = data.reduce((sum, record) => sum + (record.salaryData.basicPay || 0), 0)
   const totalPF = data.reduce((sum, record) => sum + (record.salaryData.pf || 0), 0)
   const totalESIC = data.reduce((sum, record) => sum + (record.salaryData.esic || 0), 0)
+  const totalBonus = data.reduce((sum, record) => sum + (record.salaryData.bonus || 0), 0)
+
+  const periodText = startMonth && endMonth 
+    ? `${startMonth} to ${endMonth}`
+    : startMonth 
+      ? startMonth
+      : "All Periods"
 
   return (
     <Document
@@ -44,68 +34,91 @@ const PayrollReportPDF = ({ data, title, totalRecords }: PayrollReportPDFProps) 
       keywords="Tulsyan Security Solutions, Payroll, Report"
     >
       <BrandPage orientation="landscape">
-        <PdfHeader title={title} subtitle={`Payroll Report • Total: ${totalRecords} • Showing: ${data.length}`} />
+        <PdfHeader 
+          title={`${title} Payroll Report`} 
+          subtitle={`Period: ${periodText} • Total Records: ${totalRecords} • Showing: ${data.length}`} 
+        />
 
-        {/* Table */}
-        <View style={styles.table}>
-          {/* Header Row */}
-          <View style={[styles.tableRow, styles.tableHeader]}>
-            <Text style={[styles.tableCell, styles.col1]}>Employee ID</Text>
-            <Text style={[styles.tableCell, styles.col2]}>Company</Text>
-            <Text style={[styles.tableCell, styles.col3]}>Month</Text>
-            <Text style={[styles.tableCell, styles.col4]}>Basic Pay</Text>
-            <Text style={[styles.tableCell, styles.col5]}>Gross</Text>
-            <Text style={[styles.tableCell, styles.col6]}>Net</Text>
-            <Text style={[styles.tableCell, styles.col7]}>PF</Text>
-            <Text style={[styles.tableCell, styles.col8]}>ESIC</Text>
-            <Text style={[styles.tableCell, styles.col9]}>Bonus</Text>
-            <Text style={[styles.tableCell, styles.col10]}>Deductions</Text>
-          </View>
-
-          {/* Data Rows */}
-          {data.map((record, index) => (
-            <View key={record.id} style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.col1]}>{record.employeeId}</Text>
-              <Text style={[styles.tableCell, styles.col2]}>{record.companyName || "N/A"}</Text>
-              <Text style={[styles.tableCell, styles.col3]}>{record.month}</Text>
-              <Text style={[styles.tableCell, styles.col4]}>₹{(record.salaryData.basicPay || 0).toLocaleString()}</Text>
-              <Text style={[styles.tableCell, styles.col5]}>
-                ₹{(record.salaryData.grossSalary || 0).toLocaleString()}
-              </Text>
-              <Text style={[styles.tableCell, styles.col6]}>
-                ₹{(record.salaryData.netSalary || 0).toLocaleString()}
-              </Text>
-              <Text style={[styles.tableCell, styles.col7]}>₹{(record.salaryData.pf || 0).toLocaleString()}</Text>
-              <Text style={[styles.tableCell, styles.col8]}>₹{(record.salaryData.esic || 0).toLocaleString()}</Text>
-              <Text style={[styles.tableCell, styles.col9]}>₹{(record.salaryData.bonus || 0).toLocaleString()}</Text>
-              <Text style={[styles.tableCell, styles.col10]}>
-                ₹{(record.salaryData.totalDeductions || 0).toLocaleString()}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Summary */}
+        {/* Summary Section */}
         <Section title="Summary">
-          <View style={styles.summaryRow}>
+          <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Gross Salary:</Text>
-            <Text style={brandStyles.value}>₹{totalGrossSalary.toLocaleString()}</Text>
+            <Text style={brandStyles.value}>₹{totalGrossSalary.toLocaleString("en-IN")}</Text>
           </View>
-          <View style={styles.summaryRow}>
+          <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Net Salary:</Text>
-            <Text style={brandStyles.value}>₹{totalNetSalary.toLocaleString()}</Text>
+            <Text style={brandStyles.value}>₹{totalNetSalary.toLocaleString("en-IN")}</Text>
           </View>
-          <View style={styles.summaryRow}>
+          <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Deductions:</Text>
-            <Text style={brandStyles.value}>₹{totalDeductions.toLocaleString()}</Text>
+            <Text style={brandStyles.value}>₹{totalDeductions.toLocaleString("en-IN")}</Text>
           </View>
-          <View style={styles.summaryRow}>
+          <View style={brandStyles.row}>
+            <Text style={brandStyles.label}>Total Basic Pay:</Text>
+            <Text style={brandStyles.value}>₹{totalBasicPay.toLocaleString("en-IN")}</Text>
+          </View>
+          <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total PF:</Text>
-            <Text style={brandStyles.value}>₹{totalPF.toLocaleString()}</Text>
+            <Text style={brandStyles.value}>₹{totalPF.toLocaleString("en-IN")}</Text>
           </View>
-          <View style={styles.summaryRow}>
+          <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total ESIC:</Text>
-            <Text style={brandStyles.value}>₹{totalESIC.toLocaleString()}</Text>
+            <Text style={brandStyles.value}>₹{totalESIC.toLocaleString("en-IN")}</Text>
+          </View>
+          {totalBonus > 0 && (
+            <View style={brandStyles.row}>
+              <Text style={brandStyles.label}>Total Bonus:</Text>
+              <Text style={brandStyles.value}>₹{totalBonus.toLocaleString("en-IN")}</Text>
+            </View>
+          )}
+        </Section>
+
+        {/* Report Data Table */}
+        <Section title="Report Data">
+          <View style={[brandStyles.table, { marginTop: 0 }]}>
+            {/* Header Row */}
+            <View style={[brandStyles.tableRow, brandStyles.tableHeader]}>
+              <Text style={[brandStyles.tableHeaderCell, { width: "12%" }]}>Employee ID</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "15%" }]}>Company</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Month</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "10%" }]}>Basic Pay</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "11%" }]}>Gross Salary</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "11%" }]}>Net Salary</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>PF</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>ESIC</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Bonus</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "9%" }]}>Deductions</Text>
+            </View>
+
+            {/* Data Rows */}
+            {data.map((record) => (
+              <View key={record.id} style={brandStyles.tableRow}>
+                <Text style={[brandStyles.tableCell, { width: "12%" }]}>{record.employeeId}</Text>
+                <Text style={[brandStyles.tableCell, { width: "15%" }]}>{record.companyName || "N/A"}</Text>
+                <Text style={[brandStyles.tableCell, { width: "8%" }]}>{record.month}</Text>
+                <Text style={[brandStyles.tableCell, { width: "10%", textAlign: "right" }]}>
+                  ₹{(record.salaryData.basicPay || 0).toLocaleString("en-IN")}
+                </Text>
+                <Text style={[brandStyles.tableCell, { width: "11%", textAlign: "right" }]}>
+                  ₹{(record.salaryData.grossSalary || 0).toLocaleString("en-IN")}
+                </Text>
+                <Text style={[brandStyles.tableCell, { width: "11%", textAlign: "right" }]}>
+                  ₹{(record.salaryData.netSalary || 0).toLocaleString("en-IN")}
+                </Text>
+                <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                  ₹{(record.salaryData.pf || 0).toLocaleString("en-IN")}
+                </Text>
+                <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                  ₹{(record.salaryData.esic || 0).toLocaleString("en-IN")}
+                </Text>
+                <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                  ₹{(record.salaryData.bonus || 0).toLocaleString("en-IN")}
+                </Text>
+                <Text style={[brandStyles.tableCell, { width: "9%", textAlign: "right" }]}>
+                  ₹{(record.salaryData.totalDeductions || 0).toLocaleString("en-IN")}
+                </Text>
+              </View>
+            ))}
           </View>
         </Section>
 
@@ -115,34 +128,4 @@ const PayrollReportPDF = ({ data, title, totalRecords }: PayrollReportPDFProps) 
   )
 }
 
-interface PayrollReportPDFDownloadButtonProps {
-  data: PayrollReportRecord[]
-  title: string
-  totalRecords: number
-  disabled?: boolean
-  className?: string
-}
-
-export const PayrollReportPDFDownloadButton = ({
-  data,
-  title,
-  totalRecords,
-  disabled = false,
-  className,
-}: PayrollReportPDFDownloadButtonProps) => {
-  const fileName = `${title.replace(/\s+/g, "_")}_Payroll_Report_${getCurrentDateTime()}.pdf`
-
-  return (
-    <PDFDownloadLink
-      document={<PayrollReportPDF data={data} title={title} totalRecords={totalRecords} />}
-      fileName={fileName}
-    >
-      {({ loading }) => (
-        <Button variant="outline" disabled={disabled || loading} className={className}>
-          <FileDown className="mr-2 h-4 w-4" />
-          {loading ? "Generating PDF..." : "Download PDF"}
-        </Button>
-      )}
-    </PDFDownloadLink>
-  )
-}
+export default PayrollReportPDF

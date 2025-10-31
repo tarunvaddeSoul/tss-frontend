@@ -1,8 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { AlertCircle, RefreshCw, Calendar } from "lucide-react"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { StatCards } from "@/components/dashboard/stat-cards"
@@ -11,7 +14,15 @@ import { SpecialDates } from "@/components/dashboard/special-dates"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
 
 export default function DashboardPage() {
-  const { data, companyEmployeeCounts, loading, error, refetch } = useDashboard(30)
+  const [daysAhead, setDaysAhead] = useState<number>(30)
+  const { data, companyEmployeeCounts, loading, error, refetch } = useDashboard(daysAhead)
+
+  const handleDaysChange = (value: string) => {
+    const days = parseInt(value, 10)
+    setDaysAhead(days)
+    // Refetch with new days value
+    refetch(days)
+  }
 
   if (loading) {
     return (
@@ -78,22 +89,37 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto py-6 space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-tss-primary to-purple-600 bg-clip-text text-transparent">
             Dashboard Overview
           </h1>
           <p className="text-muted-foreground">Welcome back! Here's what's happening with your organization today.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="days-select" className="text-sm text-muted-foreground whitespace-nowrap">
+              Period:
+            </Label>
+            <Select value={daysAhead.toString()} onValueChange={handleDaysChange}>
+              <SelectTrigger id="days-select" className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="15">Last 15 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="60">Last 60 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="180">Last 180 days</SelectItem>
+                <SelectItem value="365">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch(daysAhead)}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span>Last 30 days</span>
-          </div>
         </div>
       </div>
 

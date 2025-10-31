@@ -20,7 +20,8 @@ interface PdfPreviewDialogProps {
   description?: string
   fileName: string
   // Return a React-PDF <Document/> element. Accepts no args for simplicity; closure captures data.
-  renderDocument: () => JSX.Element
+  // Can be sync or async to support dynamic imports
+  renderDocument: () => JSX.Element | Promise<JSX.Element>
   autoGenerate?: boolean
 }
 
@@ -57,7 +58,9 @@ export function PdfPreviewDialog({
       if (pdfUrl) URL.revokeObjectURL(pdfUrl)
 
       const [{ pdf }] = await Promise.all([import("@react-pdf/renderer")])
-      const blob = await pdf(renderDocument()).toBlob()
+      // Handle both sync and async renderDocument functions
+      const documentElement = await Promise.resolve(renderDocument())
+      const blob = await pdf(documentElement).toBlob()
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (err) {

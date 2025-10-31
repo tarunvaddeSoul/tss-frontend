@@ -1,7 +1,7 @@
 "use client"
 
-import { AttendanceManager } from "@/components/attendance/attendance-manager"
+import { MarkAttendanceBySite } from "@/components/attendance/mark-attendance-by-site"
 
 export default function AttendancePage() {
-  return <AttendanceManager />
+  return <MarkAttendanceBySite />
 }

@@ -11,6 +11,7 @@ import type {
   UploadAttendanceResponse,
   AttendanceSearchParams,
   ActiveEmployeesResponse,
+  AttendanceReportResponse,
 } from "@/types/attendance"
 
 class AttendanceService {
@@ -219,6 +220,22 @@ class AttendanceService {
       return response.data
     } catch (error) {
       console.error("Error fetching active employees:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get attendance report for a company and month (includes totals, stats, and attendance sheet)
+   * Uses GET /attendance/reports endpoint
+   */
+  async getAttendanceReport(companyId: string, month: string): Promise<AttendanceReportResponse> {
+    try {
+      const response = await api.get(`${this.baseUrl}/reports`, {
+        params: { companyId, month },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Error fetching attendance report:", error)
       throw error
     }
   }

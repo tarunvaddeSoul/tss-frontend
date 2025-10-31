@@ -74,6 +74,7 @@ const navItems: NavItem[] = [
       { title: "Mark By Site", href: "/attendance/mark-by-site" },
       { title: "Upload", href: "/attendance/upload" },
       { title: "Reports", href: "/attendance/reports" },
+      { title: "Records", href: "/attendance/records" },
     ],
   },
   {

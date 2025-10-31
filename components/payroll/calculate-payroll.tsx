@@ -154,10 +154,12 @@ export default function CalculatePayroll() {
         if (!calculationResult) return
 
         try {
-            const payrollRecords = calculationResult.data.payrollResults.map((record) => ({
-                employeeId: record.employeeId,
-                salary: record.salary,
-            }))
+            const payrollRecords = calculationResult.data.payrollResults
+                .filter((record) => record.salary && !record.error) // Only include records with valid salary and no errors
+                .map((record) => ({
+                    employeeId: record.employeeId,
+                    salary: record.salary || {},
+                }))
 
             await finalizePayroll({
                 companyId: selectedCompanyId,
@@ -495,25 +497,25 @@ export default function CalculatePayroll() {
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary.basicPay?.toLocaleString() || "N/A"}
+                                                    {record.salary?.basicPay?.toLocaleString() || "N/A"}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary.grossSalary?.toLocaleString() || "N/A"}
+                                                    {record.salary?.grossSalary?.toLocaleString() || "N/A"}
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center">
                                                     <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary.totalDeductions?.toLocaleString() || "N/A"}
+                                                    {record.salary?.totalDeductions?.toLocaleString() || "N/A"}
                                                 </div>
                                             </TableCell>
                                             <TableCell className="font-semibold">
                                                 <div className="flex items-center">
                                                     <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary.netSalary?.toLocaleString() || "N/A"}
+                                                    {record.salary?.netSalary?.toLocaleString() || "N/A"}
                                                 </div>
                                             </TableCell>
                                             <TableCell>

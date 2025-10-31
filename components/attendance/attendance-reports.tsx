@@ -29,8 +29,11 @@ import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 import { useCompany } from "@/hooks/use-company"
+import { attendanceSheetService } from "@/services/attendanceSheetService"
 import { attendanceService } from "@/services/attendanceService"
 import type { Company } from "@/types/company"
+import AttendanceReportPDF from "@/components/pdf/attendance-report-pdf"
+import { PdfPreviewDialog } from "@/components/pdf/pdf-preview-dialog"
 
 // Types for attendance data
 interface AttendanceRecord {
@@ -65,6 +68,8 @@ export function AttendanceReportsComponent() {
   const [loading, setLoading] = useState(false)
   const [loadingMonths, setLoadingMonths] = useState(false)
   const [reportGenerated, setReportGenerated] = useState(false)
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null)
+  const [pdfOpen, setPdfOpen] = useState(false)
 
   const { toast } = useToast()
   const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
@@ -97,8 +102,9 @@ export function AttendanceReportsComponent() {
 
     try {
       setLoadingMonths(true)
+      console.log("companyId", companyId)
       const response = await attendanceService.getAttendanceByCompanyId(companyId)
-
+      console.log("response", response)
       // Extract unique months from the response
       const months = response.data?.map((record: CompanyAttendanceRecord) => record.month) || []
       const uniqueMonths = [...new Set(months)].sort().reverse() // Sort in descending order (newest first)
@@ -120,14 +126,21 @@ export function AttendanceReportsComponent() {
   const onSubmit = async (data: ReportsFormValues) => {
     try {
       setLoading(true)
-
+      console.log("data", data)
       const response = await attendanceService.getAttendanceByCompanyAndMonth({
         companyId: data.companyId,
         month: data.month,
       })
-
+      console.log("response", response)
       setAttendanceData(response.data || [])
       setReportGenerated(true)
+
+      try {
+        const sheetRes = await attendanceSheetService.get(data.companyId, data.month)
+        setSheetUrl(sheetRes.data?.attendanceSheetUrl || null)
+      } catch (_) {
+        setSheetUrl(null)
+      }
 
       toast({
         title: "Report Generated",
@@ -191,95 +204,7 @@ export function AttendanceReportsComponent() {
 
   // Generate and download PDF
   const downloadPDF = () => {
-    // Create a simple HTML content for PDF
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Attendance Report</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .company-info { margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; font-weight: bold; }
-          .stats { display: flex; justify-content: space-around; margin: 20px 0; }
-          .stat-item { text-align: center; }
-          .stat-value { font-size: 24px; font-weight: bold; color: #2563eb; }
-          .stat-label { font-size: 14px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Attendance Report</h1>
-          <h2>${getSelectedCompanyName()}</h2>
-          <p>Month: ${getSelectedMonthDisplay()}</p>
-          <p>Generated on: ${new Date().toLocaleDateString()}</p>
-        </div>
-        
-        <div class="stats">
-          <div class="stat-item">
-            <div class="stat-value">${stats.totalEmployees}</div>
-            <div class="stat-label">Total Employees</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">${stats.totalPresent}</div>
-            <div class="stat-label">Total Present Days</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">${stats.avgAttendance.toFixed(1)}</div>
-            <div class="stat-label">Average Attendance</div>
-          </div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Employee ID</th>
-              <th>Employee Name</th>
-              <th>Department</th>
-              <th>Designation</th>
-              <th>Present Days</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${attendanceData
-              .map(
-                (record) => `
-              <tr>
-                <td>${record.employeeID}</td>
-                <td>${record.employeeName}</td>
-                <td>${record.departmentName}</td>
-                <td>${record.designationName}</td>
-                <td>${record.presentCount}</td>
-              </tr>
-            `,
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `
-
-    // Open in new window for printing/saving as PDF
-    const printWindow = window.open("", "_blank")
-    if (printWindow) {
-      printWindow.document.write(htmlContent)
-      printWindow.document.close()
-      printWindow.focus()
-
-      // Trigger print dialog
-      setTimeout(() => {
-        printWindow.print()
-      }, 250)
-    }
-
-    toast({
-      title: "PDF Generated",
-      description: "PDF report has been opened in a new window. Use your browser's print function to save as PDF.",
-    })
+    setPdfOpen(true)
   }
 
   const previewReport = () => {
@@ -560,6 +485,15 @@ export function AttendanceReportsComponent() {
                 </div>
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
+              <div className="mt-3 text-sm">
+                {sheetUrl ? (
+                  <span>
+                    📎 Sheet attached: <a href={sheetUrl} target="_blank" rel="noreferrer" className="text-blue-600">View</a>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">No attendance sheet attached for this month.</span>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -612,7 +546,7 @@ export function AttendanceReportsComponent() {
               <div className="flex flex-wrap gap-4">
                 <Button onClick={downloadPDF} variant="outline" size="lg">
                   <FileText className="w-5 h-5 mr-2" />
-                  Download PDF
+                  Open PDF Preview
                 </Button>
                 <Button onClick={downloadCSV} variant="outline" size="lg">
                   <Download className="w-5 h-5 mr-2" />
@@ -674,6 +608,22 @@ export function AttendanceReportsComponent() {
           )}
         </div>
       )}
+        
+      <PdfPreviewDialog
+        open={pdfOpen}
+        onOpenChange={setPdfOpen}
+        title="Attendance Report"
+        description={`${getSelectedCompanyName()} • ${getSelectedMonthDisplay()}`}
+        fileName={`attendance-report-${getSelectedCompanyName()}-${getSelectedMonthDisplay()}`}
+        renderDocument={() => (
+          <AttendanceReportPDF
+            title={`${getSelectedCompanyName()} Attendance`}
+            month={getSelectedMonthDisplay()}
+            // types align with PDF component's AttendanceRecord structure
+            records={attendanceData as any}
+          />
+        )}
+      />
     </div>
   )
 }

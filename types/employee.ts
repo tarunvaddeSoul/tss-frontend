@@ -309,8 +309,8 @@ export interface EmployeeFormValues {
 }
 
 export interface EmployeeSearchParams {
-  page: number
-  limit: number
+  page?: number
+  limit?: number
   searchText?: string
   designationId?: string
   employeeDepartmentId?: string

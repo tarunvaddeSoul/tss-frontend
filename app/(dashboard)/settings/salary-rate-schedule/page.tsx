@@ -5,7 +5,7 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
-import { DollarSign, Loader2, Plus, Trash2, Edit, Filter, X, AlertTriangle } from "lucide-react"
+import { DollarSign, Plus, Trash2, Edit, Filter, X, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
+import { InlineLoader, ButtonLoader } from "@/components/ui/loader"
 import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import type { SalaryRateSchedule, CreateSalaryRateScheduleDto, UpdateSalaryRateScheduleDto } from "@/types/salary"
@@ -461,7 +462,7 @@ export default function SalaryRateSchedulePage() {
                     <Button type="submit" disabled={isLoading} className="w-full">
                       {isLoading ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <ButtonLoader className="mr-2" />
                           Adding...
                         </>
                       ) : (
@@ -552,9 +553,7 @@ export default function SalaryRateSchedulePage() {
             <ScrollArea className="h-[400px] sm:h-[500px] rounded-lg border border-white/10">
               <div className="space-y-2 p-4">
                 {isLoading && rateSchedules.length === 0 ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
+                  <InlineLoader />
                 ) : rateSchedules.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     No rate schedules found
@@ -767,7 +766,7 @@ export default function SalaryRateSchedulePage() {
                 <Button type="submit" disabled={isLoading} className="flex-1">
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <ButtonLoader className="mr-2" />
                       Updating...
                     </>
                   ) : (

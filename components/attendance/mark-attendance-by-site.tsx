@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { InlineLoader } from "@/components/ui/loader"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -1291,12 +1292,7 @@ export function MarkAttendanceBySite() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center space-y-2">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                      <p className="text-sm text-muted-foreground">Loading employees...</p>
-                    </div>
-                  </div>
+                  <InlineLoader text="Loading employees..." />
                 ) : employees.length > 0 ? (
                   <>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

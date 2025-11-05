@@ -4,11 +4,46 @@ export interface CalculatePayrollDto {
   adminInputs?: Record<string, Record<string, number>>
 }
 
+/**
+ * Payroll Salary Data Structure
+ * Updated to match new backend response structure
+ */
+export interface PayrollSalaryData {
+  // Category-specific fields
+  monthlySalary?: number | null // Only for SPECIALIZED
+  salaryPerDay?: number | null // Only for CENTRAL/STATE
+  wagesPerDay: number // Calculated per-day rate
+  basicDuty: number
+  dutyDone: number
+  basicPay: number
+  grossSalary: number // Calculated based on category
+  
+  // Template fields (allowances, deductions, etc.)
+  // ... other template fields ...
+  
+  // PF/ESIC calculation (NEW LOGIC)
+  pf: number // 0 if disabled or grossSalary > 15000
+  esic: number // 0 if disabled or grossSalary > 15000
+  
+  // Final calculations
+  totalDeductions: number
+  netSalary: number
+  
+  // Metadata
+  serialNumber?: number
+  companyName?: string
+  designation?: string
+  // ... other fields ...
+  
+  // Allow for additional template fields
+  [key: string]: any
+}
+
 export interface PayrollRecord {
   employeeId: string
   employeeName: string
   presentDays: number
-  salary: Record<string, any>
+  salary: PayrollSalaryData
   error?: string
 }
 

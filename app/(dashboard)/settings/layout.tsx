@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { User, Shield, LogOut, ChevronRight, Building2, Briefcase } from "lucide-react"
+import { User, Shield, LogOut, ChevronRight, Building2, Briefcase, DollarSign } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -44,6 +44,11 @@ const settingsNavItems: SettingsNavItem[] = [
     title: "Designation",
     href: "/settings/designation",
     icon: <Briefcase className="h-4 w-4" />,
+  },
+  {
+    title: "Salary Rate Schedule",
+    href: "/settings/salary-rate-schedule",
+    icon: <DollarSign className="h-4 w-4" />,
   },
 ]
 

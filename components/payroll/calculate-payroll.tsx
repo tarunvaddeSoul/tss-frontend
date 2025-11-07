@@ -490,8 +490,8 @@ export default function CalculatePayroll() {
                         <Separator />
 
                         {/* Detailed Records */}
-                        <div className="rounded-md border">
-                            <Table>
+                        <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+                            <Table className="min-w-[1200px]">
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Employee</TableHead>

@@ -470,15 +470,18 @@ export default function EmployeeViewPage() {
                     <CardContent className="p-0">
                       {employee.employmentHistories && employee.employmentHistories.length > 0 ? (
                         <div className="overflow-x-auto scrollbar-sleek">
-                          <Table className="min-w-[600px]">
+                          <Table className="min-w-[1000px]">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="min-w-[120px]">Company</TableHead>
                                 <TableHead className="min-w-[120px]">Designation</TableHead>
                                 <TableHead className="min-w-[120px]">Department</TableHead>
-                                <TableHead className="min-w-[130px]">Salary</TableHead>
                                 <TableHead className="min-w-[110px]">Joining Date</TableHead>
                                 <TableHead className="min-w-[110px]">Leaving Date</TableHead>
+                                <TableHead className="min-w-[100px]">Salary Type</TableHead>
+                                <TableHead className="min-w-[100px]">Salary Category</TableHead>
+                                <TableHead className="min-w-[120px]">Salary Sub Category</TableHead>
+                                <TableHead className="min-w-[130px]">Salary</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -493,40 +496,49 @@ export default function EmployeeViewPage() {
                                   <TableCell className="min-w-[120px]">
                                     <span className="truncate block">{history.departmentName}</span>
                                   </TableCell>
-                                  <TableCell className="min-w-[130px] whitespace-nowrap">
-                                    {(() => {
-                                      if (history.salaryType === "PER_DAY" && history.salaryPerDay) {
-                                        return (
-                                          <div className="flex flex-col">
-                                            <span>₹{history.salaryPerDay.toLocaleString()}/day</span>
-                                            {history.salary && (
-                                              <span className="text-xs text-muted-foreground">
-                                                (₹{history.salary.toLocaleString()}/month)
-                                              </span>
-                                            )}
-                                          </div>
-                                        );
-                                      }
-                                      if (history.salaryType === "PER_MONTH" && history.salary) {
-                                        return <span>₹{history.salary.toLocaleString()}/month</span>;
-                                      }
-                                      if (history.salary) {
-                                        return (
-                                          <div className="flex flex-col">
-                                            <span>₹{history.salary.toLocaleString()}</span>
-                                            {history.salaryType && (
-                                              <span className="text-xs text-muted-foreground">
-                                                ({history.salaryType === "PER_DAY" ? "Per Day" : "Per Month"})
-                                              </span>
-                                            )}
-                                          </div>
-                                        );
-                                      }
-                                      return <span className="text-muted-foreground">Not specified</span>;
-                                    })()}
-                                  </TableCell>
                                   <TableCell className="min-w-[110px] whitespace-nowrap">{formatDate(history.joiningDate)}</TableCell>
                                   <TableCell className="min-w-[110px] whitespace-nowrap">{history.leavingDate ? formatDate(history.leavingDate) : "Present"}</TableCell>
+                                  <TableCell className="min-w-[100px]">
+                                    {history.salaryType ? (
+                                      <Badge variant="outline" className="text-xs">
+                                        {history.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">N/A</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="min-w-[100px]">
+                                    {employee.salaryCategory ? (
+                                      <Badge variant="outline" className="text-xs">
+                                        {employee.salaryCategory}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">N/A</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="min-w-[120px]">
+                                    {employee.salarySubCategory ? (
+                                      <Badge variant="outline" className="text-xs">
+                                        {employee.salarySubCategory}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">N/A</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="min-w-[130px] whitespace-nowrap">
+                                    {(() => {
+                                      if (history.salaryType === SalaryType.PER_DAY && history.salaryPerDay) {
+                                        return <span>₹{history.salaryPerDay.toLocaleString()}/day</span>
+                                      }
+                                      if (history.salaryType === SalaryType.PER_MONTH && history.salary) {
+                                        return <span>₹{history.salary.toLocaleString()}/month</span>
+                                      }
+                                      if (history.salary) {
+                                        return <span>₹{history.salary.toLocaleString()}</span>
+                                      }
+                                      return <span className="text-muted-foreground">Not specified</span>
+                                    })()}
+                                  </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>

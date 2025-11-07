@@ -319,53 +319,89 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Designation</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Joining Date</TableHead>
-                        <TableHead>End Date</TableHead>
-                        <TableHead>Salary</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {employee.employmentHistories?.length ? (
-                        employee.employmentHistories.map((history: IEmployeeEmploymentHistory) => (
-                          <TableRow key={history.id}>
-                            <TableCell>{history.companyName}</TableCell>
-                            <TableCell>{history.designationName}</TableCell>
-                            <TableCell>{history.departmentName}</TableCell>
-                            <TableCell>{history.joiningDate}</TableCell>
-                            <TableCell>{history.leavingDate || "-"}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span>₹{history.salary?.toLocaleString() || "-"}</span>
-                                {history.salaryType && (
-                                  <span className="text-xs text-muted-foreground">
-                                    ({history.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"})
-                                  </span>
+                  <div className="overflow-x-auto scrollbar-sleek">
+                    <Table className="min-w-[1000px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Company</TableHead>
+                          <TableHead>Designation</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Joining Date</TableHead>
+                          <TableHead>End Date</TableHead>
+                          <TableHead>Salary Type</TableHead>
+                          <TableHead>Salary Category</TableHead>
+                          <TableHead>Salary Sub Category</TableHead>
+                          <TableHead>Salary</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {employee.employmentHistories?.length ? (
+                          employee.employmentHistories.map((history: IEmployeeEmploymentHistory) => (
+                            <TableRow key={history.id}>
+                              <TableCell>{history.companyName}</TableCell>
+                              <TableCell>{history.designationName}</TableCell>
+                              <TableCell>{history.departmentName}</TableCell>
+                              <TableCell>{history.joiningDate}</TableCell>
+                              <TableCell>{history.leavingDate || "-"}</TableCell>
+                              <TableCell>
+                                {history.salaryType ? (
+                                  <Badge variant="outline" className="text-xs">
+                                    {history.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">N/A</span>
                                 )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={history.status === "ACTIVE" ? "default" : "secondary"}>
-                                {history.status === "ACTIVE" ? "Current" : "Previous"}
-                              </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {employee.salaryCategory ? (
+                                  <Badge variant="outline" className="text-xs">
+                                    {employee.salaryCategory}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">N/A</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {employee.salarySubCategory ? (
+                                  <Badge variant="outline" className="text-xs">
+                                    {employee.salarySubCategory}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">N/A</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {(() => {
+                                  if (history.salaryType === SalaryType.PER_DAY && history.salaryPerDay) {
+                                    return <span>₹{history.salaryPerDay.toLocaleString()}/day</span>
+                                  }
+                                  if (history.salaryType === SalaryType.PER_MONTH && history.salary) {
+                                    return <span>₹{history.salary.toLocaleString()}/month</span>
+                                  }
+                                  if (history.salary) {
+                                    return <span>₹{history.salary.toLocaleString()}</span>
+                                  }
+                                  return <span className="text-muted-foreground">-</span>
+                                })()}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={history.status === "ACTIVE" ? "default" : "secondary"}>
+                                  {history.status === "ACTIVE" ? "Current" : "Previous"}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={10} className="text-center py-6 text-muted-foreground">
+                              No employment history found.
                             </TableCell>
                           </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                            No employment history found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

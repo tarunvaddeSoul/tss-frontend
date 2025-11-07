@@ -79,12 +79,20 @@ class SalaryRateScheduleService {
   }
 
   /**
-   * Get active rate for a category and subcategory
-   * Optionally specify a date to check what rate was effective on that date
+   * Get active rates for a category and subcategory
+   * API endpoint: GET /salary-rate-schedule/active/:category/:subCategory
+   * Returns an array of active rate schedules
    */
   async getActiveRate(params: GetActiveRateQuery): Promise<ActiveRateResponse> {
     try {
-      const response = await api.get(`${this.baseUrl}/active`, { params })
+      const { category, subCategory, date } = params
+      // Build URL with path parameters
+      let url = `${this.baseUrl}/active/${category}/${subCategory}`
+      // Add date as query parameter if provided
+      if (date) {
+        url += `?date=${date}`
+      }
+      const response = await api.get(url)
       return response.data
     } catch (error) {
       console.error("Error fetching active rate:", error)

@@ -274,7 +274,8 @@ export function EmployeeReports() {
                                 </Card>
                             </div>
 
-                            <Table>
+                            <div className="overflow-x-auto scrollbar-sleek">
+                              <Table className="min-w-[800px]">
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Month</TableHead>
@@ -302,6 +303,7 @@ export function EmployeeReports() {
                                     ))}
                                 </TableBody>
                             </Table>
+                            </div>
                         </>
                     )}
                 </CardContent>

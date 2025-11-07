@@ -63,19 +63,23 @@ export function DatePicker({
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal h-10",
+            "w-full justify-start text-left font-normal h-10 min-w-0",
             !date && "text-muted-foreground",
             className
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date ? format(date, "PPP") : <span>Pick a date</span>}
+          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+          <span className="truncate flex-1 text-left">
+            {date ? format(date, "PPP") : <span>Pick a date</span>}
+          </span>
           {date && (
             <X
-              className="ml-auto h-4 w-4"
+              className="ml-2 h-4 w-4 shrink-0 hover:text-destructive transition-colors"
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 onSelect(null)
+                setOpen(false)
               }}
             />
           )}

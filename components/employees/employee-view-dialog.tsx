@@ -1,6 +1,10 @@
 "use client"
 
-import { X, Download, User, Phone, MapPin, Calendar, CreditCard } from "lucide-react"
+import { useState } from "react"
+import { X, Download, User, Phone, MapPin, Calendar, CreditCard, DollarSign, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { SalaryCategory, SalaryType } from "@/types/salary"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import dynamic from "next/dynamic"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -13,6 +17,11 @@ import { toast } from "sonner"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { EmployeeDocumentManager } from "@/components/employees/employee-document-manager"
 
+const DynamicPdfPreviewDialog = dynamic(
+  () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
+  { ssr: false }
+)
+
 interface EmployeeViewDialogProps {
   employee: Employee
   isOpen: boolean
@@ -20,14 +29,12 @@ interface EmployeeViewDialogProps {
 }
 
 export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDialogProps) {
-  const handleDownloadPDF = () => {
-    toast.info("PDF download functionality coming soon!")
-  }
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="flex flex-row items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
               <User className="h-5 w-5 text-primary" />
@@ -40,24 +47,23 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+            <Button variant="outline" size="sm" onClick={() => setPdfPreviewOpen(true)}>
               <Download className="h-4 w-4 mr-2" />
-              Download PDF
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-4 w-4" />
+              View & Download PDF
             </Button>
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="details" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="mx-6">
-            <TabsTrigger value="details">Employee Details</TabsTrigger>
-            <TabsTrigger value="employment">Employment History</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="shrink-0 px-6 pt-4">
+            <TabsList>
+              <TabsTrigger value="details">Employee Details</TabsTrigger>
+              <TabsTrigger value="employment">Employment History</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
+            </TabsList>
+          </div>
 
-          <ScrollArea className="flex-1 p-6">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-sleek px-6 pb-6">
             <TabsContent value="details" className="space-y-6 mt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Basic Information */}
@@ -163,37 +169,94 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                     <CardTitle className="text-base">Current Employment</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Company</p>
-                        <p className="font-medium">{employee.companyName || "Not specified"}</p>
+                    {(() => {
+                      const activeEmployment = employee.employmentHistories?.find(
+                        (h: IEmployeeEmploymentHistory) => h.status === "ACTIVE"
+                      );
+
+                      return (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Company</p>
+                            <p className="font-medium">{activeEmployment?.companyName || "Not specified"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Department</p>
+                            <p className="font-medium">{activeEmployment?.departmentName || "Not specified"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Designation</p>
+                            <p className="font-medium">{activeEmployment?.designationName || "Not specified"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Date of Joining</p>
+                            <p className="font-medium flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              {activeEmployment?.joiningDate || "Not specified"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Recruited By</p>
+                            <p className="font-medium">{employee.recruitedBy || "Not specified"}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+
+                {/* Salary Information */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Salary Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {employee.salaryCategory ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Salary Category</p>
+                          <p className="font-medium flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            {employee.salaryCategory}
+                            {employee.salarySubCategory && ` - ${employee.salarySubCategory}`}
+                          </p>
+                        </div>
+                        {employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary ? (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Monthly Salary</p>
+                            <p className="font-medium">₹{employee.monthlySalary.toLocaleString()}</p>
+                          </div>
+                        ) : employee.salaryPerDay ? (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Rate Per Day</p>
+                            <p className="font-medium">₹{employee.salaryPerDay.toLocaleString()}</p>
+                          </div>
+                        ) : null}
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            {employee.pfEnabled ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-gray-400" />
+                            )}
+                            <span className="text-sm">PF</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {employee.esicEnabled ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-gray-400" />
+                            )}
+                            <span className="text-sm">ESIC</span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Department</p>
-                        <p className="font-medium">{employee.employeeDepartmentName || "Not specified"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Designation</p>
-                        <p className="font-medium">{employee.designationName || "Not specified"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Date of Joining</p>
-                        <p className="font-medium flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {employee.dateOfJoining || "Not specified"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Salary</p>
-                        <p className="font-medium">
-                          {employee.salary ? `₹${employee.salary.toLocaleString()}` : "Not specified"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Recruited By</p>
-                        <p className="font-medium">{employee.recruitedBy || "Not specified"}</p>
-                      </div>
-                    </div>
+                    ) : (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>Salary information not configured</AlertDescription>
+                      </Alert>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -277,7 +340,16 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                             <TableCell>{history.departmentName}</TableCell>
                             <TableCell>{history.joiningDate}</TableCell>
                             <TableCell>{history.leavingDate || "-"}</TableCell>
-                            <TableCell>₹{history.salary?.toLocaleString() || "-"}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span>₹{history.salary?.toLocaleString() || "-"}</span>
+                                {history.salaryType && (
+                                  <span className="text-xs text-muted-foreground">
+                                    ({history.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"})
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <Badge variant={history.status === "ACTIVE" ? "default" : "secondary"}>
                                 {history.status === "ACTIVE" ? "Current" : "Previous"}
@@ -314,9 +386,22 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                 </CardContent>
               </Card>
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
       </DialogContent>
+
+      {/* PDF Preview Dialog */}
+      <DynamicPdfPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+        description={`Employee ID: ${employee.id}`}
+        fileName={`employee-${employee.firstName}-${employee.lastName}.pdf`}
+        renderDocument={async () => {
+          const { default: EmployeeViewPDF } = await import("./employee-view-pdf")
+          return <EmployeeViewPDF employee={employee} />
+        }}
+      />
     </Dialog>
   )
 }

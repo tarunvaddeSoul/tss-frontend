@@ -27,7 +27,7 @@ import {
   Trash,
   DollarSign,
 } from "lucide-react"
-import { SalaryCategory } from "@/types/salary"
+import { SalaryCategory, SalaryType } from "@/types/salary"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
@@ -388,15 +388,19 @@ export default function EmployeeListPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
+          <CardContent className="p-0">
+            <div className="rounded-md border overflow-x-auto scrollbar-sleek w-full">
+              <div className="min-w-[1200px]">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead>Designation</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Company</TableHead>
+                    <TableHead>Salary Type</TableHead>
+                    <TableHead>Salary Category</TableHead>
+                    <TableHead>Salary Sub Category</TableHead>
                     <TableHead>Salary</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
@@ -404,12 +408,16 @@ export default function EmployeeListPage() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10">
+                      <TableCell colSpan={9} className="text-center py-10">
                         Loading employees...
                       </TableCell>
                     </TableRow>
                   ) : employees.length > 0 ? (
-                    employees.map((employee) => (
+                    employees.map((employee) => {
+                      const activeHistory = employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")
+                      const salaryType = activeHistory?.salaryType || (employee.salaryCategory === SalaryCategory.SPECIALIZED ? SalaryType.PER_MONTH : SalaryType.PER_DAY)
+                      
+                      return (
                       <TableRow key={employee.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -431,47 +439,67 @@ export default function EmployeeListPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "N/A"}
+                              {activeHistory?.designationName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "N/A"}
+                              {activeHistory?.departmentName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "N/A"}
+                              {activeHistory?.companyName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1">
-                            {employee.salaryCategory ? (
-                              <>
-                                <div className="flex items-center gap-1">
-                                  <DollarSign className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs font-medium">
-                                    {employee.salaryCategory}
-                                    {employee.salarySubCategory && ` - ${employee.salarySubCategory}`}
-                                  </span>
-                                </div>
-                                {employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary ? (
-                                  <span className="text-sm font-semibold">₹{employee.monthlySalary.toLocaleString()}/mo</span>
-                                ) : employee.salaryPerDay ? (
-                                  <span className="text-sm font-semibold">₹{employee.salaryPerDay.toLocaleString()}/day</span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">Not configured</span>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Not configured</span>
-                            )}
-                          </div>
+                          {salaryType ? (
+                            <Badge variant="outline" className="text-xs">
+                              {salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {employee.salaryCategory ? (
+                            <Badge variant="outline" className="text-xs">
+                              {employee.salaryCategory}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {employee.salarySubCategory ? (
+                            <Badge variant="outline" className="text-xs">
+                              {employee.salarySubCategory}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            if (activeHistory?.salaryType === SalaryType.PER_DAY && activeHistory.salaryPerDay) {
+                              return <span className="text-sm font-semibold">₹{activeHistory.salaryPerDay.toLocaleString()}/day</span>
+                            }
+                            if (activeHistory?.salaryType === SalaryType.PER_MONTH && activeHistory.salary) {
+                              return <span className="text-sm font-semibold">₹{activeHistory.salary.toLocaleString()}/month</span>
+                            }
+                            if (employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary) {
+                              return <span className="text-sm font-semibold">₹{employee.monthlySalary.toLocaleString()}/month</span>
+                            }
+                            if (employee.salaryPerDay) {
+                              return <span className="text-sm font-semibold">₹{employee.salaryPerDay.toLocaleString()}/day</span>
+                            }
+                            return <span className="text-xs text-muted-foreground">Not configured</span>
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-center gap-2">
@@ -521,16 +549,18 @@ export default function EmployeeListPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                    )
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10">
+                      <TableCell colSpan={9} className="text-center py-10">
                         No employees found
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
 
             {totalPages > 1 && (

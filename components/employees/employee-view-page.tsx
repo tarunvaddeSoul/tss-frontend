@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   User,
   Phone,
@@ -27,14 +28,22 @@ import {
   Shield,
   GraduationCap,
   AlertCircle,
-  Loader2,
+  DollarSign,
+  CheckCircle2,
+  XCircle,
+  Eye,
 } from "lucide-react"
+import { SalaryCategory, SalaryType } from "@/types/salary"
 import { employeeService } from "@/services/employeeService"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { toast } from "sonner"
-import { PDFDownloadLink } from "@react-pdf/renderer"
-import EmployeeViewPDF from "./employee-view-pdf"
+import dynamic from "next/dynamic"
 import { formatDate } from "@/lib/utils"
+
+const DynamicPdfPreviewDialog = dynamic(
+  () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
+  { ssr: false }
+)
 
 export default function EmployeeViewPage() {
   const params = useParams()
@@ -44,6 +53,12 @@ export default function EmployeeViewPage() {
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [documentPreviewOpen, setDocumentPreviewOpen] = useState(false)
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string>("")
+  const [documentPreviewTitle, setDocumentPreviewTitle] = useState<string>("")
+  const [documentPreviewIsPDF, setDocumentPreviewIsPDF] = useState(false)
+  const [documentPreviewBlobUrl, setDocumentPreviewBlobUrl] = useState<string | null>(null)
 
   useEffect(() => {
     fetchEmployee()
@@ -68,6 +83,125 @@ export default function EmployeeViewPage() {
     router.push(`/employees/edit/${employeeId}`)
   }
 
+  // Handle document preview
+  const handleDocumentPreview = async (url: string, title: string) => {
+    if (!url) {
+      toast.error("Document not available")
+      return
+    }
+
+    try {
+      // Fetch the file to check its Content-Type
+      const response = await fetch(url)
+      if (!response.ok) {
+        toast.error("Failed to load document")
+        return
+      }
+
+      const blob = await response.blob()
+      const contentType = response.headers.get("Content-Type") || blob.type
+
+      // Check if it's a PDF based on Content-Type
+      const isPDF = contentType.includes("application/pdf") || contentType.includes("pdf")
+
+      if (isPDF) {
+        // For PDFs, use blob URL in iframe
+        const blobUrl = URL.createObjectURL(blob)
+        setDocumentPreviewBlobUrl(blobUrl)
+        setDocumentPreviewUrl(blobUrl)
+        setDocumentPreviewIsPDF(true)
+      } else {
+        // For images, use direct URL
+        setDocumentPreviewUrl(url)
+        setDocumentPreviewIsPDF(false)
+      }
+
+      setDocumentPreviewTitle(title)
+      setDocumentPreviewOpen(true)
+    } catch (error) {
+      console.error("Error loading document for preview:", error)
+      toast.error("Failed to load document preview")
+    }
+  }
+
+  const handleCloseDocumentPreview = () => {
+    if (documentPreviewBlobUrl) {
+      URL.revokeObjectURL(documentPreviewBlobUrl)
+      setDocumentPreviewBlobUrl(null)
+    }
+    setDocumentPreviewOpen(false)
+    setDocumentPreviewUrl("")
+    setDocumentPreviewTitle("")
+    setDocumentPreviewIsPDF(false)
+  }
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (documentPreviewBlobUrl) {
+        URL.revokeObjectURL(documentPreviewBlobUrl)
+      }
+    }
+  }, [documentPreviewBlobUrl])
+
+  const handleDocumentDownload = async (url: string, filename: string) => {
+    if (!url) {
+      toast.error("Document not available")
+      return
+    }
+
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        toast.error("Failed to download document")
+        return
+      }
+
+      const blob = await response.blob()
+      const contentType = response.headers.get("Content-Type") || blob.type
+      
+      // Get file extension from Content-Type or URL
+      let extension = ""
+      if (contentType.includes("pdf")) {
+        extension = ".pdf"
+      } else if (contentType.includes("image/jpeg") || contentType.includes("image/jpg")) {
+        extension = ".jpg"
+      } else if (contentType.includes("image/png")) {
+        extension = ".png"
+      } else if (contentType.includes("image/gif")) {
+        extension = ".gif"
+      } else if (contentType.includes("image/webp")) {
+        extension = ".webp"
+      } else {
+        // Try to get extension from URL
+        const urlPath = url.split("?")[0] // Remove query params
+        const urlExtension = urlPath.substring(urlPath.lastIndexOf("."))
+        if (urlExtension && urlExtension.length <= 5) {
+          extension = urlExtension
+        } else {
+          extension = "" // No extension if we can't determine
+        }
+      }
+
+      // Remove any existing extension from filename and add the correct one
+      const filenameWithoutExt = filename.replace(/\.[^/.]+$/, "")
+      const finalFilename = extension ? `${filenameWithoutExt}${extension}` : filenameWithoutExt
+
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = blobUrl
+      link.download = finalFilename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+      toast.success("Document downloaded successfully!")
+    } catch (error) {
+      console.error("Error downloading document:", error)
+      toast.error("Failed to download document")
+    }
+  }
+
   if (loading) {
     return <EmployeeViewPageSkeleton />
   }
@@ -89,7 +223,7 @@ export default function EmployeeViewPage() {
 
   // const formatDate = (dateString: string | undefined) => {
   //   if (!dateString) return "N/A"
-    
+
   //   // Handle DD-MM-YYYY format
   //   const [day, month, year] = dateString.split('-')
   //   if (day && month && year) {
@@ -97,7 +231,7 @@ export default function EmployeeViewPage() {
   //     const date = new Date(`${year}-${month}-${day}`)
   //     return date.toLocaleDateString()
   //   }
-    
+
   //   // Fallback to original format if the date doesn't match DD-MM-YYYY
   //   return new Date(dateString).toLocaleDateString()
   // }
@@ -105,60 +239,56 @@ export default function EmployeeViewPage() {
   const currentEmployment = employee.employmentHistories?.[0]
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Header Section */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-20 w-20">
-                <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+              <Avatar className="h-16 w-16 sm:h-20 sm:w-20 shrink-0">
+                <AvatarFallback className="text-base sm:text-lg font-semibold bg-primary/10 text-primary">
                   {getInitials(employee.firstName, employee.lastName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-3">
-                  <h1 className="text-2xl font-bold text-foreground">
+              <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                     {employee.title} {employee.firstName} {employee.lastName}
                   </h1>
-                  <Badge variant={employee.status === "ACTIVE" ? "default" : "destructive"}>{employee.status}</Badge>
+                  <Badge variant={employee.status === "ACTIVE" ? "default" : "destructive"} className="shrink-0">
+                    {employee.status}
+                  </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">Employee ID: {employee.id}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Employee ID: {employee.id}</p>
                 {currentEmployment && (
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <Briefcase className="h-4 w-4" />
-                      <span>{currentEmployment.designationName}</span>
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                    <div className="flex items-center space-x-1 shrink-0">
+                      <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="truncate">{currentEmployment.designationName}</span>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Building className="h-4 w-4" />
-                      <span>{currentEmployment.companyName}</span>
+                    <div className="flex items-center space-x-1 shrink-0">
+                      <Building className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="truncate">{currentEmployment.companyName}</span>
                     </div>
                   </div>
                 )}
               </div>
             </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={handleEdit}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+              <Button variant="outline" onClick={handleEdit} size="sm" className="w-full sm:w-auto">
+                <Edit className="h-4 w-4 sm:mr-2 shrink-0" />
+                <span className="hidden sm:inline">Edit</span>
               </Button>
               {employee && (
-                <PDFDownloadLink
-                  document={<EmployeeViewPDF employee={employee} />}
-                  fileName={`employee-${employee.firstName}-${employee.lastName}.pdf`}
+                <Button
+                  onClick={() => setPdfPreviewOpen(true)}
+                  size="sm"
+                  className="w-full sm:w-auto"
                 >
-                  {({ loading: pdfLoading }) => (
-                    <Button disabled={pdfLoading}>
-                      {pdfLoading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4 mr-2" />
-                      )}
-                      {pdfLoading ? "Generating..." : "Download PDF"}
-                    </Button>
-                  )}
-                </PDFDownloadLink>
+                  <Download className="h-4 w-4 sm:mr-2 shrink-0" />
+                  <span className="hidden sm:inline">View & Download PDF</span>
+                  <span className="sm:hidden">PDF</span>
+                </Button>
               )}
             </div>
           </div>
@@ -166,22 +296,39 @@ export default function EmployeeViewPage() {
       </Card>
 
       {/* Tabbed Content */}
-      <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="personal">Personal</TabsTrigger>
-          <TabsTrigger value="contact">Contact</TabsTrigger>
-          <TabsTrigger value="employment">Employment</TabsTrigger>
-          <TabsTrigger value="financial">Financial</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="personal" className="space-y-4 sm:space-y-6">
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 scrollbar-sleek">
+          <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 h-auto gap-1 p-1">
+            <TabsTrigger value="personal" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+              <User className="h-4 w-4 shrink-0" />
+              <span>Personal</span>
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+              <Phone className="h-4 w-4 shrink-0" />
+              <span>Contact</span>
+            </TabsTrigger>
+            <TabsTrigger value="employment" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[140px] shrink-0 whitespace-nowrap">
+              <Briefcase className="h-4 w-4 shrink-0" />
+              <span>Employment</span>
+            </TabsTrigger>
+            <TabsTrigger value="financial" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+              <DollarSign className="h-4 w-4 shrink-0" />
+              <span>Financial</span>
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[140px] shrink-0 whitespace-nowrap">
+              <FileText className="h-4 w-4 shrink-0" />
+              <span>Documents</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Personal Information Tab */}
-        <TabsContent value="personal">
-          <div className="grid gap-6 md:grid-cols-2">
+        <TabsContent value="personal" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <User className="h-5 w-5" />
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Basic Information</span>
                 </CardTitle>
               </CardHeader>
@@ -200,8 +347,8 @@ export default function EmployeeViewPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Reference Details</span>
                 </CardTitle>
               </CardHeader>
@@ -227,16 +374,16 @@ export default function EmployeeViewPage() {
         </TabsContent>
 
         {/* Contact Information Tab */}
-        <TabsContent value="contact">
+        <TabsContent value="contact" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Phone className="h-5 w-5" />
+              <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <Phone className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span>Contact Information</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
                 <div className="space-y-4">
                   <InfoItem
                     icon={<Phone className="h-4 w-4" />}
@@ -269,91 +416,197 @@ export default function EmployeeViewPage() {
         </TabsContent>
 
         {/* Employment Information Tab */}
-        <TabsContent value="employment">
-          <div className="space-y-6">
-            {currentEmployment && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Briefcase className="h-5 w-5" />
-                    <span>Current Employment</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <InfoItem
-                      icon={<Building className="h-4 w-4" />}
-                      label="Company"
-                      value={currentEmployment.companyName}
-                    />
-                    <InfoItem
-                      icon={<Briefcase className="h-4 w-4" />}
-                      label="Designation"
-                      value={currentEmployment.designationName}
-                    />
-                    <InfoItem
-                      icon={<Users className="h-4 w-4" />}
-                      label="Department"
-                      value={currentEmployment.departmentName}
-                    />
-                    <InfoItem
-                      icon={<Calendar className="h-4 w-4" />}
-                      label="Joining Date"
-                      value={formatDate(currentEmployment.joiningDate)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+        <TabsContent value="employment" className="space-y-4 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-6">
+            {(() => {
+              const currentEmployment = employee.employmentHistories?.find(
+                (h: IEmployeeEmploymentHistory) => h.status === "ACTIVE"
+              );
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileText className="h-5 w-5" />
-                  <span>Employment History</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {employee.employmentHistories && employee.employmentHistories.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Designation</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Salary</TableHead>
-                        <TableHead>Joining Date</TableHead>
-                        <TableHead>Leaving Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {employee.employmentHistories.map((history: IEmployeeEmploymentHistory, index: any) => (
-                        <TableRow key={index}>
-                          <TableCell>{history.companyName}</TableCell>
-                          <TableCell>{history.designationName}</TableCell>
-                          <TableCell>{history.departmentName}</TableCell>
-                          <TableCell>₹{history.salary?.toLocaleString()}</TableCell>
-                          <TableCell>{formatDate(history.joiningDate)}</TableCell>
-                          <TableCell>{history.leavingDate ? formatDate(history.leavingDate) : "Present"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-muted-foreground text-center py-4">No employment history available</p>
-                )}
-              </CardContent>
-            </Card>
+              return (
+                <>
+                  {currentEmployment && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                        <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                        <span>Current Employment</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+                          <InfoItem
+                            icon={<Building className="h-4 w-4" />}
+                            label="Company"
+                            value={currentEmployment.companyName}
+                          />
+                          <InfoItem
+                            icon={<Briefcase className="h-4 w-4" />}
+                            label="Designation"
+                            value={currentEmployment.designationName}
+                          />
+                          <InfoItem
+                            icon={<Users className="h-4 w-4" />}
+                            label="Department"
+                            value={currentEmployment.departmentName}
+                          />
+                          <InfoItem
+                            icon={<Calendar className="h-4 w-4" />}
+                            label="Joining Date"
+                            value={formatDate(currentEmployment.joiningDate)}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                        <FileText className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                        <span>Employment History</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {employee.employmentHistories && employee.employmentHistories.length > 0 ? (
+                        <div className="overflow-x-auto scrollbar-sleek">
+                          <Table className="min-w-[600px]">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="min-w-[120px]">Company</TableHead>
+                                <TableHead className="min-w-[120px]">Designation</TableHead>
+                                <TableHead className="min-w-[120px]">Department</TableHead>
+                                <TableHead className="min-w-[130px]">Salary</TableHead>
+                                <TableHead className="min-w-[110px]">Joining Date</TableHead>
+                                <TableHead className="min-w-[110px]">Leaving Date</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {employee.employmentHistories.map((history: IEmployeeEmploymentHistory, index: any) => (
+                                <TableRow key={index}>
+                                  <TableCell className="min-w-[120px]">
+                                    <span className="truncate block">{history.companyName}</span>
+                                  </TableCell>
+                                  <TableCell className="min-w-[120px]">
+                                    <span className="truncate block">{history.designationName}</span>
+                                  </TableCell>
+                                  <TableCell className="min-w-[120px]">
+                                    <span className="truncate block">{history.departmentName}</span>
+                                  </TableCell>
+                                  <TableCell className="min-w-[130px] whitespace-nowrap">
+                                    {(() => {
+                                      if (history.salaryType === "PER_DAY" && history.salaryPerDay) {
+                                        return (
+                                          <div className="flex flex-col">
+                                            <span>₹{history.salaryPerDay.toLocaleString()}/day</span>
+                                            {history.salary && (
+                                              <span className="text-xs text-muted-foreground">
+                                                (₹{history.salary.toLocaleString()}/month)
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      }
+                                      if (history.salaryType === "PER_MONTH" && history.salary) {
+                                        return <span>₹{history.salary.toLocaleString()}/month</span>;
+                                      }
+                                      if (history.salary) {
+                                        return (
+                                          <div className="flex flex-col">
+                                            <span>₹{history.salary.toLocaleString()}</span>
+                                            {history.salaryType && (
+                                              <span className="text-xs text-muted-foreground">
+                                                ({history.salaryType === "PER_DAY" ? "Per Day" : "Per Month"})
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      }
+                                      return <span className="text-muted-foreground">Not specified</span>;
+                                    })()}
+                                  </TableCell>
+                                  <TableCell className="min-w-[110px] whitespace-nowrap">{formatDate(history.joiningDate)}</TableCell>
+                                  <TableCell className="min-w-[110px] whitespace-nowrap">{history.leavingDate ? formatDate(history.leavingDate) : "Present"}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground text-center py-4">No employment history available</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              );
+            })()}
           </div>
         </TabsContent>
 
         {/* Financial Information Tab */}
-        <TabsContent value="financial">
-          <div className="grid gap-6 md:grid-cols-2">
+        <TabsContent value="financial" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+            {/* Salary Information */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CreditCard className="h-5 w-5" />
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <span>Salary Information</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {employee.salaryCategory ? (
+                  <>
+                    <InfoItem
+                      icon={<DollarSign className="h-4 w-4" />}
+                      label="Salary Category"
+                      value={`${employee.salaryCategory}${employee.salarySubCategory ? ` - ${employee.salarySubCategory}` : ""}`}
+                    />
+                    {employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary ? (
+                      <InfoItem
+                        icon={<DollarSign className="h-4 w-4" />}
+                        label="Monthly Salary"
+                        value={`₹${employee.monthlySalary.toLocaleString()}`}
+                      />
+                    ) : employee.salaryPerDay ? (
+                      <InfoItem
+                        icon={<DollarSign className="h-4 w-4" />}
+                        label="Rate Per Day"
+                        value={`₹${employee.salaryPerDay.toLocaleString()}`}
+                      />
+                    ) : null}
+                    <div className="flex items-center gap-4 pt-2 border-t">
+                      <div className="flex items-center gap-2">
+                        {employee.pfEnabled ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="text-sm">PF Enabled</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {employee.esicEnabled ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="text-sm">ESIC Enabled</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>Salary information not configured</AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Banking Information</span>
                 </CardTitle>
               </CardHeader>
@@ -378,8 +631,8 @@ export default function EmployeeViewPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Shield className="h-5 w-5" />
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <Shield className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Government Details</span>
                 </CardTitle>
               </CardHeader>
@@ -409,8 +662,8 @@ export default function EmployeeViewPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <GraduationCap className="h-5 w-5" />
+                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                  <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Training & Medical</span>
                 </CardTitle>
               </CardHeader>
@@ -441,17 +694,17 @@ export default function EmployeeViewPage() {
         </TabsContent>
 
         {/* Documents Tab */}
-        <TabsContent value="documents">
+        <TabsContent value="documents" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
+              <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span>Document Uploads</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {employee.documentUploads ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {Object.entries(employee.documentUploads)
                     // Only include allowed keys
                     .filter(([key]) =>
@@ -475,15 +728,23 @@ export default function EmployeeViewPage() {
                           key === "otherDocumentRemarks" ? (
                             <span className="text-gray-700 text-sm">{value as string}</span>
                           ) : (
-                            <Button variant="outline" size="sm" asChild>
-                              <a
-                                href={typeof value === "string" ? value : undefined}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDocumentPreview(typeof value === "string" ? value : "", key.replace(/([A-Z])/g, " $1").trim())}
                               >
+                                <Eye className="h-4 w-4 mr-2" />
                                 View Document
-                              </a>
-                            </Button>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDocumentDownload(typeof value === "string" ? value : "", `${employee.id}_${key}`)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )
                         ) : (
                           <span className="text-muted-foreground text-sm">Not uploaded</span>
@@ -498,6 +759,102 @@ export default function EmployeeViewPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* PDF Preview Dialog */}
+      {employee && (
+        <DynamicPdfPreviewDialog
+          open={pdfPreviewOpen}
+          onOpenChange={setPdfPreviewOpen}
+          title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+          description={`Employee ID: ${employee.id}`}
+          fileName={`employee-${employee.firstName}-${employee.lastName}.pdf`}
+          renderDocument={async () => {
+            const { default: EmployeeViewPDF } = await import("./employee-view-pdf")
+            return <EmployeeViewPDF employee={employee} />
+          }}
+        />
+      )}
+
+      {/* Document Preview Dialog */}
+      <Dialog open={documentPreviewOpen} onOpenChange={handleCloseDocumentPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="flex flex-row items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
+            <div>
+              <DialogTitle>{documentPreviewTitle}</DialogTitle>
+              <DialogDescription>Document preview for {employee?.id}</DialogDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                if (documentPreviewUrl) {
+                  // Get the document type from the preview URL
+                  try {
+                    const response = await fetch(documentPreviewUrl)
+                    const blob = await response.blob()
+                    const contentType = response.headers.get("Content-Type") || blob.type
+                    
+                    let extension = ""
+                    if (contentType.includes("pdf")) {
+                      extension = ".pdf"
+                    } else if (contentType.includes("image/jpeg") || contentType.includes("image/jpg")) {
+                      extension = ".jpg"
+                    } else if (contentType.includes("image/png")) {
+                      extension = ".png"
+                    } else if (contentType.includes("image/gif")) {
+                      extension = ".gif"
+                    } else if (contentType.includes("image/webp")) {
+                      extension = ".webp"
+                    } else {
+                      const urlPath = documentPreviewUrl.split("?")[0]
+                      const urlExtension = urlPath.substring(urlPath.lastIndexOf("."))
+                      if (urlExtension && urlExtension.length <= 5) {
+                        extension = urlExtension
+                      }
+                    }
+                    
+                    const filenameWithoutExt = `${employee?.id}_${documentPreviewTitle}`.replace(/\.[^/.]+$/, "")
+                    const finalFilename = extension ? `${filenameWithoutExt}${extension}` : filenameWithoutExt
+                    handleDocumentDownload(documentPreviewUrl, finalFilename)
+                  } catch (error) {
+                    // Fallback to original filename if detection fails
+                    handleDocumentDownload(documentPreviewUrl, `${employee?.id}_${documentPreviewTitle}`)
+                  }
+                }
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-hidden px-6 pb-6">
+            {documentPreviewUrl && (
+              <div className="w-full h-full flex items-center justify-center bg-muted rounded-lg p-4">
+                {documentPreviewIsPDF ? (
+                  <iframe
+                    src={documentPreviewUrl}
+                    className="w-full h-full min-h-[60vh] border rounded"
+                    title={documentPreviewTitle}
+                  />
+                ) : (
+                  <img
+                    src={documentPreviewUrl}
+                    alt={documentPreviewTitle}
+                    className="max-w-full max-h-[70vh] object-contain rounded"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 pb-6 shrink-0 border-t pt-4">
+            <Button variant="outline" onClick={handleCloseDocumentPreview}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -548,11 +905,11 @@ interface InfoItemProps {
 
 function InfoItem({ icon, label, value }: InfoItemProps) {
   return (
-    <div className="flex items-start space-x-3">
-      <div className="text-muted-foreground mt-0.5">{icon}</div>
-      <div className="flex-1">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <p className="text-sm text-foreground">{value || "N/A"}</p>
+    <div className="flex items-start space-x-2 sm:space-x-3 min-w-0">
+      <div className="text-muted-foreground mt-0.5 shrink-0">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs sm:text-sm font-medium text-muted-foreground">{label}</p>
+        <p className="text-sm sm:text-base text-foreground break-words">{value || "N/A"}</p>
       </div>
     </div>
   )

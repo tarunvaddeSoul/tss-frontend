@@ -421,6 +421,24 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                       <span className="whitespace-nowrap">Start Date</span>
                     </div>
                   </TableHead>
+                  <TableHead className="min-w-[100px]">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Salary Type</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="min-w-[100px]">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Salary Category</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="min-w-[120px]">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Salary Sub Category</span>
+                    </div>
+                  </TableHead>
                   <TableHead className="min-w-[130px]">
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 shrink-0" />
@@ -444,6 +462,33 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                       <span className="truncate block">{history.departmentName}</span>
                     </TableCell>
                     <TableCell className="min-w-[110px] whitespace-nowrap">{history.joiningDate}</TableCell>
+                    <TableCell className="min-w-[100px]">
+                      {history.salaryType ? (
+                        <Badge variant="outline" className="text-xs">
+                          {history.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-[100px]">
+                      {employee.salaryCategory ? (
+                        <Badge variant="outline" className="text-xs">
+                          {employee.salaryCategory}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-[120px]">
+                      {employee.salarySubCategory ? (
+                        <Badge variant="outline" className="text-xs">
+                          {employee.salarySubCategory}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">N/A</span>
+                      )}
+                    </TableCell>
                     <TableCell className="min-w-[130px] whitespace-nowrap">
                       {history.salaryType === SalaryType.PER_DAY && history.salaryPerDay ? (
                         <>

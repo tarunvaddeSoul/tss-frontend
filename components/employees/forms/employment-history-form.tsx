@@ -67,6 +67,7 @@ import type {
 } from "@/types/employee"
 import type { Company } from "@/types/company"
 import { Status } from "@/enums/employee.enum"
+import { SalaryType } from "@/types/salary"
 
 // Helper function to safely parse dates
 const parseDate = (dateString: string | undefined | null): Date | null => {
@@ -97,7 +98,6 @@ const employmentHistorySchema = z.object({
   designationId: z.string().uuid("Invalid designation ID"),
   joiningDate: z.date({ required_error: "Joining date is required" }),
   leavingDate: z.date().optional(),
-  salary: z.number().min(0, "Salary must be a positive number"),
   isActive: z.boolean().default(false),
 }).superRefine((data, ctx) => {
   // If not active, must have leaving date
@@ -165,7 +165,6 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
       designationId: "",
       joiningDate: new Date(),
       leavingDate: undefined,
-      salary: 0,
       isActive: false,
     },
   })
@@ -238,11 +237,11 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
         return;
       }
 
-      const updateData: UpdateEmploymentHistoryDto = {
+      const updateData: any = {
         companyId: data.companyId,
         departmentId: data.departmentId,
         designationId: data.designationId,
-        salary: data.salary,
+        joiningDate: data.joiningDate ? format(data.joiningDate, "dd-MM-yyyy") : undefined,
         status: data.isActive ? Status.ACTIVE : Status.INACTIVE,
         leavingDate: data.leavingDate ? format(data.leavingDate, "dd-MM-yyyy") : undefined,
       };
@@ -312,13 +311,13 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
   // Handle edit button click
   const handleEditClick = (history: IEmployeeEmploymentHistory) => {
     setSelectedHistory(history);
+    const parsedJoiningDate = parseDate(history.joiningDate);
     form.reset({
       companyId: history.companyId || "",
       departmentId: history.departmentId || "",
       designationId: history.designationId || "",
-      joiningDate: parseDate(history.joiningDate) || new Date(),
+      joiningDate: parsedJoiningDate || new Date(),
       leavingDate: history.leavingDate ? parseDate(history.leavingDate) || undefined : undefined,
-      salary: history.salary || 0,
       isActive: history.status === Status.ACTIVE,
     });
     setShowEditDialog(true);
@@ -367,18 +366,18 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="flex items-center gap-2">
-          <Briefcase className="h-5 w-5" />
-          Employment History
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 space-y-0 pb-4">
+        <CardTitle className="flex items-center gap-2 min-w-0">
+          <Briefcase className="h-5 w-5 shrink-0" />
+          <span className="truncate">Employment History</span>
         </CardTitle>
         <Button
           size="sm"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 w-full sm:w-auto shrink-0 sm:ml-auto"
           onClick={() => setShowAssignDialog(true)}
         >
-          <Plus className="h-4 w-4" />
-          Assign New Employment
+          <Plus className="h-4 w-4 shrink-0" />
+          <span className="truncate">Assign New Employment</span>
         </Button>
       </CardHeader>
 
@@ -394,72 +393,93 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
             </Button>
           </div>
         ) : (
-          <ScrollArea className="h-[500px]">
-            <Table>
-              <TableHeader>
+          <div className="overflow-x-auto scrollbar-sleek max-h-[500px] overflow-y-auto">
+            <Table className="min-w-[800px] w-full">
+              <TableHeader className="sticky top-0 bg-background z-20">
                 <TableRow>
-                  <TableHead>
+                  <TableHead className="min-w-[150px]">
                     <div className="flex items-center gap-2">
-                      <Building className="h-4 w-4" />
-                      Company
+                      <Building className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Company</span>
                     </div>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="min-w-[120px]">
                     <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" />
-                      Job Role
+                      <Briefcase className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Job Role</span>
                     </div>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="min-w-[120px]">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Department
+                      <Users className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Department</span>
                     </div>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="min-w-[110px]">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Start Date
+                      <Calendar className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Start Date</span>
                     </div>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="min-w-[130px]">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Monthly Salary
+                      <DollarSign className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">Salary</span>
                     </div>
                   </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="min-w-[100px]">Status</TableHead>
+                  <TableHead className="min-w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {employmentHistories.map((history) => (
                   <TableRow key={history.id}>
-                    <TableCell className="font-medium">{history.companyName}</TableCell>
-                    <TableCell>{history.designationName}</TableCell>
-                    <TableCell>{history.departmentName}</TableCell>
-                    <TableCell>{history.joiningDate}</TableCell>
-                    <TableCell>₹{history.salary?.toLocaleString() || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium min-w-[150px]">
+                      <span className="truncate block">{history.companyName}</span>
+                    </TableCell>
+                    <TableCell className="min-w-[120px]">
+                      <span className="truncate block">{history.designationName}</span>
+                    </TableCell>
+                    <TableCell className="min-w-[120px]">
+                      <span className="truncate block">{history.departmentName}</span>
+                    </TableCell>
+                    <TableCell className="min-w-[110px] whitespace-nowrap">{history.joiningDate}</TableCell>
+                    <TableCell className="min-w-[130px] whitespace-nowrap">
+                      {history.salaryType === SalaryType.PER_DAY && history.salaryPerDay ? (
+                        <>
+                          ₹{history.salaryPerDay.toLocaleString()}
+                          <span className="text-xs text-muted-foreground ml-1">/day</span>
+                        </>
+                      ) : history.salaryType === SalaryType.PER_MONTH && history.salary ? (
+                        <>
+                          ₹{history.salary.toLocaleString()}
+                          <span className="text-xs text-muted-foreground ml-1">/month</span>
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-[100px]">
                       <Badge
                         variant={history.status === Status.ACTIVE ? "default" : "secondary"}
                         className="flex items-center gap-1 w-fit"
                       >
                         {history.status === Status.ACTIVE ? (
-                          <CheckCircle className="h-3 w-3" />
+                          <CheckCircle className="h-3 w-3 shrink-0" />
                         ) : (
-                          <XCircle className="h-3 w-3" />
+                          <XCircle className="h-3 w-3 shrink-0" />
                         )}
-                        {history.status === Status.ACTIVE ? "Current" : "Previous"}
+                        <span className="whitespace-nowrap">{history.status === Status.ACTIVE ? "Current" : "Previous"}</span>
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="min-w-[120px]">
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditClick(history)}
                           title="Edit employment details"
+                          className="shrink-0"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -469,7 +489,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                             size="icon"
                             title="Terminate employment"
                             onClick={() => handleOpenTerminate(history)}
-                            className="text-destructive hover:text-destructive"
+                            className="text-destructive hover:text-destructive shrink-0"
                           >
                             <XCircle className="h-4 w-4" />
                           </Button>
@@ -480,7 +500,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                 ))}
               </TableBody>
             </Table>
-          </ScrollArea>
+          </div>
         )}
       </CardContent>
 
@@ -597,30 +617,16 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
 
                 <FormField
                   control={form.control}
-                  name="salary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Salary</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Enter salary"
-                          {...field}
-                          onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="joiningDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
-                      <DatePicker date={field.value} onSelect={field.onChange} />
+                      <DatePicker 
+                        date={field.value ?? null} 
+                        onSelect={(date) => {
+                          field.onChange(date ?? undefined)
+                        }} 
+                      />
                       <FormMessage />
                     </FormItem>
                   )}

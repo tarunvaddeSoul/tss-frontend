@@ -426,8 +426,8 @@ export default function AdvancedEmployeeSearch() {
             </div>
           ) : employees.length > 0 ? (
             <>
-              <div className="rounded-md border">
-                <Table>
+              <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+                <Table className="min-w-[800px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>

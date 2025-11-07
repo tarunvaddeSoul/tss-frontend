@@ -529,8 +529,8 @@ export default function AttendanceRecordsPage() {
             </div>
           ) : (
             <>
-              <div className="rounded-md border">
-                <Table>
+              <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+                <Table className="min-w-[1000px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>

@@ -238,8 +238,8 @@ export default function CompaniesPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>

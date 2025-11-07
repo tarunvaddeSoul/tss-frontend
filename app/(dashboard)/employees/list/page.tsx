@@ -25,7 +25,9 @@ import {
   Edit,
   Eye,
   Trash,
+  DollarSign,
 } from "lucide-react"
+import { SalaryCategory } from "@/types/salary"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
@@ -47,8 +49,14 @@ import { Company } from "@/types/company"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { TerminateEmployeeDialog } from "@/components/employees/terminate-employee-dialog"
+import dynamic from "next/dynamic"
 // import { EmployeeViewPDF } from "@/components/employees/employee-view-pdf"
 // import { PDFViewer } from "@/components/pdf-viewer"
+
+const DynamicPdfPreviewDialog = dynamic(
+  () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
+  { ssr: false }
+)
 
 interface Designation {
   id: string
@@ -69,6 +77,9 @@ export default function EmployeeListPage() {
   const [activeTab, setActiveTab] = useState<string>("details")
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false)
   const [employeeToTerminate, setEmployeeToTerminate] = useState<Employee | null>(null)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewEmployee, setPdfPreviewEmployee] = useState<Employee | null>(null)
+  const [pdfLoadingEmployee, setPdfLoadingEmployee] = useState(false)
   const [searchParams, setSearchParams] = useState<EmployeeSearchParams>({
     page: 1,
     limit: 10,
@@ -386,13 +397,14 @@ export default function EmployeeListPage() {
                     <TableHead>Designation</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Company</TableHead>
+                    <TableHead>Salary</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10">
+                      <TableCell colSpan={6} className="text-center py-10">
                         Loading employees...
                       </TableCell>
                     </TableRow>
@@ -438,12 +450,62 @@ export default function EmployeeListPage() {
                           </div>
                         </TableCell>
                         <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {employee.salaryCategory ? (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-xs font-medium">
+                                    {employee.salaryCategory}
+                                    {employee.salarySubCategory && ` - ${employee.salarySubCategory}`}
+                                  </span>
+                                </div>
+                                {employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary ? (
+                                  <span className="text-sm font-semibold">₹{employee.monthlySalary.toLocaleString()}/mo</span>
+                                ) : employee.salaryPerDay ? (
+                                  <span className="text-sm font-semibold">₹{employee.salaryPerDay.toLocaleString()}/day</span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">Not configured</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not configured</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <div className="flex justify-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleView(employee)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleView(employee)} title="View">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)} title="Edit">
                               <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={async () => {
+                                try {
+                                  setPdfLoadingEmployee(true)
+                                  // Fetch full employee details before opening PDF
+                                  const fullEmployeeData = await employeeService.getEmployeeById(employee.id)
+                                  setPdfPreviewEmployee(fullEmployeeData.data)
+                                  setPdfPreviewOpen(true)
+                                } catch (error) {
+                                  console.error("Error fetching employee details:", error)
+                                  toast.error("Failed to load employee details for PDF")
+                                } finally {
+                                  setPdfLoadingEmployee(false)
+                                }
+                              }}
+                              disabled={pdfLoadingEmployee}
+                              title="View & Download PDF"
+                            >
+                              {pdfLoadingEmployee ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
                             </Button>
                             {employee.status !== "INACTIVE" && (
                               <Button
@@ -474,7 +536,7 @@ export default function EmployeeListPage() {
             {totalPages > 1 && (
               <div className="mt-4 flex justify-center">
                 <Pagination
-                  currentPage={searchParams.page}
+                  currentPage={searchParams.page ?? 1}
                   totalPages={totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -593,6 +655,21 @@ export default function EmployeeListPage() {
             if (!open) setEmployeeToTerminate(null)
           }}
           onSuccess={handleTerminationSuccess}
+        />
+      )}
+
+      {/* PDF Preview Dialog */}
+      {pdfPreviewEmployee && (
+        <DynamicPdfPreviewDialog
+          open={pdfPreviewOpen}
+          onOpenChange={setPdfPreviewOpen}
+          title={`Employee Profile - ${pdfPreviewEmployee.firstName} ${pdfPreviewEmployee.lastName}`}
+          description={`Employee ID: ${pdfPreviewEmployee.id}`}
+          fileName={`employee-${pdfPreviewEmployee.firstName}-${pdfPreviewEmployee.lastName}.pdf`}
+          renderDocument={async () => {
+            const { default: EmployeeViewPDF } = await import("@/components/employees/employee-view-pdf")
+            return <EmployeeViewPDF employee={pdfPreviewEmployee} />
+          }}
         />
       )}
     </div>

@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { Pagination } from "@/components/ui/pagination"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { AlertCircle, FileSpreadsheet, Search, Building2, User, TrendingUp, RefreshCw, FileText, Download, Eye, Loader2, X } from "lucide-react"
+import { AlertCircle, FileSpreadsheet, Search, Building2, User, TrendingUp, RefreshCw, FileText, Download, Eye, Loader2, X, DollarSign, Info } from "lucide-react"
+import { SalaryCategory } from "@/types/salary"
 import { useToast } from "@/components/ui/use-toast"
 import { payrollService } from "@/services/payrollService"
 import { useCompany } from "@/hooks/use-company"
@@ -615,34 +616,108 @@ export function PayrollReports() {
                         <TableHead className="min-w-[120px]">Employee ID</TableHead>
                         <TableHead className="min-w-[120px]">Company</TableHead>
                         <TableHead className="min-w-[100px]">Month</TableHead>
+                        <TableHead className="min-w-[100px]">Category</TableHead>
+                        <TableHead className="min-w-[100px]">Rate</TableHead>
                         <TableHead className="text-right min-w-[110px]">Basic Pay</TableHead>
                         <TableHead className="text-right min-w-[120px]">Gross Salary</TableHead>
+                        <TableHead className="text-right min-w-[90px]">PF</TableHead>
+                        <TableHead className="text-right min-w-[90px]">ESIC</TableHead>
                         <TableHead className="text-right min-w-[120px]">Net Salary</TableHead>
                         <TableHead className="text-right min-w-[110px]">Deductions</TableHead>
                         <TableHead className="min-w-[100px]">Created</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reportData.records.map((record) => (
-                        <TableRow key={record.id}>
-                          <TableCell className="font-medium">
-                            <Badge variant="outline" className="truncate max-w-[120px] inline-block">
-                              {record.employeeId}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="truncate max-w-[120px]">{record.companyName || "N/A"}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{record.month}</Badge>
-                          </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">{formatCurrency(record.salaryData.basicPay || 0)}</TableCell>
-                          <TableCell className="text-right whitespace-nowrap">{formatCurrency(record.salaryData.grossSalary || 0)}</TableCell>
-                          <TableCell className="text-right font-medium whitespace-nowrap">
-                            {formatCurrency(record.salaryData.netSalary || 0)}
-                          </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">{formatCurrency(record.salaryData.totalDeductions || 0)}</TableCell>
-                          <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(record.createdAt)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {reportData.records.map((record) => {
+                        const salaryData = record.salaryData as any
+                        const salaryCategory = salaryData?.salaryCategory || salaryData?.category
+                        const isSpecialized = salaryCategory === SalaryCategory.SPECIALIZED
+                        const showPF = salaryData?.pf !== undefined && salaryData?.pf > 0
+                        const showESIC = salaryData?.esic !== undefined && salaryData?.esic > 0
+                        const pfDisabled = salaryData?.pf === 0 && salaryData?.grossSalary > 15000
+                        const esicDisabled = salaryData?.esic === 0 && salaryData?.grossSalary > 15000
+                        
+                        return (
+                          <TableRow key={record.id}>
+                            <TableCell className="font-medium">
+                              <Badge variant="outline" className="truncate max-w-[120px] inline-block">
+                                {record.employeeId}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="truncate max-w-[120px]">{record.companyName || "N/A"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{record.month}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {salaryCategory ? (
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant="outline" className="text-xs w-fit">
+                                    {salaryCategory}
+                                  </Badge>
+                                  {salaryData?.salarySubCategory && (
+                                    <span className="text-xs text-muted-foreground truncate">
+                                      {salaryData.salarySubCategory}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">N/A</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {isSpecialized && salaryData?.monthlySalary ? (
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
+                                  <span className="text-xs text-muted-foreground">/month</span>
+                                </div>
+                              ) : salaryData?.salaryPerDay ? (
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
+                                  <span className="text-xs text-muted-foreground">/day</span>
+                                </div>
+                              ) : salaryData?.wagesPerDay ? (
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium">{formatCurrency(salaryData.wagesPerDay)}</span>
+                                  <span className="text-xs text-muted-foreground">/day</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">N/A</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(salaryData?.basicPay || 0)}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(salaryData?.grossSalary || 0)}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                              {showPF ? (
+                                formatCurrency(salaryData.pf)
+                              ) : pfDisabled ? (
+                                <div className="flex items-center justify-end gap-1" title="PF disabled: Gross salary > ₹15,000">
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                              {showESIC ? (
+                                formatCurrency(salaryData.esic)
+                              ) : esicDisabled ? (
+                                <div className="flex items-center justify-end gap-1" title="ESIC disabled: Gross salary > ₹15,000">
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                  <Info className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-medium whitespace-nowrap">
+                              {formatCurrency(salaryData?.netSalary || 0)}
+                            </TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(salaryData?.totalDeductions || 0)}</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(record.createdAt)}</TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>

@@ -167,6 +167,13 @@ export interface CompanyEmployee {
   salary: number
   joiningDate: string
   leavingDate: string | null
+  // Salary fields from employment history
+  salaryPerDay?: number // Included in response for PER_DAY type
+  salaryType?: string // "PER_DAY" or "PER_MONTH" - included in response
+  // Optional fields (may not be in response)
+  salaryCategory?: string
+  salarySubCategory?: string
+  monthlySalary?: number
 }
 
 export interface CompanyEmployeesResponse {

@@ -585,8 +585,8 @@ export function AttendanceReportsComponent() {
                 <CardDescription>Detailed attendance data for {getSelectedMonthDisplay()}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border">
-                  <Table>
+                <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+                  <Table className="min-w-[800px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Employee ID</TableHead>

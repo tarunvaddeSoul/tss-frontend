@@ -86,20 +86,20 @@ export function PdfPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl w-[90vw] max-h-[85vh] p-0">
-        <DialogHeader className="p-6 pb-2">
+        <DialogHeader className="p-5 pb-3 shrink-0">
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
 
-        <div className="px-6 pb-4 flex justify-end gap-2">
+        <div className="px-5 pb-3 flex justify-end gap-2 shrink-0">
           <Button variant="outline" onClick={handleGenerate} disabled={isGenerating}>
             <FileText className="mr-2 h-4 w-4" />
             {isGenerating ? "Generating..." : "Regenerate"}
           </Button>
         </div>
 
-        <div className="px-6 pb-6">
-          <div className="border rounded-md overflow-hidden h-[65vh] bg-white">
+        <div className="px-5 pb-4 flex-1 min-h-0 overflow-hidden">
+          <div className="border rounded-md overflow-hidden h-full bg-white" style={{ minHeight: "500px" }}>
             {pdfUrl ? (
               <iframe src={pdfUrl} className="w-full h-full" />
             ) : (
@@ -110,7 +110,7 @@ export function PdfPreviewDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-6 pb-6 gap-2">
+        <DialogFooter className="px-5 pb-5 gap-2 shrink-0 border-t pt-4">
           <Button variant="outline" onClick={() => pdfUrl && window.open(pdfUrl, "_blank") } disabled={!pdfUrl}>
             <Printer className="mr-2 h-4 w-4" />
             Print

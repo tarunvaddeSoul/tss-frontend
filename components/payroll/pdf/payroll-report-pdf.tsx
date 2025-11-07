@@ -78,47 +78,66 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth }: P
           <View style={[brandStyles.table, { marginTop: 0 }]}>
             {/* Header Row */}
             <View style={[brandStyles.tableRow, brandStyles.tableHeader]}>
-              <Text style={[brandStyles.tableHeaderCell, { width: "12%" }]}>Employee ID</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "15%" }]}>Company</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Month</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "10%" }]}>Basic Pay</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "11%" }]}>Gross Salary</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "11%" }]}>Net Salary</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>PF</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>ESIC</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Bonus</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "10%" }]}>Employee ID</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "12%" }]}>Company</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "7%" }]}>Month</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Category</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Rate</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "9%" }]}>Basic Pay</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "10%" }]}>Gross Salary</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "7%" }]}>PF</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "7%" }]}>ESIC</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "10%" }]}>Net Salary</Text>
               <Text style={[brandStyles.tableHeaderCell, { width: "9%" }]}>Deductions</Text>
             </View>
 
             {/* Data Rows */}
-            {data.map((record) => (
-              <View key={record.id} style={brandStyles.tableRow}>
-                <Text style={[brandStyles.tableCell, { width: "12%" }]}>{record.employeeId}</Text>
-                <Text style={[brandStyles.tableCell, { width: "15%" }]}>{record.companyName || "N/A"}</Text>
-                <Text style={[brandStyles.tableCell, { width: "8%" }]}>{record.month}</Text>
-                <Text style={[brandStyles.tableCell, { width: "10%", textAlign: "right" }]}>
-                  ₹{(record.salaryData.basicPay || 0).toLocaleString("en-IN")}
+            {data.map((record) => {
+              const salaryData = record.salaryData as any
+              const salaryCategory = salaryData?.salaryCategory || salaryData?.category
+              const isSpecialized = salaryCategory === "SPECIALIZED"
+              const showPF = salaryData?.pf !== undefined && salaryData?.pf > 0
+              const showESIC = salaryData?.esic !== undefined && salaryData?.esic > 0
+              
+              return (
+                <View key={record.id} style={brandStyles.tableRow}>
+                  <Text style={[brandStyles.tableCell, { width: "10%" }]}>{record.employeeId}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "12%" }]}>{record.companyName || "N/A"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "7%" }]}>{record.month}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "8%" }]}>
+                    {salaryCategory || "N/A"}
+                    {salaryData?.salarySubCategory ? `\n${salaryData.salarySubCategory}` : ""}
+                  </Text>
+                  <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                    {isSpecialized && salaryData?.monthlySalary
+                      ? `₹${(salaryData.monthlySalary || 0).toLocaleString("en-IN")}\n/mo`
+                      : salaryData?.salaryPerDay
+                        ? `₹${(salaryData.salaryPerDay || 0).toLocaleString("en-IN")}\n/day`
+                        : salaryData?.wagesPerDay
+                          ? `₹${(salaryData.wagesPerDay || 0).toLocaleString("en-IN")}\n/day`
+                          : "N/A"}
+                  </Text>
+                  <Text style={[brandStyles.tableCell, { width: "9%", textAlign: "right" }]}>
+                    ₹{(salaryData?.basicPay || 0).toLocaleString("en-IN")}
                 </Text>
-                <Text style={[brandStyles.tableCell, { width: "11%", textAlign: "right" }]}>
-                  ₹{(record.salaryData.grossSalary || 0).toLocaleString("en-IN")}
-                </Text>
-                <Text style={[brandStyles.tableCell, { width: "11%", textAlign: "right" }]}>
-                  ₹{(record.salaryData.netSalary || 0).toLocaleString("en-IN")}
-                </Text>
-                <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
-                  ₹{(record.salaryData.pf || 0).toLocaleString("en-IN")}
-                </Text>
-                <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
-                  ₹{(record.salaryData.esic || 0).toLocaleString("en-IN")}
-                </Text>
-                <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
-                  ₹{(record.salaryData.bonus || 0).toLocaleString("en-IN")}
-                </Text>
-                <Text style={[brandStyles.tableCell, { width: "9%", textAlign: "right" }]}>
-                  ₹{(record.salaryData.totalDeductions || 0).toLocaleString("en-IN")}
-                </Text>
-              </View>
-            ))}
+                  <Text style={[brandStyles.tableCell, { width: "10%", textAlign: "right" }]}>
+                    ₹{(salaryData?.grossSalary || 0).toLocaleString("en-IN")}
+                  </Text>
+                  <Text style={[brandStyles.tableCell, { width: "7%", textAlign: "right" }]}>
+                    {showPF ? `₹${(salaryData.pf || 0).toLocaleString("en-IN")}` : "-"}
+                  </Text>
+                  <Text style={[brandStyles.tableCell, { width: "7%", textAlign: "right" }]}>
+                    {showESIC ? `₹${(salaryData.esic || 0).toLocaleString("en-IN")}` : "-"}
+                  </Text>
+                  <Text style={[brandStyles.tableCell, { width: "10%", textAlign: "right" }]}>
+                    ₹{(salaryData?.netSalary || 0).toLocaleString("en-IN")}
+                  </Text>
+                  <Text style={[brandStyles.tableCell, { width: "9%", textAlign: "right" }]}>
+                    ₹{(salaryData?.totalDeductions || 0).toLocaleString("en-IN")}
+                  </Text>
+                </View>
+              )
+            })}
           </View>
         </Section>
 

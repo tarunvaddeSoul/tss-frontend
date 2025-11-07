@@ -74,7 +74,6 @@ export interface Employee {
   monthlySalary?: number | null // Populated for SPECIALIZED
   pfEnabled?: boolean // Default: false
   esicEnabled?: boolean // Default: false
-  salaryEffectiveDate?: Date | string | null
   contactDetails?: IEmployeeContactInformation
   bankDetails?: IEmployeeBankingInformation
   additionalDetails?: IEmployeeAdditionalDetails
@@ -151,6 +150,7 @@ export interface IEmployeeEmploymentHistory {
   designationId?: string
   departmentId?: string
   salary?: number // Historical snapshot
+  salaryPerDay?: number | null
   salaryType?: SalaryType | null // NEW: PER_DAY or PER_MONTH
   joiningDate?: string
   leavingDate?: string | null
@@ -320,8 +320,14 @@ export interface EmployeeFormValues {
   markSheet?: File | null
   otherDocument?: File | null
   otherDocumentRemarks?: string
-  currentCompanySalary?: number
   aadhaarNumber: string
+  // NEW: Salary fields
+  salaryCategory?: SalaryCategory | null
+  salarySubCategory?: SalarySubCategory | null
+  salaryPerDay?: number | null
+  monthlySalary?: number | null
+  pfEnabled?: boolean
+  esicEnabled?: boolean
 }
 
 export interface EmployeeSearchParams {

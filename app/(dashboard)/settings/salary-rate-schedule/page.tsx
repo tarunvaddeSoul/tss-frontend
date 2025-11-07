@@ -42,7 +42,6 @@ import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import type { SalaryRateSchedule, CreateSalaryRateScheduleDto, UpdateSalaryRateScheduleDto } from "@/types/salary"
 import { DatePicker } from "@/components/ui/date-picker"
-import { Switch } from "@/components/ui/switch"
 
 const rateScheduleSchema = z
   .object({
@@ -57,21 +56,7 @@ const rateScheduleSchema = z
     effectiveFrom: z.date({
       required_error: "Effective from date is required",
     }),
-    effectiveTo: z.date().optional().nullable(),
-    isActive: z.boolean().default(true),
   })
-  .refine(
-    (data) => {
-      if (data.effectiveTo && data.effectiveFrom) {
-        return data.effectiveTo > data.effectiveFrom
-      }
-      return true
-    },
-    {
-      message: "Effective To date must be after Effective From date",
-      path: ["effectiveTo"],
-    },
-  )
   .refine(
     (data) => {
       return data.category === SalaryCategory.CENTRAL || data.category === SalaryCategory.STATE
@@ -109,8 +94,6 @@ export default function SalaryRateSchedulePage() {
       subCategory: SalarySubCategory.SKILLED,
       ratePerDay: 0,
       effectiveFrom: new Date(),
-      effectiveTo: null,
-      isActive: true,
     },
   })
 
@@ -177,8 +160,6 @@ export default function SalaryRateSchedulePage() {
         subCategory: data.subCategory,
         ratePerDay: data.ratePerDay,
         effectiveFrom: format(data.effectiveFrom, "yyyy-MM-dd"),
-        effectiveTo: data.effectiveTo ? format(data.effectiveTo, "yyyy-MM-dd") : null,
-        isActive: data.isActive,
       }
 
       await salaryRateScheduleService.create(payload)
@@ -221,8 +202,6 @@ export default function SalaryRateSchedulePage() {
       const payload: UpdateSalaryRateScheduleDto = {
         ratePerDay: data.ratePerDay,
         effectiveFrom: format(data.effectiveFrom, "yyyy-MM-dd"),
-        effectiveTo: data.effectiveTo ? format(data.effectiveTo, "yyyy-MM-dd") : null,
-        isActive: data.isActive,
       }
 
       await salaryRateScheduleService.update(rateScheduleToEdit.id, payload)
@@ -278,8 +257,6 @@ export default function SalaryRateSchedulePage() {
       subCategory: rateSchedule.subCategory,
       ratePerDay: rateSchedule.ratePerDay,
       effectiveFrom: new Date(rateSchedule.effectiveFrom),
-      effectiveTo: rateSchedule.effectiveTo ? new Date(rateSchedule.effectiveTo) : null,
-      isActive: rateSchedule.isActive,
     })
   }
 
@@ -405,56 +382,16 @@ export default function SalaryRateSchedulePage() {
                       )}
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="effectiveFrom"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Effective From *</FormLabel>
-                            <FormControl>
-                              <DatePicker date={field.value} onSelect={field.onChange} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="effectiveTo"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Effective To (Optional)</FormLabel>
-                            <FormControl>
-                              <DatePicker
-                                date={field.value || undefined}
-                                onSelect={(date) => field.onChange(date || null)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
                     <FormField
                       control={form.control}
-                      name="isActive"
+                      name="effectiveFrom"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Active</FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Whether this rate schedule is currently active
-                            </div>
-                          </div>
+                        <FormItem>
+                          <FormLabel>Effective From *</FormLabel>
                           <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
+                            <DatePicker date={field.value} onSelect={field.onChange} />
                           </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -705,56 +642,16 @@ export default function SalaryRateSchedulePage() {
                 )}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="effectiveFrom"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Effective From *</FormLabel>
-                      <FormControl>
-                        <DatePicker date={field.value} onSelect={field.onChange} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="effectiveTo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Effective To (Optional)</FormLabel>
-                      <FormControl>
-                        <DatePicker
-                          date={field.value || undefined}
-                          onSelect={(date) => field.onChange(date || null)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
               <FormField
                 control={form.control}
-                name="isActive"
+                name="effectiveFrom"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Whether this rate schedule is currently active
-                      </div>
-                    </div>
+                  <FormItem>
+                    <FormLabel>Effective From *</FormLabel>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                      <DatePicker date={field.value} onSelect={field.onChange} />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

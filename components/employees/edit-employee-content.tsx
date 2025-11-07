@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Eye, Download, User, AlertCircle, Briefcase, Contact, CreditCard, FileText } from "lucide-react"
+import { ArrowLeft, Eye, Download, User, AlertCircle, Briefcase, Contact, CreditCard, FileText, DollarSign } from "lucide-react"
 import { toast } from "sonner"
+import dynamic from "next/dynamic"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,12 +20,18 @@ import { BankInfoForm } from "@/components/employees/forms/bank-info-form"
 import { AdditionalDetailsForm } from "@/components/employees/forms/additional-details-form"
 import { ReferenceDetailsForm } from "@/components/employees/forms/reference-details-form"
 import { EmploymentHistoryForm } from "@/components/employees/forms/employment-history-form"
+import { SalaryInfoForm } from "@/components/employees/forms/salary-info-form"
 import { employeeService } from "@/services/employeeService"
 import { companyService } from "@/services/companyService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import type { Employee, IEmployeeEmploymentHistory, Designation, EmployeeDepartments } from "@/types/employee"
 import type { Company } from "@/types/company"
+
+const DynamicPdfPreviewDialog = dynamic(
+  () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
+  { ssr: false }
+)
 
 interface EditEmployeeContentProps {
   employeeId: string
@@ -41,6 +48,7 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [showViewDialog, setShowViewDialog] = useState(false)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
 
   // Load employee data and related data
   useEffect(() => {
@@ -58,7 +66,7 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
             departmentService.getEmployeeDepartments(),
             employeeService.getEmployeeEmploymentHistory(employeeId),
           ])
-
+          console.log("employeeResponse.data", JSON.stringify(employeeResponse.data, null, 2))
         setEmployee(employeeResponse.data)
         setCompanies(companiesResponse.data?.companies || [])
         setDesignations(designationsResponse || [])
@@ -161,33 +169,39 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Employees
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="sm" onClick={handleBack} className="shrink-0">
+            <ArrowLeft className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Back to Employees</span>
+            <span className="sm:hidden">Back</span>
+          </Button>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <User className="h-5 w-5 text-muted-foreground shrink-0" />
+                <h1 className="text-xl sm:text-2xl font-bold truncate">
+                  Edit: {employee.firstName} {employee.lastName}
+                </h1>
+              </div>
+              <Badge variant={employee.status === "ACTIVE" ? "default" : "secondary"} className="shrink-0">
+                {employee.status}
+              </Badge>
+            </div>
+            <p className="text-sm sm:text-base text-muted-foreground">Update employee information and employment details</p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setShowViewDialog(true)} size="sm" className="w-full sm:w-auto">
+              <Eye className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">View Employee</span>
+              <span className="sm:hidden">View</span>
             </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-muted-foreground" />
-              <h1 className="text-2xl font-bold">
-                Edit Employee: {employee.firstName} {employee.lastName}
-              </h1>
-            </div>
-            <Badge variant={employee.status === "ACTIVE" ? "default" : "secondary"}>{employee.status}</Badge>
-          </div>
-          <p className="text-muted-foreground">Update employee information and employment details</p>
-        </div>
-
-        <div className="flex items-center gap-2 self-end md:self-auto">
-          <Button variant="outline" onClick={() => setShowViewDialog(true)}>
-            <Eye className="h-4 w-4 mr-2" />
-            View Employee
-          </Button>
         </div>
       </div>
 
@@ -195,40 +209,46 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
       {error && <ApiErrorAlert error={error} title="Update Error" onDismiss={() => setError(null)} />}
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Form Section */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 min-w-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-3 md:grid-cols-7 mb-6">
-              <TabsTrigger value="basic" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span className="hidden md:inline">Basic</span>
-              </TabsTrigger>
-              <TabsTrigger value="contact" className="flex items-center gap-2">
-                <Contact className="h-4 w-4" />
-                <span className="hidden md:inline">Contact</span>
-              </TabsTrigger>
-              <TabsTrigger value="employment" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                <span className="hidden md:inline">Employment</span>
-              </TabsTrigger>
-              <TabsTrigger value="bank" className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                <span className="hidden md:inline">Bank</span>
-              </TabsTrigger>
-              <TabsTrigger value="additional" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                <span className="hidden md:inline">Additional</span>
-              </TabsTrigger>
-              <TabsTrigger value="reference" className="flex items-center gap-2">
-                <Contact className="h-4 w-4" />
-                <span className="hidden md:inline">Reference</span>
-              </TabsTrigger>
-              <TabsTrigger value="documents" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span className="hidden md:inline">Documents</span>
-              </TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 mb-4 sm:mb-6 scrollbar-sleek">
+              <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 h-auto gap-1 p-1">
+                <TabsTrigger value="basic" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+                  <User className="h-4 w-4 shrink-0" />
+                  <span>Basic</span>
+                </TabsTrigger>
+                <TabsTrigger value="contact" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+                  <Contact className="h-4 w-4 shrink-0" />
+                  <span>Contact</span>
+                </TabsTrigger>
+                <TabsTrigger value="employment" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[140px] shrink-0 whitespace-nowrap">
+                  <Briefcase className="h-4 w-4 shrink-0" />
+                  <span>Employment</span>
+                </TabsTrigger>
+                <TabsTrigger value="salary" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+                  <DollarSign className="h-4 w-4 shrink-0" />
+                  <span>Salary</span>
+                </TabsTrigger>
+                <TabsTrigger value="bank" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <span>Bank</span>
+                </TabsTrigger>
+                <TabsTrigger value="additional" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[140px] shrink-0 whitespace-nowrap">
+                  <Briefcase className="h-4 w-4 shrink-0" />
+                  <span>Additional</span>
+                </TabsTrigger>
+                <TabsTrigger value="reference" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[140px] shrink-0 whitespace-nowrap">
+                  <Contact className="h-4 w-4 shrink-0" />
+                  <span>Reference</span>
+                </TabsTrigger>
+                <TabsTrigger value="documents" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[140px] shrink-0 whitespace-nowrap">
+                  <FileText className="h-4 w-4 shrink-0" />
+                  <span>Documents</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Basic Info Tab */}
             <TabsContent value="basic" className="space-y-6">
@@ -243,6 +263,11 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
             {/* Employment History Tab */}
             <TabsContent value="employment" className="space-y-6">
               <EmploymentHistoryForm employee={employee} onUpdate={handleEmployeeUpdate} />
+            </TabsContent>
+
+            {/* Salary Info Tab */}
+            <TabsContent value="salary" className="space-y-6">
+              <SalaryInfoForm employee={employee} onUpdate={handleEmployeeUpdate} />
             </TabsContent>
 
             {/* Bank Info Tab */}
@@ -276,56 +301,73 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Employee Summary */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Employee Summary</CardTitle>
+                <CardTitle className="text-base sm:text-lg">Employee Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <User className="h-6 w-6 text-primary" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                  <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-                <div>
-                  <p className="font-medium">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium truncate">
                     {employee.firstName} {employee.lastName}
                   </p>
-                  <p className="text-sm text-muted-foreground">{employee.designationName}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "No designation"}</p>
                 </div>
               </div>
 
               <Separator />
 
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Employee ID:</span>
-                  <span className="font-medium">{employee.id}</span>
+              <div className="space-y-3 text-xs sm:text-sm">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Employee ID:</span>
+                  <span className="font-medium truncate text-right">{employee.id}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Company:</span>
-                  <span className="font-medium">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Company:</span>
+                  <span className="font-medium truncate text-right min-w-0">
                     {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "Not assigned"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Department:</span>
-                  <span className="font-medium">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Department:</span>
+                  <span className="font-medium truncate text-right min-w-0">
                     {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "Not assigned"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Joining Date:</span>
-                  <span className="font-medium">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Joining Date:</span>
+                  <span className="font-medium truncate text-right">
                     {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.joiningDate || "Not specified"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Salary:</span>
-                  <span className="font-medium">
-                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.salary 
-                      ? `₹${employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.salary.toLocaleString()}`
-                      : "Not specified"}
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Salary:</span>
+                  <span className="font-medium truncate text-right">
+                    {(() => {
+                      // First check employment history for salaryType
+                      const activeHistory = employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")
+                      if (activeHistory?.salaryType === "PER_DAY" && activeHistory.salaryPerDay) {
+                        return `₹${activeHistory.salaryPerDay.toLocaleString()}/day`
+                      }
+                      if (activeHistory?.salaryType === "PER_MONTH" && activeHistory.salary) {
+                        return `₹${activeHistory.salary.toLocaleString()}/month`
+                      }
+                      
+                      // Fallback to employee's salary category
+                      if (employee.salaryCategory === "SPECIALIZED" && employee.monthlySalary) {
+                        return `₹${employee.monthlySalary.toLocaleString()}/month`
+                      }
+                      if ((employee.salaryCategory === "CENTRAL" || employee.salaryCategory === "STATE") && employee.salaryPerDay) {
+                        return `₹${employee.salaryPerDay.toLocaleString()}/day`
+                      }
+                      
+                      return "Not specified"
+                    })()}
                   </span>
                 </div>
               </div>
@@ -335,23 +377,27 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start" onClick={() => setShowViewDialog(true)}>
-                <Eye className="h-4 w-4 mr-2" />
-                View Employee Details
+            <CardContent className="space-y-2 sm:space-y-3">
+              <Button variant="outline" className="w-full justify-start text-xs sm:text-sm" onClick={() => setShowViewDialog(true)} size="sm">
+                <Eye className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">View Employee Details</span>
               </Button>
               <Button
                 variant="outline"
-                className="w-full justify-start"
+                className="w-full justify-start text-xs sm:text-sm"
                 onClick={() => {
-                  // TODO: Implement download functionality
-                  toast.info("Download functionality coming soon!")
+                  if (employee) {
+                    setPdfPreviewOpen(true)
+                  } else {
+                    toast.error("Employee data not loaded")
+                  }
                 }}
+                size="sm"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Download Employee Data
+                <Download className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">View & Download PDF</span>
               </Button>
             </CardContent>
           </Card>
@@ -359,12 +405,12 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
           {/* Recent Changes */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Recent Changes</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Recent Changes</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-xs sm:text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full shrink-0"></div>
                   <span className="text-muted-foreground">All sections saved</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -379,6 +425,21 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
       {/* Employee View Dialog */}
       {showViewDialog && employee && (
         <EmployeeViewDialog employee={employee} isOpen={showViewDialog} onClose={() => setShowViewDialog(false)} />
+      )}
+
+      {/* PDF Preview Dialog */}
+      {employee && (
+        <DynamicPdfPreviewDialog
+          open={pdfPreviewOpen}
+          onOpenChange={setPdfPreviewOpen}
+          title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+          description={`Employee ID: ${employee.id}`}
+          fileName={`employee-${employee.firstName}-${employee.lastName}.pdf`}
+          renderDocument={async () => {
+            const { default: EmployeeViewPDF } = await import("@/components/employees/employee-view-pdf")
+            return <EmployeeViewPDF employee={employee} />
+          }}
+        />
       )}
     </div>
   )

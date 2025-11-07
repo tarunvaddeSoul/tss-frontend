@@ -608,9 +608,9 @@ export function PayrollReports() {
             </div>
           ) : reportData?.records.length ? (
             <>
-              <div className="rounded-md border overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+              <div className="rounded-md border overflow-x-auto scrollbar-sleek -mx-4 sm:mx-0 px-4 sm:px-0">
                 <div className="min-w-full inline-block align-middle">
-                  <Table>
+                  <Table className="min-w-[1200px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="min-w-[120px]">Employee ID</TableHead>

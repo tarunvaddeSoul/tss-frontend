@@ -117,10 +117,11 @@ export interface SalaryRateScheduleListResponse {
 
 /**
  * Active Rate Response
+ * Note: API returns an array of active rate schedules in data
  */
 export interface ActiveRateResponse {
   statusCode: number
   message: string
-  data: SalaryRateSchedule | null
+  data: SalaryRateSchedule[] // Array of active rate schedules (can be empty)
 }
 

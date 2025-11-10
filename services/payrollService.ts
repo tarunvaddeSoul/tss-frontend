@@ -9,6 +9,8 @@ import type {
   PayrollStatsResponse,
   PastPayrollsResponse,
   PayrollReportResponse,
+  PayrollByMonthData,
+  PayrollByMonthResponse,
 } from "@/types/payroll"
 
 const PAYROLL_ENDPOINT = "/payroll"
@@ -43,13 +45,17 @@ export const payrollService = {
     }
   },
 
-  async getPayrollByMonth(companyId: string, payrollMonth: string): Promise<PayrollRecord[]> {
+  async getPayrollByMonth(companyId: string, payrollMonth: string): Promise<PayrollByMonthData | null> {
     try {
-      const response = await api.get<{ statusCode: number; message: string; data: PayrollRecord[] }>(
-        `${PAYROLL_ENDPOINT}/by-month/${companyId}/${payrollMonth}`,
+      const response = await api.get<PayrollByMonthResponse>(
+        `${PAYROLL_ENDPOINT}/by-month/${companyId}/${payrollMonth}`
       )
       return response.data.data
-    } catch (error) {
+    } catch (error: any) {
+      // If 404 or no records found, return null instead of throwing
+      if (error?.response?.status === 404) {
+        return null
+      }
       throw new Error(handleApiError(error))
     }
   },

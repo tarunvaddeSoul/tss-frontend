@@ -233,3 +233,63 @@ export interface AttendanceReportResponse {
     } | null
   } | null
 }
+
+// Attendance Excel Upload DTO
+export interface UploadAttendanceExcelDto {
+  companyId: string
+  month: string // Format: YYYY-MM
+}
+
+// Attendance Excel Record (only includes Excel URL)
+export interface AttendanceExcelRecord {
+  id: string
+  companyId: string
+  companyName?: string // Included in list responses
+  month: string // Format: YYYY-MM
+  attendanceExcelUrl: string // URL of prefinalized Excel file
+  createdAt?: string
+  updatedAt?: string
+}
+
+// Attendance Excel Upload Response
+export interface UploadAttendanceExcelResponse {
+  statusCode: number
+  message: string
+  data: {
+    id: string
+    companyId: string
+    month: string
+    attendanceExcelUrl: string
+    createdAt: string
+  }
+}
+
+// Attendance Excel List Query Parameters
+export interface AttendanceExcelListParams {
+  companyId?: string
+  month?: string // Cannot use with startMonth/endMonth
+  startMonth?: string // Format: YYYY-MM
+  endMonth?: string // Format: YYYY-MM
+  page?: number // Default: 1
+  limit?: number // Default: 20, max: 100
+  sortBy?: "month" | "companyId" | "createdAt" // Default: "month"
+  sortOrder?: "asc" | "desc" // Default: "desc"
+}
+
+// Attendance Excel List Response (can be single record or paginated list)
+export interface AttendanceExcelListResponse {
+  statusCode: number
+  message: string
+  data:
+    | AttendanceExcelRecord // Single record when companyId + month provided
+    | {
+        data: AttendanceExcelRecord[]
+        pagination: {
+          total: number
+          page: number
+          limit: number
+          totalPages: number
+        }
+      } // Paginated list
+    | null // When no Excel file found
+}

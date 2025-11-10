@@ -22,7 +22,7 @@ import {
   Trash2,
   Download,
   X,
-  FileCheck,
+  FileSpreadsheet,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -48,6 +48,7 @@ import { Separator } from "@/components/ui/separator"
 
 import { useCompany } from "@/hooks/use-company"
 import { attendanceSheetService } from "@/services/attendanceSheetService"
+import { attendanceService } from "@/services/attendanceService"
 import type { Company } from "@/types/company"
 
 // Form validation schema
@@ -56,25 +57,15 @@ const uploadAttendanceSchema = z.object({
   month: z.date({
     required_error: "Please select a month",
   }),
-  file: z
-    .instanceof(File, {
-      message: "Please select a file to upload",
-    })
-    .refine((file) => file.size <= 10 * 1024 * 1024, "File size must be less than 10MB"),
 })
 
 type UploadAttendanceFormValues = z.infer<typeof uploadAttendanceSchema>
 
 export function UploadAttendanceComponent() {
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [submissionResult, setSubmissionResult] = useState<any>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [dragActive, setDragActive] = useState(false)
-  const [uploadLoading, setUploadLoading] = useState(false)
-
-  const { toast } = useToast()
-  const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
-
+  // Sheet upload state
+  const [selectedSheetFile, setSelectedSheetFile] = useState<File | null>(null)
+  const [sheetDragActive, setSheetDragActive] = useState(false)
+  const [sheetUploadLoading, setSheetUploadLoading] = useState(false)
   const [existingSheetUrl, setExistingSheetUrl] = useState<string | null>(null)
   const [existingSheetId, setExistingSheetId] = useState<string | null>(null)
   const [checkingSheet, setCheckingSheet] = useState(false)
@@ -82,6 +73,17 @@ export function UploadAttendanceComponent() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewType, setPreviewType] = useState<"pdf" | "image" | "unsupported" | "loading">("loading")
+
+  // Excel upload state
+  const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null)
+  const [excelDragActive, setExcelDragActive] = useState(false)
+  const [excelUploadLoading, setExcelUploadLoading] = useState(false)
+  const [existingExcelUrl, setExistingExcelUrl] = useState<string | null>(null)
+  const [existingExcelId, setExistingExcelId] = useState<string | null>(null)
+  const [checkingExcel, setCheckingExcel] = useState(false)
+
+  const { toast } = useToast()
+  const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
 
   useEffect(() => {
     fetchCompanies()
@@ -92,7 +94,6 @@ export function UploadAttendanceComponent() {
     defaultValues: {
       companyId: "",
       month: undefined,
-      file: undefined,
     },
   })
 
@@ -116,7 +117,6 @@ export function UploadAttendanceComponent() {
       setCheckingSheet(true)
       const res = await attendanceSheetService.get(companyId, format(monthDate, "yyyy-MM"))
       if (res.data?.attendanceSheetUrl) {
-        // Store the base URL without cache buster (we'll add it when needed)
         setExistingSheetUrl(res.data.attendanceSheetUrl)
         setExistingSheetId(res.data.id)
         const lower = res.data.attendanceSheetUrl.toLowerCase()
@@ -133,159 +133,248 @@ export function UploadAttendanceComponent() {
     }
   }
 
-  // Watch company/month to fetch current sheet
+  // Function to load existing Excel file
+  const loadExistingExcel = async (companyId: string, monthDate: Date) => {
+    setExistingExcelUrl(null)
+    setExistingExcelId(null)
+    if (!companyId || !monthDate) return
+    try {
+      setCheckingExcel(true)
+      const res = await attendanceService.getAttendanceExcelFiles({
+        companyId,
+        month: format(monthDate, "yyyy-MM"),
+      })
+      if (res.data && typeof res.data === "object" && "attendanceExcelUrl" in res.data) {
+        setExistingExcelUrl(res.data.attendanceExcelUrl)
+        setExistingExcelId(res.data.id)
+      } else {
+        setExistingExcelUrl(null)
+        setExistingExcelId(null)
+      }
+    } catch (e: any) {
+      setExistingExcelUrl(null)
+      setExistingExcelId(null)
+    } finally {
+      setCheckingExcel(false)
+    }
+  }
+
+  // Watch company/month to fetch current sheet and Excel
   useEffect(() => {
     const companyId = form.getValues("companyId")
     const monthDate = form.getValues("month")
     if (companyId && monthDate) {
       loadExistingSheet(companyId, monthDate)
+      loadExistingExcel(companyId, monthDate)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.watch("companyId"), form.watch("month")])
 
-  // Watch form values to check if form is valid
-  const watchedValues = form.watch()
-  const isFormValid = watchedValues.companyId && watchedValues.month && selectedFile
-
-  // Handle file selection
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Sheet file handlers
+  const handleSheetFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
-      form.setValue("file", file)
-      form.clearErrors("file")
-      form.trigger("file")
+      // Validate file type for sheets (PDF, images)
+      const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
+      const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp"]
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."))
+      
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid File Type",
+          description: "Please upload a PDF or image file (JPG, PNG, GIF, WEBP) for attendance sheets.",
+        })
+        return
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: "File size must be less than 10MB.",
+        })
+        return
+      }
+      
+      setSelectedSheetFile(file)
     }
   }
 
-  // Handle drag and drop
-  const handleDrag = (e: React.DragEvent) => {
+  const handleSheetDrag = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
+      setSheetDragActive(true)
     } else if (e.type === "dragleave") {
-      setDragActive(false)
+      setSheetDragActive(false)
     }
   }
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleSheetDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setDragActive(false)
+    setSheetDragActive(false)
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0]
-      setSelectedFile(file)
-      form.setValue("file", file)
-      form.clearErrors("file")
-      form.trigger("file")
+      handleSheetFileChange({ target: { files: [file] } } as any)
     }
   }
 
-  // Handle form submission
-  const onSubmit = async (data: UploadAttendanceFormValues) => {
-    if (isSubmitted) {
+  // Excel file handlers
+  const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type for Excel (XLSX, XLS)
+      const allowedTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+      ]
+      const allowedExtensions = [".xlsx", ".xls"]
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."))
+      
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid File Type",
+          description: "Please upload an Excel file (XLSX or XLS) for attendance Excel files.",
+        })
+        return
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: "File size must be less than 10MB.",
+        })
+        return
+      }
+      
+      setSelectedExcelFile(file)
+    }
+  }
+
+  const handleExcelDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setExcelDragActive(true)
+    } else if (e.type === "dragleave") {
+      setExcelDragActive(false)
+    }
+  }
+
+  const handleExcelDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setExcelDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0]
+      handleExcelFileChange({ target: { files: [file] } } as any)
+    }
+  }
+
+  // Upload sheet
+  const handleUploadSheet = async () => {
+    if (!selectedSheetFile || !selectedCompany || !selectedMonth) {
       toast({
-        title: "Already Submitted",
-        description: "Attendance has already been uploaded.",
         variant: "destructive",
+        title: "No File Selected",
+        description: "Please select a file to upload.",
       })
       return
     }
 
     try {
-      setUploadLoading(true)
-      const formattedMonth = format(data.month, "yyyy-MM")
+      setSheetUploadLoading(true)
+      const formattedMonth = format(selectedMonth, "yyyy-MM")
 
-      const result = await attendanceSheetService.upload(data.companyId, formattedMonth, data.file)
+      await attendanceSheetService.upload(selectedCompany.id!, formattedMonth, selectedSheetFile)
 
-      setSubmissionResult(result)
-      setIsSubmitted(true)
-      setSelectedFile(null) // Clear selected file after successful upload
-      form.setValue("file", null as any)
-
-      // Refetch the existing sheet to get the latest data (with updated URL/timestamp)
-      // This ensures we always show the most recent file, especially after replace
-      await loadExistingSheet(data.companyId, data.month)
-
-      // If preview dialog is open, refresh the preview with new cache buster
-      if (previewOpen) {
-        // Small delay to ensure state is updated
-        setTimeout(async () => {
-          try {
-            // Refetch to get the latest URL (fresh from server)
-            const res = await attendanceSheetService.get(data.companyId, format(data.month, "yyyy-MM"))
-            const sheetUrl = res.data?.attendanceSheetUrl
-            if (sheetUrl) {
-              const newCacheBustedUrl = addCacheBuster(sheetUrl)
-              setPreviewUrl(newCacheBustedUrl)
-              // Force re-render by updating preview type briefly
-              setPreviewType("loading")
-              setTimeout(() => {
-                // Determine type based on URL
-                const lower = sheetUrl.toLowerCase()
-                if (lower.endsWith(".pdf")) {
-                  setPreviewType("pdf")
-                } else {
-                  setPreviewType("image")
-                }
-              }, 100)
-            }
-          } catch (error) {
-            console.error("Failed to refresh preview:", error)
-          }
-        }, 300)
+      // Clear selected file and reset input
+      setSelectedSheetFile(null)
+      const fileInput = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"]') as HTMLInputElement
+      if (fileInput) {
+        fileInput.value = ""
       }
+
+      await loadExistingSheet(selectedCompany.id!, selectedMonth)
 
       toast({
         title: "Upload Successful",
-        description: `Attendance sheet uploaded for ${selectedCompany?.name || "company"} - ${format(data.month, "MMMM yyyy")}.`,
+        description: `Attendance sheet uploaded for ${selectedCompany.name} - ${format(selectedMonth, "MMMM yyyy")}.`,
       })
     } catch (error: any) {
       console.error("Upload error:", error)
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload attendance file. Please try again.",
+        description: error.message || "Failed to upload attendance sheet. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setUploadLoading(false)
+      setSheetUploadLoading(false)
     }
   }
 
-  // Reset form for new session
-  const startNewSession = () => {
-    form.reset()
-    setIsSubmitted(false)
-    setSubmissionResult(null)
-    setSelectedFile(null)
-    setExistingSheetUrl(null)
-    setExistingSheetId(null)
-    toast({
-      title: "New Session Started",
-      description: "You can now upload a new attendance file.",
-    })
+  // Upload Excel
+  const handleUploadExcel = async () => {
+    if (!selectedExcelFile || !selectedCompany || !selectedMonth) {
+      toast({
+        variant: "destructive",
+        title: "No File Selected",
+        description: "Please select a file to upload.",
+      })
+      return
+    }
+
+    try {
+      setExcelUploadLoading(true)
+      const formattedMonth = format(selectedMonth, "yyyy-MM")
+
+      await attendanceService.uploadAttendanceExcel(
+        {
+          companyId: selectedCompany.id!,
+          month: formattedMonth,
+        },
+        selectedExcelFile,
+      )
+
+      // Clear selected file and reset input
+      setSelectedExcelFile(null)
+      const fileInput = document.querySelector('input[type="file"][accept=".xlsx,.xls"]') as HTMLInputElement
+      if (fileInput) {
+        fileInput.value = ""
+      }
+
+      await loadExistingExcel(selectedCompany.id!, selectedMonth)
+
+      toast({
+        title: "Upload Successful",
+        description: `Attendance Excel file uploaded for ${selectedCompany.name} - ${format(selectedMonth, "MMMM yyyy")}.`,
+      })
+    } catch (error: any) {
+      console.error("Upload error:", error)
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload attendance Excel file. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setExcelUploadLoading(false)
+    }
   }
 
-  // Delete existing sheet
-  const handleDelete = async () => {
-    if (!existingSheetId) return
-    const companyId = form.getValues("companyId")
-    const monthDate = form.getValues("month")
-    
+  // Delete sheet
+  const handleDeleteSheet = async () => {
+    if (!existingSheetId || !selectedCompany || !selectedMonth) return
+
     try {
       setCheckingSheet(true)
       await attendanceSheetService.delete(existingSheetId)
-      
-      // Refetch to ensure UI is updated (should show no sheet now)
-      if (companyId && monthDate) {
-        await loadExistingSheet(companyId, monthDate)
-      } else {
-        setExistingSheetUrl(null)
-        setExistingSheetId(null)
-      }
-      
+      await loadExistingSheet(selectedCompany.id!, selectedMonth)
       toast({ title: "Deleted", description: "Attendance sheet deleted." })
     } catch (e: any) {
       toast({ title: "Delete failed", description: e?.message || "Unable to delete", variant: "destructive" })
@@ -294,15 +383,67 @@ export function UploadAttendanceComponent() {
     }
   }
 
-  // Handle replace - clear selected file and allow new selection
-  const handleReplace = () => {
-    setSelectedFile(null)
-    form.setValue("file", null as any) // Fix: set to null to satisfy types
-    form.clearErrors("file")
-    // Clear the file input by resetting it
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
-    if (fileInput) {
-      fileInput.value = ""
+  // Delete Excel
+  const handleDeleteExcel = async () => {
+    if (!existingExcelId || !selectedCompany || !selectedMonth) return
+
+    try {
+      setCheckingExcel(true)
+      await attendanceService.deleteAttendanceExcel(existingExcelId)
+      await loadExistingExcel(selectedCompany.id!, selectedMonth)
+      toast({ title: "Deleted", description: "Attendance Excel file deleted." })
+    } catch (e: any) {
+      toast({ title: "Delete failed", description: e?.message || "Unable to delete", variant: "destructive" })
+    } finally {
+      setCheckingExcel(false)
+    }
+  }
+
+  // Preview sheet
+  const handlePreviewSheet = async () => {
+    if (!existingSheetUrl) return
+    const cacheBustedUrl = addCacheBuster(existingSheetUrl)
+    setPreviewUrl(cacheBustedUrl)
+    setPreviewOpen(true)
+    setPreviewType("loading")
+
+    try {
+      const response = await fetch(cacheBustedUrl, { method: "HEAD", cache: "no-store" })
+      const contentType = response.headers.get("Content-Type") || ""
+      const urlLower = existingSheetUrl.toLowerCase()
+
+      if (contentType.includes("pdf") || urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+        setPreviewType("pdf")
+        return
+      }
+
+      if (
+        contentType.includes("image") ||
+        contentType.includes("jpeg") ||
+        contentType.includes("jpg") ||
+        contentType.includes("png") ||
+        contentType.includes("gif") ||
+        contentType.includes("webp") ||
+        urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)
+      ) {
+        setPreviewType("image")
+        return
+      }
+
+      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+        setPreviewType("pdf")
+      } else {
+        setPreviewType("image")
+      }
+    } catch (error) {
+      const urlLower = existingSheetUrl.toLowerCase()
+      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+        setPreviewType("pdf")
+      } else if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
+        setPreviewType("image")
+      } else {
+        setPreviewType("pdf")
+      }
     }
   }
 
@@ -316,6 +457,9 @@ export function UploadAttendanceComponent() {
       case "png":
       case "gif":
         return "🖼️"
+      case "xlsx":
+      case "xls":
+        return "📊"
       default:
         return "📁"
     }
@@ -331,45 +475,24 @@ export function UploadAttendanceComponent() {
     <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
       {/* Header */}
       <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Upload Attendance Sheet</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Upload Attendance Files</h1>
         <p className="text-sm md:text-base text-muted-foreground">
-          Upload attendance proof documents for a company and month
+          Upload attendance sheets (PDF/images) and Excel files (XLSX/XLS) for a company and month
         </p>
       </div>
 
-      {/* Success Alert */}
-      {isSubmitted && submissionResult && (
-        <Alert className="border-green-200 bg-green-50 dark:bg-green-950">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800 dark:text-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <strong>Upload Successful!</strong>
-                <p className="text-sm mt-1">
-                  Attendance sheet uploaded for {selectedCompany?.name} - {selectedMonth ? format(selectedMonth, "MMMM yyyy") : ""}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={startNewSession}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Upload Another
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form className="space-y-6">
           {/* Company and Month Selection */}
-          <Card>
+            <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-lg flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
                 Select Company & Month
-              </CardTitle>
+                </CardTitle>
               <CardDescription>Choose the company and month for attendance upload</CardDescription>
-            </CardHeader>
-            <CardContent>
+              </CardHeader>
+              <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -380,11 +503,7 @@ export function UploadAttendanceComponent() {
                         <Building2 className="h-4 w-4" />
                         Company *
                       </FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={isSubmitted || companiesLoading}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value} disabled={companiesLoading}>
                         <FormControl>
                           <SelectTrigger className="h-11">
                             <SelectValue placeholder="Select a company" />
@@ -419,7 +538,6 @@ export function UploadAttendanceComponent() {
                         <MonthPicker
                           value={field.value}
                           onChange={field.onChange}
-                          disabled={isSubmitted}
                           placeholder="Select month"
                           className="h-11"
                         />
@@ -429,26 +547,22 @@ export function UploadAttendanceComponent() {
                   )}
                 />
               </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Existing Sheet Info */}
+          {/* Attendance Sheet Section */}
           {selectedCompany && selectedMonth && (
-            <Card>
-              <CardHeader>
+          <Card>
+            <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2">
                       <FileText className="h-5 w-5" />
-                      Existing Attendance Sheet
-                    </CardTitle>
-                    <CardDescription>
-                      {checkingSheet
-                        ? "Checking for existing sheet..."
-                        : existingSheetUrl
-                          ? "A sheet already exists for this month"
-                          : "No sheet uploaded for this month"}
-                    </CardDescription>
+                      Attendance Sheet (PDF/Images)
+              </CardTitle>
+              <CardDescription>
+                      Upload finalized attendance sheets as PDF or image files
+              </CardDescription>
                   </div>
                   {existingSheetUrl && (
                     <Badge variant="secondary" className="text-sm">
@@ -456,15 +570,14 @@ export function UploadAttendanceComponent() {
                     </Badge>
                   )}
                 </div>
-              </CardHeader>
-              {checkingSheet ? (
-                <CardContent>
+            </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Existing Sheet */}
+                {checkingSheet ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                </CardContent>
-              ) : existingSheetUrl ? (
-                <CardContent className="space-y-4">
+                ) : existingSheetUrl ? (
                   <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-background rounded-md">
@@ -482,84 +595,11 @@ export function UploadAttendanceComponent() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          if (!existingSheetUrl) return
-                          // Add cache buster to force fresh load
-                          const cacheBustedUrl = addCacheBuster(existingSheetUrl)
-                          setPreviewUrl(cacheBustedUrl)
-                          setPreviewOpen(true)
-                          setPreviewType("loading")
-
-                          try {
-                            // Use cache: 'no-store' to bypass browser cache
-                            const response = await fetch(cacheBustedUrl, {
-                              method: "HEAD",
-                              cache: "no-store",
-                            })
-                            const contentType = response.headers.get("Content-Type") || ""
-                            const urlLower = existingSheetUrl.toLowerCase()
-                            
-                            console.log("🔍 File type detection:", { contentType, url: existingSheetUrl })
-
-                            // Check for PDF first
-                            if (contentType.includes("pdf") || urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
-                              console.log("✅ Detected as PDF")
-                              setPreviewType("pdf")
-                              return
-                            }
-
-                            // Check for images
-                            if (
-                              contentType.includes("image") ||
-                              contentType.includes("jpeg") ||
-                              contentType.includes("jpg") ||
-                              contentType.includes("png") ||
-                              contentType.includes("gif") ||
-                              contentType.includes("webp") ||
-                              urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)
-                            ) {
-                              console.log("✅ Detected as Image")
-                              setPreviewType("image")
-                              return
-                            }
-
-                            // If Content-Type is generic, default to image first (most common for attendance sheets)
-                            // The img tag's onError will fallback to PDF if image fails
-                            if (!contentType || contentType === "application/octet-stream" || contentType.includes("binary")) {
-                              console.log("⚠️ Generic content type, defaulting to image first")
-                              setPreviewType("image")
-                            } else {
-                              // Even for unknown types, try image first before giving up
-                              console.log("⚠️ Unknown content type:", contentType, "- trying image first")
-                              setPreviewType("image")
-                            }
-                          } catch (error) {
-                            // Fallback: try to detect from URL, default to image if unknown
-                            console.log("⚠️ HEAD request failed, using URL detection:", error)
-                            const urlLower = existingSheetUrl.toLowerCase()
-
-                            if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
-                              console.log("✅ URL suggests PDF")
-                              setPreviewType("pdf")
-                            } else if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
-                              console.log("✅ URL suggests Image")
-                              setPreviewType("image")
-                            } else {
-                              // No extension - default to image (most attendance sheets are images)
-                              // If image fails, it will try PDF in onError handler
-                              console.log("⚠️ No extension detected, defaulting to image")
-                              setPreviewType("image")
-                            }
-                          }
-                        }}
-                      >
+                      <Button type="button" variant="outline" size="sm" onClick={handlePreviewSheet}>
                         <Eye className="h-4 w-4 mr-2" />
                         View
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleDelete} disabled={checkingSheet}>
+                      <Button type="button" variant="outline" size="sm" onClick={handleDeleteSheet} disabled={checkingSheet}>
                         {checkingSheet ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
@@ -571,187 +611,354 @@ export function UploadAttendanceComponent() {
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              ) : (
-                <CardContent>
+                ) : (
                   <div className="text-center py-6 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No attendance sheet found for this month</p>
                   </div>
-                </CardContent>
-              )}
-            </Card>
+                )}
+
+                <Separator />
+
+                {/* Sheet Upload */}
+                <div
+                  className={cn(
+                    "relative border-2 border-dashed rounded-lg transition-all duration-200",
+                    sheetDragActive
+                      ? "border-primary bg-primary/5 scale-[1.02]"
+                      : "border-muted-foreground/25 hover:border-primary/50",
+                    selectedSheetFile && "border-primary bg-primary/5",
+                  )}
+                >
+                  {!selectedSheetFile && (
+                    <Input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                      onChange={handleSheetFileChange}
+                      disabled={sheetUploadLoading}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                  )}
+
+                  {selectedSheetFile ? (
+                    <div className="p-8">
+                      <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+                        <div className="flex items-center gap-4">
+                          <div className="text-4xl">{getFileIcon(selectedSheetFile)}</div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{selectedSheetFile.name}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {formatFileSize(selectedSheetFile.size)}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {selectedSheetFile.type || "Unknown type"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setSelectedSheetFile(null)
+                            // Reset file input
+                            const fileInput = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"]') as HTMLInputElement
+                            if (fileInput) {
+                              fileInput.value = ""
+                            }
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex justify-end mt-4">
+                        <Button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleUploadSheet()
+                          }}
+                          disabled={sheetUploadLoading}
+                          className="min-w-[160px] relative z-20"
+                        >
+                          {sheetUploadLoading ? (
+                            <>
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-5 w-5 mr-2" />
+                              {existingSheetUrl ? "Replace Sheet" : "Upload Sheet"}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="p-12 text-center cursor-pointer"
+                      onDragEnter={handleSheetDrag}
+                      onDragLeave={handleSheetDrag}
+                      onDragOver={handleSheetDrag}
+                      onDrop={handleSheetDrop}
+                    >
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="p-4 bg-muted rounded-full">
+                          <UploadCloud className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                            <div>
+                          <p className="font-medium mb-1">
+                            {sheetDragActive ? "Drop your file here" : "Drag & drop your file"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">or click to browse</p>
+                            </div>
+                        <div className="flex flex-wrap justify-center gap-2 text-xs">
+                              <Badge variant="outline">PDF</Badge>
+                          <Badge variant="outline">JPG</Badge>
+                          <Badge variant="outline">PNG</Badge>
+                          <Badge variant="outline">Max 10MB</Badge>
+                        </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                <Alert>
+                <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                  <strong>File Requirements:</strong>
+                    <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
+                      <li>Accepted formats: PDF, JPG, JPEG, PNG, GIF, WEBP</li>
+                    <li>Maximum file size: 10MB</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
           )}
 
-          {/* File Upload Section */}
+          {/* Attendance Excel Section */}
           {selectedCompany && selectedMonth && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <UploadCloud className="h-5 w-5" />
-                  Upload File
-                </CardTitle>
-                <CardDescription>
-                  {existingSheetUrl
-                    ? "Select a new file to replace the existing sheet"
-                    : "Drag and drop your file or click to browse. All file types are supported."}
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileSpreadsheet className="h-5 w-5" />
+                      Attendance Excel File (XLSX/XLS)
+                    </CardTitle>
+                    <CardDescription>
+                      Upload pre-finalized attendance Excel files for processing
+                    </CardDescription>
+                  </div>
+                  {existingExcelUrl && (
+                    <Badge variant="secondary" className="text-sm">
+                      Excel Available
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="file"
-                  render={({ field: { onChange, ...field } }) => (
-                    <FormItem>
-                      <FormControl>
-                        <div
-                          className={cn(
-                            "relative border-2 border-dashed rounded-lg transition-all duration-200",
-                            dragActive
-                              ? "border-primary bg-primary/5 scale-[1.02]"
-                              : "border-muted-foreground/25 hover:border-primary/50",
-                            selectedFile && "border-primary bg-primary/5",
-                          )}
-                        >
-                          <Input
-                            type="file"
-                            onChange={handleFileChange}
-                            disabled={isSubmitted || uploadLoading}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            {...field}
-                            value=""
-                          />
+                {/* Existing Excel */}
+                {checkingExcel ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : existingExcelUrl ? (
+                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-background rounded-md">
+                        <FileSpreadsheet className="h-5 w-5 text-green-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Attendance Excel File</p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedCompany.name} • {format(selectedMonth, "MMMM yyyy")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!existingExcelUrl) return
+                          try {
+                            const response = await fetch(existingExcelUrl)
+                            if (!response.ok) throw new Error("Failed to download")
+                            const blob = await response.blob()
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement("a")
+                            a.href = url
+                            a.download = `attendance-excel-${selectedCompany.name}-${format(selectedMonth, "yyyy-MM")}.xlsx`
+                            document.body.appendChild(a)
+                            a.click()
+                            document.body.removeChild(a)
+                            URL.revokeObjectURL(url)
+                            toast({
+                              title: "Download Started",
+                              description: "Excel file download started successfully",
+                            })
+                          } catch (error) {
+                            toast({
+                              variant: "destructive",
+                              title: "Download Failed",
+                              description: "Failed to download the Excel file. Please try again.",
+                            })
+                          }
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={handleDeleteExcel} disabled={checkingExcel}>
+                        {checkingExcel ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <FileSpreadsheet className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No Excel file found for this month</p>
+                  </div>
+                )}
 
-                          {selectedFile ? (
-                            <div className="p-8">
-                              <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
-                                <div className="flex items-center gap-4">
-                                  <div className="text-4xl">{getFileIcon(selectedFile)}</div>
-                                  <div className="flex-1">
-                                    <p className="font-medium text-sm">{selectedFile.name}</p>
-                                    <div className="flex items-center gap-3 mt-1">
-                                      <Badge variant="secondary" className="text-xs">
-                                        {formatFileSize(selectedFile.size)}
-                                      </Badge>
-                                      <Badge variant="outline" className="text-xs">
-                                        {selectedFile.type || "Unknown type"}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    handleReplace()
-                                  }}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <p className="text-sm text-center text-muted-foreground mt-4">
-                                ✓ File ready for upload
-                              </p>
-                            </div>
-                          ) : (
-                            <div
-                              className="p-12 text-center cursor-pointer"
-                              onDragEnter={handleDrag}
-                              onDragLeave={handleDrag}
-                              onDragOver={handleDrag}
-                              onDrop={handleDrop}
-                            >
-                              <div className="flex flex-col items-center gap-4">
-                                <div className="p-4 bg-muted rounded-full">
-                                  <UploadCloud className="h-8 w-8 text-muted-foreground" />
-                                </div>
-                                <div>
-                                  <p className="font-medium mb-1">
-                                    {dragActive ? "Drop your file here" : "Drag & drop your file"}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">or click to browse</p>
-                                </div>
-                                <div className="flex flex-wrap justify-center gap-2 text-xs">
-                                  <Badge variant="outline">PDF</Badge>
-                                  <Badge variant="outline">Images</Badge>
-                                  <Badge variant="outline">All Formats</Badge>
-                                  <Badge variant="outline">Max 10MB</Badge>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <Separator />
+
+                {/* Excel Upload */}
+                <div
+                  className={cn(
+                    "relative border-2 border-dashed rounded-lg transition-all duration-200",
+                    excelDragActive
+                      ? "border-primary bg-primary/5 scale-[1.02]"
+                      : "border-muted-foreground/25 hover:border-primary/50",
+                    selectedExcelFile && "border-primary bg-primary/5",
                   )}
-                />
+                >
+                  {!selectedExcelFile && (
+                    <Input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleExcelFileChange}
+                      disabled={excelUploadLoading}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                  )}
 
-                {/* File Requirements */}
+                  {selectedExcelFile ? (
+                    <div className="p-8">
+                      <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+                        <div className="flex items-center gap-4">
+                          <div className="text-4xl">{getFileIcon(selectedExcelFile)}</div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{selectedExcelFile.name}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {formatFileSize(selectedExcelFile.size)}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {selectedExcelFile.type || "Unknown type"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setSelectedExcelFile(null)
+                            // Reset file input
+                            const fileInput = document.querySelector('input[type="file"][accept=".xlsx,.xls"]') as HTMLInputElement
+                            if (fileInput) {
+                              fileInput.value = ""
+                            }
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex justify-end mt-4">
+                        <Button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleUploadExcel()
+                          }}
+                          disabled={excelUploadLoading}
+                          className="min-w-[160px] relative z-20"
+                        >
+                          {excelUploadLoading ? (
+                            <>
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-5 w-5 mr-2" />
+                              {existingExcelUrl ? "Replace Excel" : "Upload Excel"}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="p-12 text-center cursor-pointer"
+                      onDragEnter={handleExcelDrag}
+                      onDragLeave={handleExcelDrag}
+                      onDragOver={handleExcelDrag}
+                      onDrop={handleExcelDrop}
+                    >
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="p-4 bg-muted rounded-full">
+                          <UploadCloud className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium mb-1">
+                            {excelDragActive ? "Drop your file here" : "Drag & drop your file"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">or click to browse</p>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-2 text-xs">
+                          <Badge variant="outline">XLSX</Badge>
+                          <Badge variant="outline">XLS</Badge>
+                          <Badge variant="outline">Max 10MB</Badge>
+                        </div>
+                      </div>
+                  </div>
+                  )}
+                </div>
+
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-sm">
                     <strong>File Requirements:</strong>
                     <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
+                      <li>Accepted formats: XLSX, XLS</li>
                       <li>Maximum file size: 10MB</li>
-                      <li>All file formats are supported</li>
                     </ul>
                   </AlertDescription>
                 </Alert>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Submit Button */}
-          {selectedCompany && selectedMonth && (
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  form.reset()
-                  setSelectedFile(null)
-                  setExistingSheetUrl(null)
-                  setExistingSheetId(null)
-                }}
-                disabled={uploadLoading || isSubmitted}
-              >
-                Reset
-              </Button>
-              <Button type="submit" disabled={uploadLoading || isSubmitted || !isFormValid} size="lg" className="min-w-[160px]">
-                {uploadLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-5 w-5 mr-2" />
-                    {existingSheetUrl ? "Replace Sheet" : "Upload Sheet"}
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Upload Progress */}
-          {uploadLoading && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">Uploading file...</span>
-                    <span className="text-muted-foreground">Processing</span>
-                  </div>
-                  <Progress value={75} className="h-2" />
-                  <p className="text-xs text-muted-foreground text-center">
-                    Please wait while we upload your attendance sheet
-                  </p>
-                </div>
               </CardContent>
             </Card>
           )}
@@ -769,18 +976,16 @@ export function UploadAttendanceComponent() {
               </span>
               <div className="flex gap-2">
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={async () => {
                     if (!previewUrl) return
                     try {
-                      // Use cache: 'no-store' to ensure we get the latest file
                       const response = await fetch(previewUrl, { cache: "no-store" })
                       if (!response.ok) throw new Error("Failed to download")
-
                       const blob = await response.blob()
                       const contentType = response.headers.get("Content-Type") || "application/octet-stream"
-
                       let extension = ""
                       if (contentType.includes("pdf")) extension = ".pdf"
                       else if (contentType.includes("jpeg") || contentType.includes("jpg")) extension = ".jpg"
@@ -793,7 +998,6 @@ export function UploadAttendanceComponent() {
                         if (match) extension = `.${match[1]}`
                         else extension = ".jpg"
                       }
-
                       const filename = `attendance-sheet-${selectedCompany?.name || "sheet"}-${
                         selectedMonth ? format(selectedMonth, "yyyy-MM") : ""
                       }${extension}`
@@ -805,7 +1009,6 @@ export function UploadAttendanceComponent() {
                       a.click()
                       document.body.removeChild(a)
                       URL.revokeObjectURL(url)
-
                       toast({
                         title: "Download Started",
                         description: "File download started successfully",
@@ -838,14 +1041,9 @@ export function UploadAttendanceComponent() {
                 <iframe
                   src={previewUrl || ""}
                   className="w-full h-[70vh] border-0"
-                  key={previewUrl} // Force re-render when URL changes
-                  onError={(e) => {
-                    console.error("PDF iframe load error:", e)
-                    // If PDF fails, try image as last resort
+                  key={previewUrl}
+                  onError={() => {
                     setPreviewType("image")
-                  }}
-                  onLoad={() => {
-                    console.log("PDF loaded successfully")
                   }}
                 />
               ) : previewType === "image" ? (
@@ -855,104 +1053,24 @@ export function UploadAttendanceComponent() {
                     alt="Attendance Sheet"
                     className="max-w-full max-h-[70vh] object-contain"
                     crossOrigin="anonymous"
-                    key={previewUrl} // Force re-render when URL changes
-                    onError={(e) => {
-                      console.error("❌ Image load error:", e, "URL:", previewUrl)
+                    key={previewUrl}
+                    onError={() => {
                       const urlLower = (previewUrl || "").toLowerCase()
-                      
-                      // If image fails, try PDF as fallback (unless it clearly has image extension)
-                      // Only show unsupported if both image and PDF fail
-                      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
-                        console.log("🔄 Image failed but URL suggests PDF, switching to PDF")
+                      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf") || !urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
                         setPreviewType("pdf")
-                      } else if (!urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico|pdf)$/i)) {
-                        // No extension - try PDF before giving up
-                        console.log("🔄 Image failed with no extension, trying PDF as fallback")
-                        setPreviewType("pdf")
-                        // Set a timeout to check if PDF also fails
-                        setTimeout(() => {
-                          // If we're still having issues, the PDF iframe's onError will handle it
-                          // But we'll only show unsupported if PDF also fails
-                        }, 2000)
-                      } else if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
-                        // Has image extension but failed - might be corrupted or wrong type
-                        // Try PDF anyway
-                        console.log("🔄 Image with extension failed, trying PDF")
-                        setPreviewType("pdf")
-                      } else {
-                        // Last resort - show unsupported only after all attempts
-                        console.log("❌ All preview attempts failed, showing unsupported")
-                        setPreviewType("unsupported")
                       }
-                    }}
-                    onLoad={() => {
-                      console.log("Image loaded successfully:", previewUrl)
                     }}
                   />
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-[70vh] p-8 text-center space-y-4">
-                  <FileText className="h-16 w-16 text-muted-foreground" />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">File Preview Not Available</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      This file type cannot be previewed in the browser.
-                    </p>
-                    <Button
-                      onClick={async () => {
-                        if (!previewUrl) return
-                        try {
-                          // Use cache: 'no-store' to ensure we get the latest file
-                          const response = await fetch(previewUrl, { cache: "no-store" })
-                          if (!response.ok) throw new Error("Failed to download")
-
-                          const blob = await response.blob()
-                          const contentType = response.headers.get("Content-Type") || "application/octet-stream"
-
-                          let extension = ""
-                          if (contentType.includes("pdf")) extension = ".pdf"
-                          else if (contentType.includes("jpeg")) extension = ".jpg"
-                          else if (contentType.includes("png")) extension = ".png"
-                          else if (contentType.includes("gif")) extension = ".gif"
-                          else if (contentType.includes("webp")) extension = ".webp"
-                          else if (contentType.includes("word") || contentType.includes("msword")) extension = ".doc"
-                          else if (contentType.includes("excel") || contentType.includes("spreadsheet"))
-                            extension = ".xlsx"
-                          else {
-                            const urlLower = previewUrl.toLowerCase()
-                            const match = urlLower.match(/\.([a-z0-9]+)(?:\?|$)/)
-                            if (match) extension = `.${match[1]}`
-                          }
-
-                          const filename = `attendance-sheet-${selectedCompany?.name || "sheet"}-${
-                            selectedMonth ? format(selectedMonth, "yyyy-MM") : ""
-                          }${extension}`
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement("a")
-                          a.href = url
-                          a.download = filename
-                          document.body.appendChild(a)
-                          a.click()
-                          document.body.removeChild(a)
-                          URL.revokeObjectURL(url)
-                        } catch (error) {
-                          toast({
-                            variant: "destructive",
-                            title: "Download Failed",
-                            description: "Failed to download the file. Please try again.",
-                          })
-                        }
-                      }}
-                    >
-                      <Download className="h-4 w-4 mr-2" /> Download File
-                    </Button>
-                  </div>
+                  <iframe src={previewUrl || ""} className="w-full h-full border-0" style={{ minHeight: "500px" }} />
                 </div>
               )}
             </div>
           </div>
           <DialogFooter className="px-6 pb-6 border-t">
-            <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setPreviewOpen(false)}>
               Close
             </Button>
           </DialogFooter>

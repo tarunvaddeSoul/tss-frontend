@@ -79,6 +79,8 @@ export function AttendanceReportsComponent() {
   const [sheetPreviewOpen, setSheetPreviewOpen] = useState(false)
   const [sheetPreviewUrl, setSheetPreviewUrl] = useState<string | null>(null)
   const [sheetPreviewType, setSheetPreviewType] = useState<"pdf" | "image" | "unsupported" | "loading">("loading")
+  const [excelFile, setExcelFile] = useState<{ id: string; attendanceExcelUrl: string } | null>(null)
+  const [loadingExcel, setLoadingExcel] = useState(false)
 
   const { toast } = useToast()
   const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
@@ -137,6 +139,29 @@ export function AttendanceReportsComponent() {
       if (response.statusCode === 200 && response.data) {
         setReportData(response.data)
         setReportGenerated(true)
+        
+        // Fetch Excel file for this company and month
+        try {
+          setLoadingExcel(true)
+          const excelResponse = await attendanceService.getAttendanceExcelFiles({
+            companyId: data.companyId,
+            month: data.month,
+          })
+          if (excelResponse.data && typeof excelResponse.data === "object" && "attendanceExcelUrl" in excelResponse.data) {
+            setExcelFile({
+              id: excelResponse.data.id,
+              attendanceExcelUrl: excelResponse.data.attendanceExcelUrl,
+            })
+          } else {
+            setExcelFile(null)
+          }
+        } catch (error) {
+          console.error("Error fetching Excel file:", error)
+          setExcelFile(null)
+        } finally {
+          setLoadingExcel(false)
+        }
+        
         toast({
           title: "Report Generated",
           description: `Found ${response.data.records.length} attendance records for ${response.data.company.name} - ${format(parse(response.data.month, "yyyy-MM", new Date()), "MMMM yyyy")}.`,
@@ -153,6 +178,7 @@ export function AttendanceReportsComponent() {
       })
       setReportData(null)
       setReportGenerated(false)
+      setExcelFile(null)
     } finally {
       setLoading(false)
     }
@@ -344,6 +370,42 @@ export function AttendanceReportsComponent() {
     }
   }
 
+  // Handle downloading Excel file
+  const handleDownloadExcel = async () => {
+    if (!excelFile?.attendanceExcelUrl) return
+
+    try {
+      const url = addCacheBuster(excelFile.attendanceExcelUrl)
+      const response = await fetch(url, { cache: "no-store" })
+      if (!response.ok) throw new Error("Failed to download")
+
+      const blob = await response.blob()
+      const monthDisplay = reportData?.month
+        ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
+        : "excel"
+      const filename = `attendance-excel-${reportData?.company.name || "file"}-${monthDisplay}.xlsx`
+      const downloadUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = downloadUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(downloadUrl)
+
+      toast({
+        title: "Download Started",
+        description: "Excel file download started successfully",
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Failed to download the Excel file. Please try again.",
+      })
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
       {/* Header */}
@@ -494,24 +556,57 @@ export function AttendanceReportsComponent() {
                 </div>
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
-              <div className="mt-4 flex items-center gap-2">
-                {reportData.attendanceSheet ? (
-                  <>
-                    <Badge variant="outline" className="bg-white">
-                      📎 Sheet attached
-                    </Badge>
-                    <Button variant="outline" size="sm" onClick={handleViewSheet}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Sheet
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleDownloadSheet}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Sheet
-                    </Button>
-                  </>
-                ) : (
-                  <span className="text-sm text-muted-foreground">No attendance sheet attached for this month.</span>
-                )}
+              <div className="mt-4 space-y-3">
+                {/* Attendance Sheet Section */}
+                <div className="flex items-center gap-2">
+                  {reportData.attendanceSheet ? (
+                    <>
+                      <Badge variant="outline" className="bg-white">
+                        <FileText className="h-3 w-3 mr-1" />
+                        Sheet attached
+                      </Badge>
+                      <Button variant="outline" size="sm" onClick={handleViewSheet}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Sheet
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleDownloadSheet}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Sheet
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      No attendance sheet attached for this month.
+                    </span>
+                  )}
+                </div>
+
+                {/* Attendance Excel Section */}
+                <div className="flex items-center gap-2">
+                  {loadingExcel ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Checking for Excel file...
+                    </div>
+                  ) : excelFile ? (
+                    <>
+                      <Badge variant="outline" className="bg-white">
+                        <FileSpreadsheet className="h-3 w-3 mr-1" />
+                        Excel attached
+                      </Badge>
+                      <Button variant="outline" size="sm" onClick={handleDownloadExcel}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Excel
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4" />
+                      No Excel file attached for this month.
+                    </span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -703,15 +798,11 @@ export function AttendanceReportsComponent() {
                     crossOrigin="anonymous"
                     key={sheetPreviewUrl}
                     onError={(e) => {
-                      console.error("❌ Image load error:", e, "URL:", sheetPreviewUrl)
+                      console.error("Image load error, trying PDF:", e, "URL:", sheetPreviewUrl)
+                      // If image fails, try as PDF (common case for attendance sheets)
                       const urlLower = (sheetPreviewUrl || "").toLowerCase()
-
-                      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+                      if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf") || !urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
                         setSheetPreviewType("pdf")
-                      } else if (!urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico|pdf)$/i)) {
-                        setSheetPreviewType("pdf")
-                      } else {
-                        setSheetPreviewType("unsupported")
                       }
                     }}
                     onLoad={() => {
@@ -720,17 +811,13 @@ export function AttendanceReportsComponent() {
                   />
                 </div>
               ) : (
+                // Fallback: Try to show as PDF if image failed
                 <div className="flex flex-col items-center justify-center h-[70vh] p-8 text-center space-y-4">
-                  <FileText className="h-16 w-16 text-muted-foreground" />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">File Preview Not Available</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      This file type cannot be previewed in the browser.
-                    </p>
-                    <Button onClick={handleDownloadSheet}>
-                      <Download className="h-4 w-4 mr-2" /> Download File
-                    </Button>
-                  </div>
+                  <iframe 
+                    src={sheetPreviewUrl || ""} 
+                    className="w-full h-full border-0"
+                    style={{ minHeight: "500px" }}
+                  />
                 </div>
               )}
             </div>

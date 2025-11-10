@@ -23,6 +23,9 @@ import {
   Clock,
   RotateCcw,
   Download,
+  ChevronDown,
+  ChevronUp,
+  History,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -37,6 +40,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -56,6 +64,7 @@ import { MonthPicker } from "../ui/month-picker"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import { attendanceSheetService } from "@/services/attendanceSheetService"
 import { useRouter } from "next/navigation"
+import * as XLSX from "xlsx"
 // Updated schema with proper validation for each step
 const formSchema = z.object({
   companyId: z.string().min(1, "Please select a company"),
@@ -172,6 +181,17 @@ export function MarkAttendanceBySite() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewType, setPreviewType] = useState<"pdf" | "image" | "unsupported" | "loading">("loading")
+  const [excelFile, setExcelFile] = useState<File | null>(null)
+  const [excelUploading, setExcelUploading] = useState(false)
+  const [excelValidating, setExcelValidating] = useState(false)
+  const [excelValidationErrors, setExcelValidationErrors] = useState<string[]>([])
+  const [existingExcelFile, setExistingExcelFile] = useState<string | null>(null)
+  const [checkingExcelFile, setCheckingExcelFile] = useState(false)
+  const [excelParsed, setExcelParsed] = useState(false)
+  const [excelPreviewOpen, setExcelPreviewOpen] = useState(false)
+  const [excelDataToMerge, setExcelDataToMerge] = useState<Array<{ employeeId: string; selected: boolean; presentCount: number }> | null>(null)
+  const [existingAttendanceRecords, setExistingAttendanceRecords] = useState<Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string; createdAt?: string }>>([])
+  const [loadingExistingAttendance, setLoadingExistingAttendance] = useState(false)
 
   const router = useRouter()
 
@@ -205,30 +225,37 @@ export function MarkAttendanceBySite() {
     },
     {
       step: 2,
-      title: "Mark Attendance",
-      description: "Select employees and mark attendance",
+      title: "Upload Excel File",
+      description: "Upload pre-finalized attendance Excel",
       status: currentStep === 2 ? "current" : currentStep > 2 ? "completed" : "pending",
-      icon: <Users className="h-4 w-4" />,
+      icon: <FileText className="h-4 w-4" />,
     },
     {
       step: 3,
-      title: "Upload File (Optional)",
-      description: "Upload attendance sheet if available",
+      title: "Mark Attendance",
+      description: "Select employees and mark attendance",
       status: currentStep === 3 ? "current" : currentStep > 3 ? "completed" : "pending",
-      icon: <Upload className="h-4 w-4" />,
+      icon: <Users className="h-4 w-4" />,
     },
     {
       step: 4,
-      title: "Review & Submit",
-      description: "Review and submit attendance",
+      title: "Upload File (Optional)",
+      description: "Upload attendance sheet if available",
       status: currentStep === 4 ? "current" : currentStep > 4 ? "completed" : "pending",
-      icon: <CheckCircle2 className="h-4 w-4" />,
+      icon: <Upload className="h-4 w-4" />,
     },
     {
       step: 5,
+      title: "Review & Submit",
+      description: "Review and submit attendance",
+      status: currentStep === 5 ? "current" : currentStep > 5 ? "completed" : "pending",
+      icon: <CheckCircle2 className="h-4 w-4" />,
+    },
+    {
+      step: 6,
       title: "Success",
       description: "Attendance submitted successfully",
-      status: currentStep === 5 ? "current" : "pending",
+      status: currentStep === 6 ? "current" : "pending",
       icon: <Check className="h-4 w-4" />,
     },
   ]
@@ -275,6 +302,36 @@ export function MarkAttendanceBySite() {
     }
   }
 
+  // Helper function to merge Excel data with employees list
+  const mergeExcelDataWithEmployees = (excelFormData: Array<{ employeeId: string; selected: boolean; presentCount: number }>, employeesList: ActiveEmployee[]) => {
+    // Create a map of Excel data by employeeId for quick lookup
+    const excelDataMap = new Map(excelFormData.map(emp => [emp.employeeId, emp]))
+    
+    // Merge Excel data with current employees, preserving Excel values
+    const mergedData = employeesList.map((emp) => {
+      const excelData = excelDataMap.get(emp.id)
+      if (excelData) {
+        // Use Excel data (preserves presentCount and selected state)
+        return excelData
+      } else {
+        // Employee not in Excel, use default
+        return {
+          employeeId: emp.id,
+          selected: false,
+          presentCount: 0,
+        }
+      }
+    })
+    
+    form.setValue("employees", mergedData)
+    
+    // Update selected employees set
+    const selectedSet = new Set(mergedData.filter(emp => emp.selected).map(emp => emp.employeeId))
+    setSelectedEmployees(selectedSet)
+    
+    console.log("✅ Merged Excel data with employees:", mergedData.filter(emp => emp.selected && emp.presentCount > 0).length, "employees with data")
+  }
+
   // Fetch active employees for company and month using new API
   const fetchActiveEmployees = async (companyId: string, month: Date) => {
     try {
@@ -315,9 +372,12 @@ export function MarkAttendanceBySite() {
       const activeEmployees = response.data.employees
       setEmployees(activeEmployees)
 
-      // Fetch existing attendance data to pre-fill
+      // Fetch existing attendance data to pre-fill and display
       let existingAttendance: Record<string, number> = {}
+      const attendanceRecords: Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string; createdAt?: string }> = []
+      
       try {
+        setLoadingExistingAttendance(true)
         const attendanceResponse = await attendanceService.getAttendanceByCompanyAndMonth({
           companyId,
           month: monthString,
@@ -329,14 +389,29 @@ export function MarkAttendanceBySite() {
             const empId = record.employeeID || record.employeeId
             if (empId && typeof record.presentCount === "number" && record.presentCount >= 0) {
               existingAttendance[empId] = record.presentCount
+              
+              // Store full record for display
+              attendanceRecords.push({
+                employeeId: empId,
+                employeeName: record.employeeName || record.employee?.firstName + " " + record.employee?.lastName || "Unknown",
+                presentCount: record.presentCount,
+                designation: record.designationName || record.designation?.name,
+                department: record.departmentName || record.department?.name,
+                createdAt: record.createdAt,
+              })
             }
           })
           console.log("📊 Found existing attendance for:", Object.keys(existingAttendance).length, "employees")
           console.log("📊 Existing attendance map:", existingAttendance)
         }
+        
+        setExistingAttendanceRecords(attendanceRecords)
       } catch (attendanceError) {
         console.log("ℹ️ No existing attendance found or error fetching:", attendanceError)
+        setExistingAttendanceRecords([])
         // Not critical - continue without pre-filled data
+      } finally {
+        setLoadingExistingAttendance(false)
       }
 
       // Initialize employees form data with existing attendance pre-filled
@@ -550,6 +625,20 @@ export function MarkAttendanceBySite() {
           return true
 
         case 2:
+          // Excel upload step - optional, but if file is selected, it should be valid
+          if (excelFile && excelValidationErrors.length > 0) {
+            setErrors(excelValidationErrors)
+            toast({
+              variant: "destructive",
+              title: "Validation Error",
+              description: excelValidationErrors[0] || "Excel file validation failed",
+            })
+            return false
+          }
+          // Step is optional - can proceed without Excel file
+          return true
+
+        case 3:
           const selectedMonth = form.getValues("month")
           const employeesData = form.getValues("employees") || []
           const selectedEmps = employeesData.filter((emp) => emp.selected)
@@ -584,7 +673,7 @@ export function MarkAttendanceBySite() {
 
           return true
 
-        case 3:
+        case 4:
           // File upload is optional, always valid
           return true
 
@@ -616,9 +705,31 @@ export function MarkAttendanceBySite() {
     const isValid = await validateCurrentStep()
     if (!isValid) return
 
+    // If moving from Excel step (step 2) to Mark Attendance step (step 3), preserve Excel data
+    const isMovingFromExcelStep = currentStep === 2
+    let excelFormData: Array<{ employeeId: string; selected: boolean; presentCount: number }> = []
+    let hasExcelData = false
+    
+    if (isMovingFromExcelStep && selectedCompany && selectedCompany.id && selectedMonth) {
+      // Save current form data before fetching (this contains Excel data)
+      excelFormData = form.getValues("employees") || []
+      hasExcelData = excelFormData.length > 0 && excelFormData.some(emp => emp.presentCount > 0)
+      
+      // Store Excel data for merging after step change
+      if (hasExcelData) {
+        setExcelDataToMerge(excelFormData)
+      }
+      
+      // Only fetch if employees aren't already loaded
+      if (employees.length === 0) {
+        await fetchActiveEmployees(selectedCompany.id, selectedMonth)
+      }
+    }
+
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1)
       setProgress(((currentStep + 1) / (steps.length - 1)) * 100)
+
       toast({
         title: "Progress",
         description: `Step ${currentStep + 2} of ${steps.length}`,
@@ -644,6 +755,18 @@ export function MarkAttendanceBySite() {
   }
 
   const onSubmit = async (data: FormValues) => {
+    // Ensure we're on the Review & Submit step before submitting
+    if (currentStep !== 5) {
+      // If not on step 5, navigate to it first
+      setCurrentStep(5)
+      setProgress((5 / (steps.length - 1)) * 100)
+      toast({
+        title: "Please Review",
+        description: "Please review your attendance data before submitting.",
+      })
+      return
+    }
+
     // Prevent double submission
     if (isSubmitted || submitting) {
       toast({
@@ -842,7 +965,7 @@ export function MarkAttendanceBySite() {
           }
 
           // Move to success step
-          setCurrentStep(5)
+          setCurrentStep(6)
           setProgress(100)
         } else {
           // Unexpected response format
@@ -896,6 +1019,12 @@ export function MarkAttendanceBySite() {
     setSheetUrl(null)
     setPreviewOpen(false)
     setPreviewUrl(null)
+    setExcelFile(null)
+    setExcelValidationErrors([])
+    setExcelParsed(false)
+    setExistingExcelFile(null)
+    setExcelDataToMerge(null)
+    setExistingAttendanceRecords([])
     
     // Reset form after state is cleared to prevent subscription triggers
     setTimeout(() => {
@@ -916,6 +1045,16 @@ export function MarkAttendanceBySite() {
   const selectedCompany = companies.find((c) => c.id === form.watch("companyId"))
   const selectedMonth = form.watch("month")
   const formEmployees = form.watch("employees") || []
+
+  // Merge Excel data when employees are loaded and we're on step 3
+  useEffect(() => {
+    if (excelDataToMerge && employees.length > 0 && currentStep === 3) {
+      console.log("🔄 Merging Excel data with employees on step 3")
+      mergeExcelDataWithEmployees(excelDataToMerge, employees)
+      setExcelDataToMerge(null) // Clear after merging
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employees, currentStep, excelDataToMerge])
 
   // Fetch attachment status when company or month changes
   useEffect(() => {
@@ -939,6 +1078,483 @@ export function MarkAttendanceBySite() {
     fetchSheet()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompany?.id, selectedMonth])
+
+  // Check for existing Excel file when company or month changes
+  useEffect(() => {
+    const checkExistingExcel = async () => {
+      const companyId = selectedCompany?.id || form.getValues("companyId")
+      const month = selectedMonth || form.getValues("month")
+      
+      setExistingExcelFile(null)
+      if (!companyId || !month) return
+      
+      try {
+        setCheckingExcelFile(true)
+        const res = await attendanceService.getAttendanceExcelFiles({
+          companyId,
+          month: format(month, "yyyy-MM"),
+        })
+        
+        if (res.data && typeof res.data === "object" && "attendanceExcelUrl" in res.data) {
+          setExistingExcelFile(res.data.attendanceExcelUrl)
+        } else {
+          setExistingExcelFile(null)
+        }
+      } catch (e) {
+        setExistingExcelFile(null)
+      } finally {
+        setCheckingExcelFile(false)
+      }
+    }
+    checkExistingExcel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany?.id, selectedMonth])
+
+  // Generate Excel template
+  const generateExcelTemplate = async () => {
+    if (!selectedCompany || !selectedMonth) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select company and month first",
+      })
+      return
+    }
+
+    // Ensure employees are loaded
+    if (employees.length === 0) {
+      if (!selectedCompany.id) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Invalid company selected",
+        })
+        return
+      }
+      try {
+        setLoading(true)
+        await fetchActiveEmployees(selectedCompany.id, selectedMonth)
+        // Wait a bit for state to update
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load employees. Please try again.",
+        })
+        return
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (employees.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No employees found for the selected company and month.",
+      })
+      return
+    }
+
+    try {
+      // Create workbook
+      const wb = XLSX.utils.book_new()
+      
+      // Prepare data with headers
+      const data = [
+        ["Employee ID", "Employee Name", "Present Days Count"],
+        ...employees.map((emp) => [
+          emp.id,
+          `${emp.firstName} ${emp.lastName}`,
+          0, // Default present days count
+        ]),
+      ]
+
+      // Create worksheet
+      const ws = XLSX.utils.aoa_to_sheet(data)
+      
+      // Set column widths
+      ws["!cols"] = [
+        { wch: 15 }, // Employee ID
+        { wch: 30 }, // Employee Name
+        { wch: 18 }, // Present Days Count
+      ]
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance")
+
+      // Generate filename
+      const filename = `Attendance_Template_${selectedCompany.name}_${format(selectedMonth, "yyyy-MM")}.xlsx`
+
+      // Write file
+      XLSX.writeFile(wb, filename)
+
+      toast({
+        title: "Template Downloaded",
+        description: `Excel template has been downloaded: ${filename}`,
+      })
+    } catch (error) {
+      console.error("Error generating Excel template:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to generate Excel template. Please try again.",
+      })
+    }
+  }
+
+  // Validate Excel file
+  const validateExcelFile = async (file: File): Promise<{ valid: boolean; errors: string[]; data?: any[] }> => {
+    const errors: string[] = []
+
+    // Check file extension
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."))
+    if (![".xlsx", ".xls"].includes(fileExtension)) {
+      errors.push("Invalid file type. Only XLSX and XLS files are allowed.")
+      return { valid: false, errors }
+    }
+
+    // Check file size (10MB max)
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      errors.push("File too large. Maximum file size is 10MB.")
+      return { valid: false, errors }
+    }
+
+    try {
+      // Read Excel file
+      const arrayBuffer = await file.arrayBuffer()
+      const workbook = XLSX.read(arrayBuffer, { type: "array" })
+      
+      // Get first sheet
+      const firstSheetName = workbook.SheetNames[0]
+      if (!firstSheetName) {
+        errors.push("Excel file must contain at least one sheet.")
+        return { valid: false, errors }
+      }
+
+      const worksheet = workbook.Sheets[firstSheetName]
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+
+      if (jsonData.length < 2) {
+        errors.push("Excel file must contain at least a header row and one data row.")
+        return { valid: false, errors }
+      }
+
+      // Validate headers (case-insensitive)
+      const headers = (jsonData[0] || []).map((h: any) => String(h || "").trim().toLowerCase())
+      const requiredHeaders = ["employee id", "employee name", "present days count"]
+      
+      const missingHeaders: string[] = []
+      requiredHeaders.forEach((reqHeader) => {
+        if (!headers.includes(reqHeader)) {
+          missingHeaders.push(reqHeader)
+        }
+      })
+
+      if (missingHeaders.length > 0) {
+        errors.push(
+          `Missing required columns: ${missingHeaders.map((h) => `"${h}"`).join(", ")}. Please ensure columns are exactly: "Employee ID", "Employee Name", "Present Days Count".`,
+        )
+        return { valid: false, errors }
+      }
+
+      // Get column indices
+      const employeeIdIndex = headers.indexOf("employee id")
+      const employeeNameIndex = headers.indexOf("employee name")
+      const presentDaysIndex = headers.indexOf("present days count")
+
+      // Parse data rows
+      const parsedData: Array<{ employeeId: string; employeeName: string; presentDays: number }> = []
+      
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i] || []
+        const employeeId = String(row[employeeIdIndex] || "").trim()
+        const employeeName = String(row[employeeNameIndex] || "").trim()
+        const presentDays = Number(row[presentDaysIndex]) || 0
+
+        if (employeeId && employeeName) {
+          parsedData.push({
+            employeeId,
+            employeeName,
+            presentDays: Math.max(0, Math.min(31, Math.floor(presentDays))), // Clamp between 0-31
+          })
+        }
+      }
+
+      if (parsedData.length === 0) {
+        errors.push("No valid data rows found in Excel file.")
+        return { valid: false, errors }
+      }
+
+      // Validate all employees exist and identify extra/missing employees
+      const employeeIds = new Set(employees.map((e) => e.id))
+      const employeeMap = new Map(employees.map((e) => [e.id, `${e.firstName} ${e.lastName}`]))
+      const excelEmployeeIds = new Set(parsedData.map((row) => row.employeeId))
+      
+      const invalidEmployees: string[] = [] // Employees in Excel but not active
+      const missingEmployees: string[] = [] // Active employees not in Excel
+      
+      // Find employees in Excel that don't exist in active employees
+      parsedData.forEach((row) => {
+        if (!employeeIds.has(row.employeeId)) {
+          invalidEmployees.push(`${row.employeeName} (ID: ${row.employeeId})`)
+        }
+      })
+
+      // Find active employees that are missing from Excel
+      employees.forEach((emp) => {
+        if (!excelEmployeeIds.has(emp.id)) {
+          missingEmployees.push(`${emp.firstName} ${emp.lastName} (ID: ${emp.id})`)
+        }
+      })
+
+      // Build comprehensive error message
+      if (parsedData.length !== employees.length || invalidEmployees.length > 0 || missingEmployees.length > 0) {
+        const errorParts: string[] = []
+        errorParts.push(
+          `Employee count mismatch. Excel contains ${parsedData.length} employee(s), but ${employees.length} employee(s) are active for this company and month.`,
+        )
+
+        if (invalidEmployees.length > 0) {
+          const extraList = invalidEmployees.slice(0, 5).join(", ")
+          const extraCount = invalidEmployees.length > 5 ? ` and ${invalidEmployees.length - 5} more` : ""
+          errorParts.push(
+            `Extra employees in Excel (not active): ${extraList}${extraCount}.`,
+          )
+        }
+
+        if (missingEmployees.length > 0) {
+          const missingList = missingEmployees.slice(0, 5).join(", ")
+          const missingCount = missingEmployees.length > 5 ? ` and ${missingEmployees.length - 5} more` : ""
+          errorParts.push(
+            `Missing employees from Excel (active but not included): ${missingList}${missingCount}.`,
+          )
+        }
+
+        errors.push(errorParts.join(" "))
+        return { valid: false, errors }
+      }
+
+      return { valid: true, errors: [], data: parsedData }
+    } catch (error) {
+      console.error("Error validating Excel file:", error)
+      errors.push("Failed to read Excel file. Please ensure it's a valid Excel file.")
+      return { valid: false, errors }
+    }
+  }
+
+  // Handle Excel file upload
+  const handleExcelFileChange = async (file: File | null) => {
+    setExcelFile(file)
+    setExcelValidationErrors([])
+    setExcelParsed(false)
+
+    if (!file) return
+
+    if (!selectedCompany || !selectedCompany.id || !selectedMonth) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select company and month first",
+      })
+      setExcelFile(null)
+      return
+    }
+
+    // Validate file
+    setExcelValidating(true)
+    const validation = await validateExcelFile(file)
+    setExcelValidating(false)
+
+    if (!validation.valid) {
+      setExcelValidationErrors(validation.errors)
+      toast({
+        variant: "destructive",
+        title: "Validation Failed",
+        description: validation.errors[0] || "Excel file validation failed",
+      })
+      return
+    }
+
+    // Parse and populate form
+    if (validation.data) {
+      try {
+        // Fetch existing attendance to check what's already marked
+        const monthString = format(selectedMonth, "yyyy-MM")
+        let existingAttendance: Record<string, number> = {}
+        const attendanceRecords: Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string; createdAt?: string }> = []
+        
+        try {
+          setLoadingExistingAttendance(true)
+          const attendanceResponse = await attendanceService.getAttendanceByCompanyAndMonth({
+            companyId: selectedCompany.id, // TypeScript now knows this is defined due to the check above
+            month: monthString,
+          })
+          
+          if (attendanceResponse.data && Array.isArray(attendanceResponse.data)) {
+            attendanceResponse.data.forEach((record: any) => {
+              const empId = record.employeeID || record.employeeId
+              if (empId) {
+                existingAttendance[empId] = record.presentCount || 0
+                
+                // Store full record for display
+                attendanceRecords.push({
+                  employeeId: empId,
+                  employeeName: record.employeeName || record.employee?.firstName + " " + record.employee?.lastName || "Unknown",
+                  presentCount: record.presentCount || 0,
+                  designation: record.designationName || record.designation?.name,
+                  department: record.departmentName || record.department?.name,
+                  createdAt: record.createdAt,
+                })
+              }
+            })
+          }
+          
+          setExistingAttendanceRecords(attendanceRecords)
+        } catch (e) {
+          // Ignore errors when fetching existing attendance
+          console.warn("Could not fetch existing attendance:", e)
+          setExistingAttendanceRecords([])
+        } finally {
+          setLoadingExistingAttendance(false)
+        }
+
+        // Populate form with Excel data - prioritize Excel values over existing attendance
+        // Ensure we match the employees array structure (all employees, not just Excel ones)
+        const employeesData = employees.map((emp) => {
+          // Find matching row from Excel
+          const excelRow = validation.data?.find((row) => row.employeeId === emp.id)
+          
+          if (excelRow) {
+            // Use Excel presentDays value, fallback to existing attendance if Excel has 0
+            const excelPresentDays = excelRow.presentDays || 0
+            const existingCount = existingAttendance[emp.id] || 0
+            // Prioritize Excel value, but if Excel is 0 and we have existing, use existing
+            const presentCount = excelPresentDays > 0 ? excelPresentDays : existingCount
+            
+            return {
+              employeeId: emp.id,
+              selected: true,
+              presentCount: presentCount,
+            }
+          } else {
+            // Employee not in Excel, use existing attendance if any
+            const existingCount = existingAttendance[emp.id] || 0
+            return {
+              employeeId: emp.id,
+              selected: existingCount > 0, // Auto-select if has existing attendance
+              presentCount: existingCount,
+            }
+          }
+        })
+
+        form.setValue("employees", employeesData)
+        
+        // Update selected employees set
+        const selectedSet = new Set(employeesData.map((e) => e.employeeId))
+        setSelectedEmployees(selectedSet)
+
+        setExcelParsed(true)
+        
+        // Auto-upload Excel file to backend
+        try {
+          setExcelUploading(true)
+          const monthString = format(selectedMonth, "yyyy-MM")
+          
+          const result = await attendanceService.uploadAttendanceExcel(
+            {
+              companyId: selectedCompany.id!, // Already validated above
+              month: monthString,
+            },
+            file,
+          )
+
+          setExistingExcelFile(result.data.attendanceExcelUrl)
+          
+          toast({
+            title: "Excel File Processed & Uploaded",
+            description: `Successfully loaded ${validation.data.length} employees from Excel file and uploaded to server.`,
+          })
+        } catch (uploadError: any) {
+          // Don't fail the whole process if upload fails, just warn
+          const errorMsg = uploadError?.response?.data?.message || uploadError?.message || "Failed to upload Excel file"
+          console.warn("Excel upload failed:", errorMsg)
+          toast({
+            variant: "destructive",
+            title: "Excel Processed but Upload Failed",
+            description: `Data loaded successfully, but file upload failed: ${errorMsg}. You can try uploading manually.`,
+          })
+        } finally {
+          setExcelUploading(false)
+        }
+      } catch (error) {
+        console.error("Error processing Excel data:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to process Excel data. Please try again.",
+        })
+      }
+    }
+  }
+
+  // Upload Excel file
+  const handleUploadExcel = async () => {
+    if (!excelFile || !selectedCompany || !selectedCompany.id || !selectedMonth) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select a valid Excel file",
+      })
+      return
+    }
+
+    // Re-validate before upload
+    setExcelValidating(true)
+    const validation = await validateExcelFile(excelFile)
+    setExcelValidating(false)
+
+    if (!validation.valid) {
+      setExcelValidationErrors(validation.errors)
+      toast({
+        variant: "destructive",
+        title: "Validation Failed",
+        description: validation.errors[0] || "Excel file validation failed",
+      })
+      return
+    }
+
+    try {
+      setExcelUploading(true)
+      const monthString = format(selectedMonth, "yyyy-MM")
+      
+      const result = await attendanceService.uploadAttendanceExcel(
+        {
+          companyId: selectedCompany.id, // TypeScript now knows this is defined due to the check above
+          month: monthString,
+        },
+        excelFile,
+      )
+
+      setExistingExcelFile(result.data.attendanceExcelUrl)
+      
+      toast({
+        title: "Excel File Uploaded",
+        description: "Pre-finalized Excel file has been uploaded successfully.",
+      })
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.message || error?.message || "Failed to upload Excel file"
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: errorMsg,
+      })
+    } finally {
+      setExcelUploading(false)
+    }
+  }
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
@@ -986,19 +1602,19 @@ export function MarkAttendanceBySite() {
                       setPreviewOpen(true)
                       setPreviewType("loading")
                       
-                      // Detect file type by fetching headers
+                      // Detect file type by fetching headers - try PDF first, then image
                       try {
                         const response = await fetch(sheetUrl, { method: "HEAD" })
                         const contentType = response.headers.get("Content-Type") || ""
                         const urlLower = sheetUrl.toLowerCase()
                         
-                        // Check for PDF first
-                        if (contentType.includes("pdf") || urlLower.endsWith(".pdf")) {
+                        // Check for PDF first (most common for attendance sheets)
+                        if (contentType.includes("pdf") || urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
                           setPreviewType("pdf")
                           return
                         }
                         
-                        // Check for images - be more comprehensive
+                        // Check for images
                         if (
                           contentType.includes("image") ||
                           contentType.includes("jpeg") ||
@@ -1006,33 +1622,35 @@ export function MarkAttendanceBySite() {
                           contentType.includes("png") ||
                           contentType.includes("gif") ||
                           contentType.includes("webp") ||
+                          contentType.includes("bmp") ||
+                          contentType.includes("svg") ||
                           urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)
                         ) {
                           setPreviewType("image")
                           return
                         }
                         
-                        // If Content-Type is not helpful, default to trying image first
-                        // (many servers return application/octet-stream for images)
-                        // The img tag's onError will handle if it's not actually an image
-                        if (!contentType || contentType === "application/octet-stream") {
-                          setPreviewType("image")
+                        // For unknown types, try PDF first (most common), then image
+                        // The preview will handle errors gracefully
+                        if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
+                          setPreviewType("pdf")
                         } else {
-                          setPreviewType("unsupported")
+                          // Try as image first, if it fails, the onError will try PDF
+                          setPreviewType("image")
                         }
                       } catch (error) {
-                        // Fallback: try to detect from URL
+                        // Fallback: try to detect from URL, default to PDF
                         console.log("HEAD request failed, using URL detection:", error)
                         const urlLower = sheetUrl.toLowerCase()
                         
-                        if (urlLower.endsWith(".pdf")) {
+                        if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
                           setPreviewType("pdf")
                         } else if (urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
                           setPreviewType("image")
                         } else {
-                          // For unknown types, try to load as image first (common case)
-                          // If image load fails, it will fall back to unsupported
-                          setPreviewType("image")
+                          // For completely unknown types, try PDF first (most common)
+                          // If PDF fails, user can still download
+                          setPreviewType("pdf")
                         }
                       }
                     }}
@@ -1098,12 +1716,12 @@ export function MarkAttendanceBySite() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-6 gap-4">
+            <div className="grid grid-cols-7 gap-2">
               {steps.map((step) => (
                 <div key={step.step} className="text-center">
                   <p
                     className={cn(
-                      "text-sm font-medium mb-1",
+                      "text-xs font-medium mb-1",
                       step.status === "current"
                         ? "text-primary"
                         : step.status === "completed"
@@ -1113,7 +1731,7 @@ export function MarkAttendanceBySite() {
                   >
                     {step.title}
                   </p>
-                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{step.description}</p>
                 </div>
               ))}
             </div>
@@ -1167,7 +1785,24 @@ export function MarkAttendanceBySite() {
 
       {/* Main Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault()
+            // Only allow form submission on step 5 (Review & Submit)
+            if (currentStep === 5) {
+              form.handleSubmit(onSubmit)(e)
+            } else {
+              // If not on step 5, navigate to it
+              setCurrentStep(5)
+              setProgress((5 / (steps.length - 1)) * 100)
+              toast({
+                title: "Please Review",
+                description: "Please review your attendance data before submitting.",
+              })
+            }
+          }} 
+          className="space-y-6"
+        >
           {/* Step 0: Select Company */}
           {currentStep === 0 && (
             <Card>
@@ -1277,8 +1912,167 @@ export function MarkAttendanceBySite() {
             </Card>
           )}
 
-          {/* Step 2: Mark Attendance */}
+          {/* Step 2: Upload Excel File */}
           {currentStep === 2 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Upload Pre-Finalized Excel File
+                </CardTitle>
+                <CardDescription>
+                  Upload an Excel file with attendance data. Download the template below to get started.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Template Download Section */}
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-1">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Download className="h-4 w-4" />
+                        Download Excel Template
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Download a template with Employee ID, Employee Name, and Present Days Count columns
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={generateExcelTemplate}
+                      disabled={!selectedCompany || !selectedMonth || employees.length === 0 || loading}
+                      className="w-full sm:w-auto"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Template
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Existing Excel File Alert */}
+                {checkingExcelFile ? (
+                  <Alert>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <AlertTitle>Checking for existing Excel file...</AlertTitle>
+                  </Alert>
+                ) : existingExcelFile ? (
+                  <Alert className="border-blue-200 bg-blue-50">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <AlertTitle className="text-blue-800">Excel File Already Uploaded</AlertTitle>
+                    <AlertDescription className="text-blue-700">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <span>
+                          An Excel file has already been uploaded for this company and month. Uploading a new file will
+                          replace the existing one.
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setExcelPreviewOpen(true)}
+                          className="w-full sm:w-auto"
+                        >
+                          <FileText className="mr-2 h-4 w-4" />
+                          View/Download Excel
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                {/* File Upload Section */}
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="attendanceFile"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Excel File (XLSX/XLS)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="file"
+                            accept=".xlsx,.xls"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null
+                              void handleExcelFileChange(file)
+                            }}
+                            disabled={isSubmitted || excelValidating || excelUploading}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Only XLSX and XLS files are allowed. Maximum file size: 10MB
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Validation Status */}
+                  {excelValidating && (
+                    <Alert>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <AlertTitle>Validating Excel file...</AlertTitle>
+                      <AlertDescription>Please wait while we validate your Excel file.</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {excelValidationErrors.length > 0 && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Validation Errors</AlertTitle>
+                      <AlertDescription>
+                        <ul className="list-disc list-inside space-y-1 mt-2">
+                          {excelValidationErrors.map((error, index) => (
+                            <li key={index} className="text-sm">
+                              {error}
+                            </li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {excelParsed && excelFile && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <AlertTitle className="text-green-800">Excel File Processed Successfully</AlertTitle>
+                      <AlertDescription className="text-green-700">
+                        {excelUploading ? (
+                          "Uploading Excel file to server..."
+                        ) : existingExcelFile ? (
+                          "The Excel file has been validated, data has been loaded, and uploaded to server. You can proceed to the next step to review and mark attendance."
+                        ) : (
+                          "The Excel file has been validated and data has been loaded. You can proceed to the next step to review and mark attendance."
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                {/* Instructions */}
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Instructions</AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    <ol className="list-decimal list-inside space-y-1 text-sm">
+                      <li>Download the Excel template using the button above</li>
+                      <li>Fill in the "Present Days Count" column for each employee</li>
+                      <li>Ensure all three columns are present: Employee ID, Employee Name, Present Days Count</li>
+                      <li>Upload the completed Excel file</li>
+                      <li>The system will validate and populate the attendance form automatically</li>
+                    </ol>
+                    <p className="text-xs mt-2 text-muted-foreground">
+                      Note: This step is optional. You can skip it and mark attendance manually in the next step.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Mark Attendance */}
+          {currentStep === 3 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1291,6 +2085,84 @@ export function MarkAttendanceBySite() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Previously Marked Attendance Section */}
+                {existingAttendanceRecords.length > 0 && (
+                  <Collapsible defaultOpen={true}>
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <History className="h-4 w-4" />
+                          <span className="font-medium">
+                            Previously Marked Attendance ({existingAttendanceRecords.length} employee{existingAttendanceRecords.length !== 1 ? "s" : ""})
+                          </span>
+                        </div>
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-4">
+                      <Card className="border-blue-200 bg-blue-50/30">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium text-blue-900">
+                            Attendance Already Marked
+                          </CardTitle>
+                          <CardDescription className="text-xs text-blue-700">
+                            The following employees already have attendance marked for this month. You can update their attendance below.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="border rounded-lg overflow-x-auto scrollbar-sleek">
+                            <Table className="min-w-[600px]">
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="min-w-[200px]">Employee</TableHead>
+                                  <TableHead className="min-w-[120px]">Department</TableHead>
+                                  <TableHead className="min-w-[120px]">Designation</TableHead>
+                                  <TableHead className="w-32 text-center">Present Days</TableHead>
+                                  <TableHead className="min-w-[150px]">Marked On</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {existingAttendanceRecords.map((record) => {
+                                  return (
+                                    <TableRow key={record.employeeId} className="bg-blue-50/50">
+                                      <TableCell>
+                                        <div>
+                                          <p className="font-medium">{record.employeeName}</p>
+                                          <p className="text-xs text-muted-foreground">{record.employeeId}</p>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>{record.department || "N/A"}</TableCell>
+                                      <TableCell>{record.designation || "N/A"}</TableCell>
+                                      <TableCell className="text-center">
+                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                                          {record.presentCount} day{record.presentCount !== 1 ? "s" : ""}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell>
+                                        {record.createdAt ? (
+                                          <span className="text-xs text-muted-foreground">
+                                            {format(new Date(record.createdAt), "MMM dd, yyyy HH:mm")}
+                                          </span>
+                                        ) : (
+                                          <span className="text-xs text-muted-foreground">N/A</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  )
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+
                 {loading ? (
                   <InlineLoader text="Loading employees..." />
                 ) : employees.length > 0 ? (
@@ -1331,11 +2203,17 @@ export function MarkAttendanceBySite() {
                             const employeeData = formEmployees.find((emp) => emp.employeeId === employee.id)
                             const selectedCompanyId = form.watch("companyId")
                             const displayInfo = getEmployeeDisplayInfo(employee, selectedCompanyId)
+                            
+                            // Check if employee has existing attendance (was pre-filled from API or Excel)
+                            const hasExistingAttendance = employeeData?.presentCount && employeeData.presentCount > 0 && employeeData.selected
 
                             return (
                               <TableRow
                                 key={employee.id}
-                                className={cn(employeeData?.selected && "bg-muted/50")}
+                                className={cn(
+                                  employeeData?.selected && "bg-muted/50",
+                                  hasExistingAttendance && "bg-blue-50/50 border-l-2 border-l-blue-500"
+                                )}
                               >
                                 <TableCell>
                                   <Checkbox
@@ -1345,11 +2223,28 @@ export function MarkAttendanceBySite() {
                                   />
                                 </TableCell>
                                 <TableCell>
-                                  <div>
-                                    <p className="font-medium">
-                                      {employee.firstName} {employee.lastName}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">{employee.id}</p>
+                                  <div className="flex items-center gap-2">
+                                    <div>
+                                      <p className="font-medium">
+                                        {employee.firstName} {employee.lastName}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">{employee.id}</p>
+                                    </div>
+                                    {hasExistingAttendance && (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger>
+                                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                                              Marked
+                                            </Badge>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Attendance already marked for this employee</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell>{displayInfo.department}</TableCell>
@@ -1417,8 +2312,8 @@ export function MarkAttendanceBySite() {
             </Card>
           )}
 
-          {/* Step 3: Upload File */}
-          {currentStep === 3 && (
+          {/* Step 4: Upload File */}
+          {currentStep === 4 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1463,8 +2358,8 @@ export function MarkAttendanceBySite() {
             </Card>
           )}
 
-          {/* Step 4: Review and Submit */}
-          {currentStep === 4 && (
+          {/* Step 5: Review and Submit */}
+          {currentStep === 5 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1541,7 +2436,7 @@ export function MarkAttendanceBySite() {
           )}
 
           {/* Navigation Buttons - Fixed positioning to avoid toast overlap */}
-          {currentStep < 5 && (
+          {currentStep < 6 && (
             <div className="sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t p-4 -mx-4">
               <Card>
                 <CardContent className="pt-6">
@@ -1569,7 +2464,30 @@ export function MarkAttendanceBySite() {
                           Next
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
-                      ) : (
+                      ) : currentStep === 4 ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={nextStep}
+                            disabled={loading || isSubmitted}
+                            className="w-full sm:w-auto"
+                          >
+                            Skip & Review
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={nextStep}
+                            disabled={loading || isSubmitted}
+                            className="w-full sm:w-auto"
+                          >
+                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Next: Review
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : currentStep === 5 ? (
                         <Button
                           type="submit"
                           disabled={submitting || selectedEmployees.size === 0 || isSubmitted}
@@ -1579,7 +2497,7 @@ export function MarkAttendanceBySite() {
                           {isSubmitted ? "Already Submitted" : "Submit Attendance"}
                           <CheckCircle2 className="ml-2 h-4 w-4" />
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>
@@ -1588,7 +2506,7 @@ export function MarkAttendanceBySite() {
           )}
 
           {/* Success State */}
-          {currentStep === 5 && (
+          {currentStep === 6 && (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-6">
@@ -1626,6 +2544,97 @@ export function MarkAttendanceBySite() {
 
       {/* Bottom spacing to ensure content is not hidden behind sticky navigation */}
       <div className="h-20" />
+
+      {/* Excel File Preview Dialog */}
+      <Dialog open={excelPreviewOpen} onOpenChange={setExcelPreviewOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Excel File Preview
+            </DialogTitle>
+            <DialogDescription>
+              Attendance Excel file for {selectedCompany?.name} - {selectedMonth && format(selectedMonth, "MMMM yyyy")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="border rounded-lg p-4 bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <FileText className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">Pre-finalized Attendance Excel File</p>
+                  <p className="text-sm text-muted-foreground">
+                    This is the Excel file that was previously uploaded for this company and month.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>Note</AlertTitle>
+              <AlertDescription>
+                Excel files cannot be previewed directly in the browser. You can download the file to view it in Excel
+                or another spreadsheet application.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExcelPreviewOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!existingExcelFile) return
+                try {
+                  const response = await fetch(existingExcelFile)
+                  if (!response.ok) throw new Error("Failed to download")
+                  
+                  const blob = await response.blob()
+                  const contentType = response.headers.get("Content-Type") || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  
+                  // Detect extension from content type or URL
+                  let extension = ".xlsx"
+                  if (contentType.includes("application/vnd.ms-excel")) {
+                    extension = ".xls"
+                  } else {
+                    const urlLower = existingExcelFile.toLowerCase()
+                    if (urlLower.endsWith(".xls")) extension = ".xls"
+                    else if (urlLower.endsWith(".xlsx")) extension = ".xlsx"
+                  }
+                  
+                  const filename = `Attendance_${selectedCompany?.name || "Company"}_${selectedMonth ? format(selectedMonth, "yyyy-MM") : ""}${extension}`
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement("a")
+                  a.href = url
+                  a.download = filename
+                  document.body.appendChild(a)
+                  a.click()
+                  document.body.removeChild(a)
+                  URL.revokeObjectURL(url)
+                  
+                  toast({
+                    title: "Download Started",
+                    description: "Excel file download started successfully",
+                  })
+                } catch (error) {
+                  console.error("Error downloading Excel file:", error)
+                  toast({
+                    variant: "destructive",
+                    title: "Download Failed",
+                    description: "Failed to download the Excel file. Please try again.",
+                  })
+                }
+              }}
+              disabled={!existingExcelFile}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Excel File
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Document Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
@@ -1702,7 +2711,15 @@ export function MarkAttendanceBySite() {
                 </div>
               </div>
             ) : previewType === "pdf" ? (
-              <iframe src={previewUrl || ""} className="w-full h-[70vh] border-0" />
+              <iframe 
+                src={previewUrl || ""} 
+                className="w-full h-[70vh] border-0"
+                onError={() => {
+                  // If PDF iframe fails, try as image
+                  console.log("PDF iframe failed, trying as image")
+                  setPreviewType("image")
+                }}
+              />
             ) : previewType === "image" ? (
               <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
                 <img
@@ -1711,11 +2728,11 @@ export function MarkAttendanceBySite() {
                   className="max-w-full max-h-[70vh] object-contain"
                   crossOrigin="anonymous"
                   onError={(e) => {
-                    console.error("Image load error:", e, "URL:", previewUrl)
-                    // Only switch to unsupported if it's definitely not an image
+                    console.error("Image load error, trying PDF:", e, "URL:", previewUrl)
+                    // If image fails, try as PDF (common case for attendance sheets)
                     const urlLower = (previewUrl || "").toLowerCase()
-                    if (!urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
-                      setPreviewType("unsupported")
+                    if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf") || !urlLower.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg|ico)$/i)) {
+                      setPreviewType("pdf")
                     }
                   }}
                   onLoad={() => {
@@ -1724,60 +2741,13 @@ export function MarkAttendanceBySite() {
                 />
               </div>
               ) : (
+                // Fallback: Try to show as PDF if image failed, or show download option
                 <div className="flex flex-col items-center justify-center h-[70vh] p-8 text-center space-y-4">
-                  <FileText className="h-16 w-16 text-muted-foreground" />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">File Preview Not Available</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      This file type cannot be previewed in the browser.
-                    </p>
-                    <Button
-                      onClick={async () => {
-                        if (!previewUrl) return
-                        try {
-                          const response = await fetch(previewUrl)
-                          if (!response.ok) throw new Error("Failed to download")
-                          
-                          const blob = await response.blob()
-                          const contentType = response.headers.get("Content-Type") || "application/octet-stream"
-                          
-                          // Detect extension from content type
-                          let extension = ""
-                          if (contentType.includes("pdf")) extension = ".pdf"
-                          else if (contentType.includes("jpeg")) extension = ".jpg"
-                          else if (contentType.includes("png")) extension = ".png"
-                          else if (contentType.includes("gif")) extension = ".gif"
-                          else if (contentType.includes("webp")) extension = ".webp"
-                          else if (contentType.includes("word") || contentType.includes("msword")) extension = ".doc"
-                          else if (contentType.includes("excel") || contentType.includes("spreadsheet")) extension = ".xlsx"
-                          else {
-                            // Try to get extension from URL
-                            const urlLower = previewUrl.toLowerCase()
-                            const match = urlLower.match(/\.([a-z0-9]+)(?:\?|$)/)
-                            if (match) extension = `.${match[1]}`
-                          }
-                          
-                          const filename = `attendance-sheet${extension}`
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement("a")
-                          a.href = url
-                          a.download = filename
-                          document.body.appendChild(a)
-                          a.click()
-                          document.body.removeChild(a)
-                          URL.revokeObjectURL(url)
-                        } catch (error) {
-                          toast({
-                            variant: "destructive",
-                            title: "Download Failed",
-                            description: "Failed to download the file. Please try again.",
-                          })
-                        }
-                      }}
-                    >
-                      <Download className="h-4 w-4 mr-2" /> Download File
-                    </Button>
-                  </div>
+                  <iframe 
+                    src={previewUrl || ""} 
+                    className="w-full h-full border-0"
+                    style={{ minHeight: "500px" }}
+                  />
                 </div>
               )}
             </div>

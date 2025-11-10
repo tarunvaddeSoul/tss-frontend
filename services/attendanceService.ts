@@ -12,6 +12,10 @@ import type {
   AttendanceSearchParams,
   ActiveEmployeesResponse,
   AttendanceReportResponse,
+  UploadAttendanceExcelDto,
+  UploadAttendanceExcelResponse,
+  AttendanceExcelListParams,
+  AttendanceExcelListResponse,
 } from "@/types/attendance"
 
 class AttendanceService {
@@ -236,6 +240,83 @@ class AttendanceService {
       return response.data
     } catch (error) {
       console.error("Error fetching attendance report:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Upload attendance Excel file (XLSX/XLS) for a company and month
+   * Uploads or replaces an attendance Excel file stored in AWS S3
+   * Uses POST /attendance/attendance-excel endpoint
+   */
+  async uploadAttendanceExcel(
+    data: UploadAttendanceExcelDto,
+    file: File,
+  ): Promise<UploadAttendanceExcelResponse> {
+    try {
+      // Validate file type
+      const allowedTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+        "application/vnd.ms-excel", // .xls
+      ]
+      const allowedExtensions = [".xlsx", ".xls"]
+
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."))
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+        throw new Error("Unsupported file type. Only XLSX and XLS files are allowed.")
+      }
+
+      // Validate file size (10MB max)
+      const maxSize = 10 * 1024 * 1024 // 10MB in bytes
+      if (file.size > maxSize) {
+        throw new Error("File too large. Maximum file size is 10MB.")
+      }
+
+      const formData = new FormData()
+      formData.append("companyId", data.companyId)
+      formData.append("month", data.month)
+      formData.append("file", file)
+
+      const response = await api.post(`${this.baseUrl}/attendance-excel`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Error uploading attendance Excel file:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get attendance Excel files with optional filters
+   * Returns single record if companyId + month provided, or paginated list
+   * Only returns records where attendanceExcelUrl is not null
+   * Uses GET /attendance/attendance-excel endpoint
+   */
+  async getAttendanceExcelFiles(
+    params?: AttendanceExcelListParams,
+  ): Promise<AttendanceExcelListResponse> {
+    try {
+      const response = await api.get(`${this.baseUrl}/attendance-excel`, { params })
+      return response.data
+    } catch (error) {
+      console.error("Error fetching attendance Excel files:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Delete attendance Excel file by ID
+   * Uses DELETE /attendance/attendance-excel/:id endpoint
+   */
+  async deleteAttendanceExcel(id: string): Promise<{ statusCode: number; message: string; data: null }> {
+    try {
+      const response = await api.delete(`${this.baseUrl}/attendance-excel/${id}`)
+      return response.data
+    } catch (error) {
+      console.error("Error deleting attendance Excel file:", error)
       throw error
     }
   }

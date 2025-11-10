@@ -19,15 +19,18 @@ export interface AttendanceSheetResponse {
 export interface AttendanceSheetListResponse {
   statusCode: number
   message: string
-  data: {
-    data: AttendanceSheet[]
-    pagination: {
-      total: number
-      page: number
-      limit: number
-      totalPages: number
-    }
-  } | AttendanceSheet | null // Can be list or single record for backward compatibility
+  data:
+    | {
+        data: AttendanceSheet[]
+        pagination: {
+          total: number
+          page: number
+          limit: number
+          totalPages: number
+        }
+      } // Paginated list
+    | AttendanceSheet // Single record when companyId + month provided
+    | null // When no sheet found
 }
 
 export interface AttendanceSheetListParams {

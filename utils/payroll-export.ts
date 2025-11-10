@@ -19,25 +19,54 @@ export function getCurrentDateTime(): string {
 
 export function exportPayrollToExcel(data: PayrollReportRecord[], filename: string) {
   try {
-    // Transform data for Excel export
-    const excelData = data.map((record) => ({
-      "Employee ID": record.employeeId,
-      Company: record.companyName || "N/A",
-      Month: record.month,
-      "Basic Pay": record.salaryData.basicPay || 0,
-      "Monthly Pay": record.salaryData.monthlyPay || 0,
-      "Gross Salary": record.salaryData.grossSalary || 0,
-      "Net Salary": record.salaryData.netSalary || 0,
-      PF: record.salaryData.pf || 0,
-      ESIC: record.salaryData.esic || 0,
-      LWF: record.salaryData.lwf || 0,
-      Bonus: record.salaryData.bonus || 0,
-      "Attendance Bonus": record.salaryData.attendanceBonus || 0,
-      "Total Deductions": record.salaryData.totalDeductions || 0,
-      "Duty Done": record.salaryData.dutyDone || 0,
-      "Basic Duty": record.salaryData.basicDuty || 0,
-      "Created At": new Date(record.createdAt).toLocaleDateString(),
-    }))
+    // Transform data for Excel export using grouped salary structure
+    const excelData = data.map((record) => {
+      const salaryData = record.salaryData as any
+      // Access grouped salary data with fallbacks
+      const calculations = salaryData?.calculations || {}
+      const deductions = salaryData?.deductions || {}
+      const allowances = salaryData?.allowances || {}
+      const information = salaryData?.information || {}
+      
+      // Get all values with proper fallbacks
+      const basicPay = calculations?.basicPay ?? salaryData?.basicPay ?? 0
+      const grossSalary = calculations?.grossSalary ?? salaryData?.grossSalary ?? 0
+      const netSalary = calculations?.netSalary ?? salaryData?.netSalary ?? 0
+      const pf = deductions?.pf ?? salaryData?.pf ?? 0
+      const esic = deductions?.esic ?? salaryData?.esic ?? 0
+      const lwf = deductions?.lwf ?? salaryData?.lwf ?? 0
+      const advanceTaken = deductions?.advanceTaken ?? salaryData?.advanceTaken ?? 0
+      const totalDeductions = deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0
+      const bonus = allowances?.bonus ?? salaryData?.bonus ?? 0
+      const dutyDone = calculations?.dutyDone ?? salaryData?.dutyDone ?? 0
+      const basicDuty = calculations?.basicDuty ?? salaryData?.basicDuty ?? 0
+      const monthlyPay = information?.monthlyPay ?? salaryData?.monthlyPay ?? 0
+      const rate = calculations?.rate ?? calculations?.wagesPerDay ?? salaryData?.rate ?? salaryData?.wagesPerDay ?? 0
+      
+      return {
+        "Employee ID": record.employeeId,
+        Company: record.companyName || information?.companyName || "N/A",
+        Month: record.month,
+        "Salary Category": salaryData?.salaryCategory || "N/A",
+        "Salary Sub-Category": salaryData?.salarySubCategory || "N/A",
+        "Rate (Per Day/Month)": rate,
+        "Basic Duty": basicDuty,
+        "Duty Done": dutyDone,
+        "Basic Pay": basicPay,
+        "Monthly Pay": monthlyPay,
+        "Gross Salary": grossSalary,
+        "Net Salary": netSalary,
+        PF: pf,
+        ESIC: esic,
+        LWF: lwf,
+        "Advance Taken": advanceTaken,
+        Bonus: bonus,
+        "Total Deductions": totalDeductions,
+        "Designation": information?.designation || salaryData?.designation || "N/A",
+        "Employee Name": information?.employeeName || "N/A",
+        "Created At": new Date(record.createdAt).toLocaleDateString(),
+      }
+    })
 
     // Create workbook and worksheet
     const worksheet = XLSX.utils.json_to_sheet(excelData)
@@ -48,6 +77,11 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
       { wch: 15 }, // Employee ID
       { wch: 20 }, // Company
       { wch: 12 }, // Month
+      { wch: 18 }, // Salary Category
+      { wch: 20 }, // Salary Sub-Category
+      { wch: 18 }, // Rate (Per Day/Month)
+      { wch: 12 }, // Basic Duty
+      { wch: 12 }, // Duty Done
       { wch: 12 }, // Basic Pay
       { wch: 12 }, // Monthly Pay
       { wch: 12 }, // Gross Salary
@@ -55,11 +89,11 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
       { wch: 10 }, // PF
       { wch: 10 }, // ESIC
       { wch: 10 }, // LWF
+      { wch: 15 }, // Advance Taken
       { wch: 10 }, // Bonus
-      { wch: 15 }, // Attendance Bonus
       { wch: 15 }, // Total Deductions
-      { wch: 12 }, // Duty Done
-      { wch: 12 }, // Basic Duty
+      { wch: 15 }, // Designation
+      { wch: 20 }, // Employee Name
       { wch: 15 }, // Created At
     ]
     worksheet["!cols"] = columnWidths

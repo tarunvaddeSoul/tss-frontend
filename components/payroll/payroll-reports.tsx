@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -8,13 +9,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Pagination } from "@/components/ui/pagination"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { AlertCircle, FileSpreadsheet, Search, Building2, User, TrendingUp, RefreshCw, FileText, Download, Eye, Loader2, X, DollarSign, Info } from "lucide-react"
+import { AlertCircle, FileSpreadsheet, Search, Building2, User, TrendingUp, RefreshCw, FileText, Download, Eye, Loader2, X, DollarSign, Info, Settings, Check } from "lucide-react"
 import { SalaryCategory } from "@/types/salary"
 import { useToast } from "@/components/ui/use-toast"
 import { payrollService } from "@/services/payrollService"
@@ -35,16 +39,94 @@ const DynamicPdfPreviewDialog = dynamic(
   },
 )
 
+// Field configuration for column customization
+interface ColumnField {
+  key: string
+  label: string
+  category: "essential" | "deductions" | "allowances" | "information"
+  defaultVisible: boolean
+}
+
+const COLUMN_FIELDS: ColumnField[] = [
+  { key: "employeeId", label: "Employee ID", category: "essential", defaultVisible: true },
+  { key: "company", label: "Company", category: "essential", defaultVisible: true },
+  { key: "month", label: "Month", category: "essential", defaultVisible: true },
+  { key: "category", label: "Category", category: "essential", defaultVisible: true },
+  { key: "rate", label: "Rate", category: "essential", defaultVisible: true },
+  { key: "basicPay", label: "Basic Pay", category: "essential", defaultVisible: true },
+  { key: "grossSalary", label: "Gross Salary", category: "essential", defaultVisible: true },
+  { key: "netSalary", label: "Net Salary", category: "essential", defaultVisible: true },
+  { key: "pf", label: "PF", category: "deductions", defaultVisible: true },
+  { key: "esic", label: "ESIC", category: "deductions", defaultVisible: true },
+  { key: "totalDeductions", label: "Total Deductions", category: "deductions", defaultVisible: true },
+  { key: "bonus", label: "Bonus", category: "allowances", defaultVisible: false },
+  { key: "advanceTaken", label: "Advance Taken", category: "deductions", defaultVisible: false },
+  { key: "lwf", label: "LWF", category: "deductions", defaultVisible: false },
+  { key: "designation", label: "Designation", category: "information", defaultVisible: false },
+  { key: "department", label: "Department", category: "information", defaultVisible: false },
+  { key: "createdAt", label: "Created", category: "information", defaultVisible: true },
+]
+
+const STORAGE_KEY = "payroll-reports-column-preferences"
+
+// Load column preferences from localStorage
+const loadColumnPreferences = (): Record<string, boolean> => {
+  if (typeof window === "undefined") {
+    return {}
+  }
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (error) {
+    console.error("Error loading column preferences:", error)
+  }
+  // Return default preferences
+  const defaults: Record<string, boolean> = {}
+  COLUMN_FIELDS.forEach((field) => {
+    defaults[field.key] = field.defaultVisible
+  })
+  return defaults
+}
+
+// Save column preferences to localStorage
+const saveColumnPreferences = (preferences: Record<string, boolean>) => {
+  if (typeof window === "undefined") {
+    return
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
+  } catch (error) {
+    console.error("Error saving column preferences:", error)
+  }
+}
+
 export function PayrollReports() {
   const { toast } = useToast()
   const { companies, isLoading: loadingCompanies } = useCompany()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Initialize filters from URL query parameters
+  const getInitialFilters = (): ReportFilters => {
+    const companyId = searchParams.get("companyId") || undefined
+    const startMonth = searchParams.get("startMonth") || undefined
+    const endMonth = searchParams.get("endMonth") || undefined
+    
+    return {
+      companyId,
+      startMonth,
+      endMonth,
+      page: 1,
+      limit: 20,
+    }
+  }
 
   // State management
   const [reportType, setReportType] = useState<ReportType>("company")
-  const [filters, setFilters] = useState<ReportFilters>({
-    page: 1,
-    limit: 20,
-  })
+  const [filters, setFilters] = useState<ReportFilters>(getInitialFilters())
+  const [initialized, setInitialized] = useState(false)
   const [employeeSearch, setEmployeeSearch] = useState("")
   const [employeeSearchOpen, setEmployeeSearchOpen] = useState(false)
   const [employeeSuggestions, setEmployeeSuggestions] = useState<Employee[]>([])
@@ -54,6 +136,9 @@ export function PayrollReports() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pdfOpen, setPdfOpen] = useState(false)
+  const [columnPreferences, setColumnPreferences] = useState<Record<string, boolean>>(loadColumnPreferences)
+  const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false)
+  const [tempPreferences, setTempPreferences] = useState<Record<string, boolean>>(columnPreferences)
 
   // Search employees with debounce
   const searchEmployees = useCallback(
@@ -121,14 +206,38 @@ export function PayrollReports() {
     }
   }
 
+  // Initialize from URL params on mount
+  useEffect(() => {
+    if (!initialized && companies.length > 0) {
+      const companyId = searchParams.get("companyId")
+      const startMonth = searchParams.get("startMonth")
+      const endMonth = searchParams.get("endMonth")
+      
+      if (companyId) {
+        setReportType("company")
+        setFilters((prev) => ({
+          ...prev,
+          companyId: companyId || undefined,
+          startMonth: startMonth || undefined,
+          endMonth: endMonth || undefined,
+        }))
+      }
+      
+      setInitialized(true)
+    }
+  }, [companies, searchParams, initialized])
+
   // Effect to fetch data when filters change
   useEffect(() => {
-    if (reportType === "company" && filters.companyId) {
-      fetchReportData()
-    } else if (reportType === "employee" && filters.employeeId) {
-      fetchReportData()
+    if (initialized) {
+      if (reportType === "company" && filters.companyId) {
+        fetchReportData()
+      } else if (reportType === "employee" && filters.employeeId) {
+        fetchReportData()
+      }
     }
-  }, [reportType, filters])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportType, filters, initialized])
 
   // Handle report type change
   const handleReportTypeChange = (type: ReportType) => {
@@ -169,6 +278,69 @@ export function PayrollReports() {
   // Handle pagination
   const handlePageChange = (page: number) => {
     updateFilter("page", page)
+  }
+
+  // Column customization handlers
+  const handleOpenCustomize = () => {
+    setTempPreferences({ ...columnPreferences })
+    setCustomizeDialogOpen(true)
+  }
+
+  const handleSaveCustomize = () => {
+    setColumnPreferences(tempPreferences)
+    saveColumnPreferences(tempPreferences)
+    setCustomizeDialogOpen(false)
+    toast({
+      title: "Preferences Saved",
+      description: "Column preferences have been saved and will be remembered.",
+    })
+  }
+
+  const handleResetCustomize = () => {
+    const defaults: Record<string, boolean> = {}
+    COLUMN_FIELDS.forEach((field) => {
+      defaults[field.key] = field.defaultVisible
+    })
+    setTempPreferences(defaults)
+  }
+
+  const handleToggleField = (key: string) => {
+    setTempPreferences((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
+  }
+
+  // Check if any record has a value for conditional columns
+  const hasFieldValue = (fieldKey: string): boolean => {
+    if (!reportData?.records.length) return false
+    
+    return reportData.records.some((record) => {
+      const salaryData = record.salaryData as any
+      const calculations = salaryData?.calculations || {}
+      const deductions = salaryData?.deductions || {}
+      const allowances = salaryData?.allowances || {}
+      const information = salaryData?.information || {}
+      
+      switch (fieldKey) {
+        case "pf":
+          return (deductions?.pf ?? salaryData?.pf ?? 0) > 0
+        case "esic":
+          return (deductions?.esic ?? salaryData?.esic ?? 0) > 0
+        case "bonus":
+          return (allowances?.bonus ?? salaryData?.bonus ?? 0) > 0
+        case "advanceTaken":
+          return (deductions?.advanceTaken ?? salaryData?.advanceTaken ?? 0) > 0
+        case "lwf":
+          return (deductions?.lwf ?? salaryData?.lwf ?? 0) > 0
+        case "designation":
+          return !!(information?.designation ?? salaryData?.designation)
+        case "department":
+          return !!(information?.department ?? salaryData?.department)
+        default:
+          return true
+      }
+    })
   }
 
   // Export functions
@@ -215,10 +387,22 @@ export function PayrollReports() {
     const records = reportData.records
     return {
       totalRecords: reportData.total,
-      totalGrossSalary: records.reduce((sum, r) => sum + (r.salaryData.grossSalary || 0), 0),
-      totalNetSalary: records.reduce((sum, r) => sum + (r.salaryData.netSalary || 0), 0),
-      totalDeductions: records.reduce((sum, r) => sum + (r.salaryData.totalDeductions || 0), 0),
-      totalBasicPay: records.reduce((sum, r) => sum + (r.salaryData.basicPay || 0), 0),
+      totalGrossSalary: records.reduce((sum, r) => {
+        const calculations = r.salaryData?.calculations || {}
+        return sum + (calculations?.grossSalary ?? r.salaryData?.grossSalary ?? 0)
+      }, 0),
+      totalNetSalary: records.reduce((sum, r) => {
+        const calculations = r.salaryData?.calculations || {}
+        return sum + (calculations?.netSalary ?? r.salaryData?.netSalary ?? 0)
+      }, 0),
+      totalDeductions: records.reduce((sum, r) => {
+        const deductions = r.salaryData?.deductions || {}
+        return sum + (deductions?.totalDeductions ?? r.salaryData?.totalDeductions ?? 0)
+      }, 0),
+      totalBasicPay: records.reduce((sum, r) => {
+        const calculations = r.salaryData?.calculations || {}
+        return sum + (calculations?.basicPay ?? r.salaryData?.basicPay ?? 0)
+      }, 0),
       uniqueEmployees: new Set(records.map((r) => r.employeeId)).size,
       uniqueCompanies: new Set(records.map((r) => r.companyId)).size,
     }
@@ -597,6 +781,10 @@ export function PayrollReports() {
                   : "No data available"}
               </CardDescription>
             </div>
+            <Button variant="outline" size="sm" onClick={handleOpenCustomize} className="w-full sm:w-auto">
+              <Settings className="h-4 w-4 mr-2" />
+              Customize Columns
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -613,108 +801,262 @@ export function PayrollReports() {
                   <Table className="min-w-[1200px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="min-w-[120px]">Employee ID</TableHead>
-                        <TableHead className="min-w-[120px]">Company</TableHead>
-                        <TableHead className="min-w-[100px]">Month</TableHead>
-                        <TableHead className="min-w-[100px]">Category</TableHead>
-                        <TableHead className="min-w-[100px]">Rate</TableHead>
-                        <TableHead className="text-right min-w-[110px]">Basic Pay</TableHead>
-                        <TableHead className="text-right min-w-[120px]">Gross Salary</TableHead>
-                        <TableHead className="text-right min-w-[90px]">PF</TableHead>
-                        <TableHead className="text-right min-w-[90px]">ESIC</TableHead>
-                        <TableHead className="text-right min-w-[120px]">Net Salary</TableHead>
-                        <TableHead className="text-right min-w-[110px]">Deductions</TableHead>
-                        <TableHead className="min-w-[100px]">Created</TableHead>
+                        {COLUMN_FIELDS.map((field) => {
+                          // Show column if:
+                          // 1. User preference is true, OR
+                          // 2. It's essential and not explicitly hidden, OR
+                          // 3. It's bonus/LWF/advanceTaken and has value (auto-show when data exists)
+                          const hasValue = hasFieldValue(field.key)
+                          const isAutoShowField = ["bonus", "lwf", "advanceTaken"].includes(field.key)
+                          const shouldShow = columnPreferences[field.key] || 
+                            (field.category === "essential" && columnPreferences[field.key] !== false) ||
+                            (isAutoShowField && hasValue) ||
+                            (field.category !== "essential" && hasValue && columnPreferences[field.key])
+                          
+                          if (!shouldShow) return null
+                          
+                          const isRightAligned = ["basicPay", "grossSalary", "netSalary", "pf", "esic", "totalDeductions", "bonus", "advanceTaken", "lwf"].includes(field.key)
+                          
+                          // Get min-width class based on field key
+                          const getMinWidthClass = (key: string) => {
+                            const widthMap: Record<string, string> = {
+                              employeeId: "min-w-[120px]",
+                              company: "min-w-[120px]",
+                              month: "min-w-[100px]",
+                              category: "min-w-[100px]",
+                              rate: "min-w-[100px]",
+                              basicPay: "min-w-[110px]",
+                              grossSalary: "min-w-[120px]",
+                              pf: "min-w-[90px]",
+                              esic: "min-w-[90px]",
+                              netSalary: "min-w-[120px]",
+                              totalDeductions: "min-w-[110px]",
+                              bonus: "min-w-[100px]",
+                              advanceTaken: "min-w-[110px]",
+                              lwf: "min-w-[90px]",
+                              designation: "min-w-[120px]",
+                              department: "min-w-[120px]",
+                              createdAt: "min-w-[100px]",
+                            }
+                            return widthMap[key] || "min-w-[100px]"
+                          }
+                          
+                          return (
+                            <TableHead 
+                              key={field.key}
+                              className={`${getMinWidthClass(field.key)} ${isRightAligned ? "text-right" : ""}`}
+                            >
+                              {field.label}
+                            </TableHead>
+                          )
+                        })}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {reportData.records.map((record) => {
                         const salaryData = record.salaryData as any
+                        // Access grouped salary data with fallbacks
+                        const calculations = salaryData?.calculations || {}
+                        const deductions = salaryData?.deductions || {}
+                        const allowances = salaryData?.allowances || {}
+                        const information = salaryData?.information || {}
+                        
                         const salaryCategory = salaryData?.salaryCategory || salaryData?.category
                         const isSpecialized = salaryCategory === SalaryCategory.SPECIALIZED
-                        const showPF = salaryData?.pf !== undefined && salaryData?.pf > 0
-                        const showESIC = salaryData?.esic !== undefined && salaryData?.esic > 0
-                        const pfDisabled = salaryData?.pf === 0 && salaryData?.grossSalary > 15000
-                        const esicDisabled = salaryData?.esic === 0 && salaryData?.grossSalary > 15000
+                        const pfAmount = deductions?.pf ?? salaryData?.pf ?? 0
+                        const esicAmount = deductions?.esic ?? salaryData?.esic ?? 0
+                        const grossSalary = calculations?.grossSalary ?? salaryData?.grossSalary ?? 0
+                        const showPF = pfAmount > 0
+                        const showESIC = esicAmount > 0
+                        const pfDisabled = pfAmount === 0 && grossSalary > 15000
+                        const esicDisabled = esicAmount === 0 && grossSalary > 15000
+                        
+                        // Helper function to render cell content based on field key
+                        const renderCell = (fieldKey: string) => {
+                          const isRightAligned = ["basicPay", "grossSalary", "netSalary", "pf", "esic", "totalDeductions", "bonus", "advanceTaken", "lwf"].includes(fieldKey)
+                          const cellClassName = `${isRightAligned ? "text-right whitespace-nowrap" : ""} ${fieldKey === "employeeId" ? "font-medium" : ""} ${fieldKey === "createdAt" ? "text-muted-foreground whitespace-nowrap" : ""}`
+                          
+                          switch (fieldKey) {
+                            case "employeeId":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  <Badge variant="outline" className="truncate max-w-[120px] inline-block">
+                                    {record.employeeId}
+                                  </Badge>
+                                </TableCell>
+                              )
+                            case "company":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  <span className="truncate max-w-[120px] inline-block">
+                                    {record.companyName || information?.companyName || "N/A"}
+                                  </span>
+                                </TableCell>
+                              )
+                            case "month":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  <Badge variant="outline">{record.month}</Badge>
+                                </TableCell>
+                              )
+                            case "category":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {salaryCategory ? (
+                                    <div className="flex flex-col gap-1">
+                                      <Badge variant="outline" className="text-xs w-fit">
+                                        {salaryCategory}
+                                      </Badge>
+                                      {salaryData?.salarySubCategory && (
+                                        <span className="text-xs text-muted-foreground truncate">
+                                          {salaryData.salarySubCategory}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">N/A</span>
+                                  )}
+                                </TableCell>
+                              )
+                            case "rate":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {isSpecialized && salaryData?.monthlySalary ? (
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
+                                      <span className="text-xs text-muted-foreground">/month</span>
+                                    </div>
+                                  ) : salaryData?.salaryPerDay ? (
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
+                                      <span className="text-xs text-muted-foreground">/day</span>
+                                    </div>
+                                  ) : calculations?.wagesPerDay ?? calculations?.rate ? (
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium">{formatCurrency(calculations?.wagesPerDay ?? calculations?.rate ?? 0)}</span>
+                                      <span className="text-xs text-muted-foreground">/day</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">N/A</span>
+                                  )}
+                                </TableCell>
+                              )
+                            case "basicPay":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {formatCurrency(calculations?.basicPay ?? salaryData?.basicPay ?? 0)}
+                                </TableCell>
+                              )
+                            case "grossSalary":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {formatCurrency(grossSalary)}
+                                </TableCell>
+                              )
+                            case "pf":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {showPF ? (
+                                    formatCurrency(pfAmount)
+                                  ) : pfDisabled ? (
+                                    <div className="flex items-center justify-end gap-1" title="PF disabled: Gross salary > ₹15,000">
+                                      <span className="text-xs text-muted-foreground">-</span>
+                                      <Info className="h-3 w-3 text-muted-foreground" />
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                              )
+                            case "esic":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {showESIC ? (
+                                    formatCurrency(esicAmount)
+                                  ) : esicDisabled ? (
+                                    <div className="flex items-center justify-end gap-1" title="ESIC disabled: Gross salary > ₹15,000">
+                                      <span className="text-xs text-muted-foreground">-</span>
+                                      <Info className="h-3 w-3 text-muted-foreground" />
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                              )
+                            case "netSalary":
+                              return (
+                                <TableCell key={fieldKey} className={`${cellClassName} font-medium`}>
+                                  {formatCurrency(calculations?.netSalary ?? salaryData?.netSalary ?? 0)}
+                                </TableCell>
+                              )
+                            case "totalDeductions":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {formatCurrency(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0)}
+                                </TableCell>
+                              )
+                            case "bonus":
+                              const bonusAmount = allowances?.bonus ?? salaryData?.bonus ?? 0
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {bonusAmount > 0 ? formatCurrency(bonusAmount) : "-"}
+                                </TableCell>
+                              )
+                            case "advanceTaken":
+                              const advanceAmount = deductions?.advanceTaken ?? salaryData?.advanceTaken ?? 0
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {advanceAmount > 0 ? formatCurrency(advanceAmount) : "-"}
+                                </TableCell>
+                              )
+                            case "lwf":
+                              const lwfAmount = deductions?.lwf ?? salaryData?.lwf ?? 0
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {lwfAmount > 0 ? formatCurrency(lwfAmount) : "-"}
+                                </TableCell>
+                              )
+                            case "designation":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {information?.designation ?? salaryData?.designation ?? "N/A"}
+                                </TableCell>
+                              )
+                            case "department":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {information?.department ?? salaryData?.department ?? "N/A"}
+                                </TableCell>
+                              )
+                            case "createdAt":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {formatDate(record.createdAt)}
+                                </TableCell>
+                              )
+                            default:
+                              return null
+                          }
+                        }
                         
                         return (
                           <TableRow key={record.id}>
-                            <TableCell className="font-medium">
-                              <Badge variant="outline" className="truncate max-w-[120px] inline-block">
-                                {record.employeeId}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="truncate max-w-[120px]">{record.companyName || "N/A"}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{record.month}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {salaryCategory ? (
-                                <div className="flex flex-col gap-1">
-                                  <Badge variant="outline" className="text-xs w-fit">
-                                    {salaryCategory}
-                                  </Badge>
-                                  {salaryData?.salarySubCategory && (
-                                    <span className="text-xs text-muted-foreground truncate">
-                                      {salaryData.salarySubCategory}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">N/A</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {isSpecialized && salaryData?.monthlySalary ? (
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
-                                  <span className="text-xs text-muted-foreground">/month</span>
-                                </div>
-                              ) : salaryData?.salaryPerDay ? (
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
-                                  <span className="text-xs text-muted-foreground">/day</span>
-                                </div>
-                              ) : salaryData?.wagesPerDay ? (
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium">{formatCurrency(salaryData.wagesPerDay)}</span>
-                                  <span className="text-xs text-muted-foreground">/day</span>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">N/A</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(salaryData?.basicPay || 0)}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(salaryData?.grossSalary || 0)}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                              {showPF ? (
-                                formatCurrency(salaryData.pf)
-                              ) : pfDisabled ? (
-                                <div className="flex items-center justify-end gap-1" title="PF disabled: Gross salary > ₹15,000">
-                                  <span className="text-xs text-muted-foreground">-</span>
-                                  <Info className="h-3 w-3 text-muted-foreground" />
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                              {showESIC ? (
-                                formatCurrency(salaryData.esic)
-                              ) : esicDisabled ? (
-                                <div className="flex items-center justify-end gap-1" title="ESIC disabled: Gross salary > ₹15,000">
-                                  <span className="text-xs text-muted-foreground">-</span>
-                                  <Info className="h-3 w-3 text-muted-foreground" />
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right font-medium whitespace-nowrap">
-                              {formatCurrency(salaryData?.netSalary || 0)}
-                            </TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(salaryData?.totalDeductions || 0)}</TableCell>
-                            <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(record.createdAt)}</TableCell>
+                            {COLUMN_FIELDS.map((field) => {
+                              // Show column if:
+                              // 1. User preference is true, OR
+                              // 2. It's essential and not explicitly hidden, OR
+                              // 3. It's bonus/LWF/advanceTaken and has value (auto-show when data exists)
+                              const hasValue = hasFieldValue(field.key)
+                              const isAutoShowField = ["bonus", "lwf", "advanceTaken"].includes(field.key)
+                              const shouldShow = columnPreferences[field.key] || 
+                                (field.category === "essential" && columnPreferences[field.key] !== false) ||
+                                (isAutoShowField && hasValue) ||
+                                (field.category !== "essential" && hasValue && columnPreferences[field.key])
+                              
+                              if (!shouldShow) return null
+                              
+                              return renderCell(field.key)
+                            })}
                           </TableRow>
                         )
                       })}
@@ -764,6 +1106,10 @@ export function PayrollReports() {
           fileName={`payroll-report-${getReportTitle().replace(/\s+/g, "_")}-${getCurrentDateTime()}`}
           renderDocument={async () => {
             const { default: PayrollReportPDF } = await import("./pdf/payroll-report-pdf")
+            // Get employee name for single employee reports
+            const employeeName = reportData.records.length === 1 && selectedEmployee
+              ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}`
+              : undefined
             return (
               <PayrollReportPDF
                 data={reportData.records}
@@ -771,11 +1117,147 @@ export function PayrollReports() {
                 totalRecords={reportData.total}
                 startMonth={filters.startMonth ? format(new Date(filters.startMonth), "MMM yyyy") : undefined}
                 endMonth={filters.endMonth ? format(new Date(filters.endMonth), "MMM yyyy") : undefined}
+                employeeName={employeeName}
               />
             )
           }}
         />
       )}
+
+      {/* Column Customization Dialog */}
+      <Dialog open={customizeDialogOpen} onOpenChange={setCustomizeDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
+            <DialogTitle>Customize Columns</DialogTitle>
+            <DialogDescription>
+              Select which columns to display in the payroll report table. Your preferences will be saved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 min-h-0" style={{ maxHeight: 'calc(85vh - 180px)' }}>
+            <div className="space-y-6 py-2 pr-4">
+              {/* Essential Fields */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Essential Fields</h3>
+                <div className="space-y-2">
+                  {COLUMN_FIELDS.filter((f) => f.category === "essential").map((field) => (
+                    <div key={field.key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={field.key}
+                        checked={tempPreferences[field.key] ?? field.defaultVisible}
+                        onCheckedChange={() => handleToggleField(field.key)}
+                      />
+                      <Label
+                        htmlFor={field.key}
+                        className="text-sm font-normal cursor-pointer flex-1"
+                      >
+                        {field.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Deductions */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Deductions</h3>
+                <div className="space-y-2">
+                  {COLUMN_FIELDS.filter((f) => f.category === "deductions").map((field) => {
+                    const hasValue = hasFieldValue(field.key)
+                    return (
+                      <div key={field.key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={field.key}
+                          checked={tempPreferences[field.key] ?? field.defaultVisible}
+                          onCheckedChange={() => handleToggleField(field.key)}
+                          disabled={!hasValue && !tempPreferences[field.key]}
+                        />
+                        <Label
+                          htmlFor={field.key}
+                          className={`text-sm font-normal flex-1 ${!hasValue && !tempPreferences[field.key] ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
+                        >
+                          {field.label}
+                          {!hasValue && (
+                            <span className="ml-2 text-xs text-muted-foreground">(No data)</span>
+                          )}
+                        </Label>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Allowances */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Allowances</h3>
+                <div className="space-y-2">
+                  {COLUMN_FIELDS.filter((f) => f.category === "allowances").map((field) => {
+                    const hasValue = hasFieldValue(field.key)
+                    return (
+                      <div key={field.key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={field.key}
+                          checked={tempPreferences[field.key] ?? field.defaultVisible}
+                          onCheckedChange={() => handleToggleField(field.key)}
+                          disabled={!hasValue && !tempPreferences[field.key]}
+                        />
+                        <Label
+                          htmlFor={field.key}
+                          className={`text-sm font-normal flex-1 ${!hasValue && !tempPreferences[field.key] ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
+                        >
+                          {field.label}
+                          {!hasValue && (
+                            <span className="ml-2 text-xs text-muted-foreground">(No data)</span>
+                          )}
+                        </Label>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Information */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Information</h3>
+                <div className="space-y-2">
+                  {COLUMN_FIELDS.filter((f) => f.category === "information").map((field) => {
+                    const hasValue = hasFieldValue(field.key)
+                    return (
+                      <div key={field.key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={field.key}
+                          checked={tempPreferences[field.key] ?? field.defaultVisible}
+                          onCheckedChange={() => handleToggleField(field.key)}
+                          disabled={!hasValue && !tempPreferences[field.key]}
+                        />
+                        <Label
+                          htmlFor={field.key}
+                          className={`text-sm font-normal flex-1 ${!hasValue && !tempPreferences[field.key] ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
+                        >
+                          {field.label}
+                          {!hasValue && (
+                            <span className="ml-2 text-xs text-muted-foreground">(No data)</span>
+                          )}
+                        </Label>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="shrink-0 pt-4 border-t px-6 pb-6 mt-4">
+            <Button variant="outline" onClick={handleResetCustomize}>
+              Reset to Defaults
+            </Button>
+            <Button variant="outline" onClick={() => setCustomizeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveCustomize}>
+              Save Preferences
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

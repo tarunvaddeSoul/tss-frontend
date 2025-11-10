@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, ChevronDown, ChevronUp, FileDown } from "lucide-react"
+import { AlertCircle, ChevronDown, ChevronUp, FileDown, FileText } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { payrollService } from "@/services/payrollService"
+import { companyService } from "@/services/companyService"
 import { useCompany } from "@/hooks/use-company"
 import { exportCompanyPayrollToExcel } from "@/utils/file-export"
 import { CompanyPayrollPDFDownloadButton } from "./pdf/company-payroll-pdf"
@@ -120,50 +121,75 @@ export function CompanyReports() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Company Payroll Reports</CardTitle>
-          <CardDescription>View and export payroll reports for companies</CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Company Payroll Reports</CardTitle>
+          <CardDescription className="text-sm">View and export payroll reports for companies</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="w-full md:w-1/3">
-              <label className="text-sm font-medium mb-2 block">Select Company</label>
-              <Select value={selectedCompanyId} onValueChange={handleCompanyChange} disabled={loadingCompanies}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a company" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id ?? ""} value={company.id ?? ""}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Filter Section */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="min-w-0">
+                <label htmlFor="company-select" className="text-sm font-medium mb-2 block truncate">
+                  Select Company
+                </label>
+                <Select value={selectedCompanyId} onValueChange={handleCompanyChange} disabled={loadingCompanies}>
+                  <SelectTrigger id="company-select" className="h-12 w-full">
+                    <SelectValue placeholder="Select a company" className="truncate" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id ?? ""} value={company.id ?? ""} className="truncate">
+                        <span className="truncate block">{company.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="flex items-end gap-2">
-              <Button variant="outline" onClick={handleExportExcel} disabled={loading || payrollData.length === 0}>
-                <FileDown className="mr-2 h-4 w-4" />
-                Export Excel
-              </Button>
+            {/* Export Actions */}
+            {payrollData.length > 0 && (
+              <div className="flex flex-wrap gap-3 sm:gap-4 pt-2 border-t">
+                <Button variant="outline" size="lg" onClick={handleExportExcel} disabled={loading || payrollData.length === 0} className="flex-1 sm:flex-initial min-w-0">
+                  <FileDown className="mr-2 h-5 w-5 shrink-0" />
+                  <span className="hidden sm:inline truncate">Export Excel</span>
+                  <span className="sm:hidden truncate">Excel</span>
+                </Button>
 
-              <CompanyPayrollPDFDownloadButton
-                data={payrollData}
-                companyName={companyName}
-                companyDetails={companyDetails || undefined}
-                disabled={loading || payrollData.length === 0}
-              />
-            </div>
+                <CompanyPayrollPDFDownloadButton
+                  data={payrollData}
+                  companyName={companyName}
+                  companyDetails={companyDetails || undefined}
+                  disabled={loading || payrollData.length === 0}
+                  className="flex-1 sm:flex-initial min-w-0"
+                />
+              </div>
+            )}
           </div>
 
           {error && (
-            <Alert variant="destructive" className="mb-6">
+            <Alert variant="destructive" className="mt-6">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+        </CardContent>
+      </Card>
 
+      {/* Data Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg sm:text-xl">Payroll Data</CardTitle>
+          <CardDescription className="text-sm">
+            {payrollData.length > 0
+              ? `Showing ${payrollData.length} month${payrollData.length !== 1 ? "s" : ""} of payroll data`
+              : selectedCompanyId
+              ? "No payroll data found for this company"
+              : "Select a company to view payroll data"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           {loading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
@@ -173,8 +199,10 @@ export function CompanyReports() {
               ))}
             </div>
           ) : payrollData.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              {selectedCompanyId ? "No payroll data found for this company" : "Select a company to view payroll data"}
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-sm">
+                {selectedCompanyId ? "No payroll data found for this company" : "Select a company to view payroll data"}
+              </p>
             </div>
           ) : (
             <>
@@ -196,11 +224,11 @@ export function CompanyReports() {
                         className="hover:bg-muted/50 cursor-pointer"
                         onClick={() => toggleExpandMonth(month.month)}
                       >
-                        <TableCell className="font-medium">{month.month}</TableCell>
-                        <TableCell>{month.employeeCount}</TableCell>
-                        <TableCell>₹{month.totalNetSalary.toLocaleString()}</TableCell>
+                        <TableCell className="font-medium truncate max-w-[150px]">{month.month}</TableCell>
+                        <TableCell className="whitespace-nowrap">{month.employeeCount}</TableCell>
+                        <TableCell className="whitespace-nowrap">₹{month.totalNetSalary.toLocaleString()}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" className="shrink-0">
                             {expandedMonth === month.month ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </Button>
                         </TableCell>
@@ -225,16 +253,16 @@ export function CompanyReports() {
                                 <TableBody>
                                   {month.records.map((record) => (
                                     <TableRow key={record.employeeId}>
-                                      <TableCell>
+                                      <TableCell className="truncate max-w-[200px]">
                                         {record.employee
                                           ? `${record.employee.firstName} ${record.employee.lastName}`
                                           : record.employeeId}
                                       </TableCell>
-                                      <TableCell>₹{(record.salaryData.basicPay || 0).toLocaleString()}</TableCell>
-                                      <TableCell>₹{(record.salaryData.grossSalary || 0).toLocaleString()}</TableCell>
-                                      <TableCell>₹{(record.salaryData.netSalary || 0).toLocaleString()}</TableCell>
-                                      <TableCell>
-                                        ₹{(record.salaryData.totalDeductions || 0).toLocaleString()}
+                                      <TableCell className="whitespace-nowrap">₹{((record.salaryData?.calculations?.basicPay ?? record.salaryData?.basicPay) || 0).toLocaleString()}</TableCell>
+                                      <TableCell className="whitespace-nowrap">₹{((record.salaryData?.calculations?.grossSalary ?? record.salaryData?.grossSalary) || 0).toLocaleString()}</TableCell>
+                                      <TableCell className="whitespace-nowrap">₹{((record.salaryData?.calculations?.netSalary ?? record.salaryData?.netSalary) || 0).toLocaleString()}</TableCell>
+                                      <TableCell className="whitespace-nowrap">
+                                        ₹{((record.salaryData?.deductions?.totalDeductions ?? record.salaryData?.totalDeductions) || 0).toLocaleString()}
                                       </TableCell>
                                     </TableRow>
                                   ))}
@@ -252,7 +280,7 @@ export function CompanyReports() {
               </div>
 
               {totalPages > 1 && (
-                <div className="mt-4">
+                <div className="mt-6">
                   <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
                 </div>
               )}

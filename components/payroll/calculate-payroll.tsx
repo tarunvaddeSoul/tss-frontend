@@ -14,12 +14,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCompany } from "@/hooks/use-company"
 import { usePayroll, usePayrollAdminInputs } from "@/hooks/use-payroll"
-import { Calendar, Users, Calculator, CheckCircle, AlertCircle, Building2, IndianRupee, Loader2, Info } from "lucide-react"
+import { Calendar, Users, Calculator, CheckCircle, AlertCircle, Building2, IndianRupee, Loader2, Info, Eye, FileText } from "lucide-react"
 import { format } from "date-fns"
 import type { PayrollStep, CalculatePayrollDto } from "@/types/payroll"
 import { companyService } from "@/services/companyService"
 import { CompanyEmployee } from "@/types/company"
 import { SalaryCategory } from "@/types/salary"
+import { payrollService } from "@/services/payrollService"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 const PAYROLL_STEPS: PayrollStep[] = [
     {
@@ -51,6 +54,16 @@ export default function CalculatePayroll() {
     const [errors, setErrors] = useState<string[]>([])
     const [employees, setEmployees] = useState<CompanyEmployee[]>([])
     const [isFinalized, setIsFinalized] = useState(false)
+    const [existingPayroll, setExistingPayroll] = useState<{
+        records: any[]
+        totalEmployees: number
+        totalNetSalary: number
+        totalGrossSalary: number
+        finalizedDate: string
+    } | null>(null)
+    const [checkingPayroll, setCheckingPayroll] = useState(false)
+    const [showExistingPayrollDialog, setShowExistingPayrollDialog] = useState(false)
+    const [showRecalculateDialog, setShowRecalculateDialog] = useState(false)
 
     const { companies, isLoading: companiesLoading } = useCompany()
     const {
@@ -84,6 +97,43 @@ export default function CalculatePayroll() {
         )
     }
 
+    // Check for finalized payroll when company/month changes
+    // If getPayrollByMonth returns data, it means payroll is already finalized
+    useEffect(() => {
+        const checkFinalizedPayroll = async () => {
+            if (!selectedCompanyId || !selectedMonth) {
+                setExistingPayroll(null)
+                return
+            }
+
+            setCheckingPayroll(true)
+            try {
+                const payrollMonth = format(selectedMonth, "yyyy-MM")
+                const payrollData = await payrollService.getPayrollByMonth(selectedCompanyId, payrollMonth)
+                
+                // If payroll data exists, it means payroll is finalized
+                if (payrollData && payrollData.records && payrollData.records.length > 0) {
+                    setExistingPayroll({
+                        records: payrollData.records,
+                        totalEmployees: payrollData.summary.totalEmployees,
+                        totalNetSalary: payrollData.summary.totalNetSalary,
+                        totalGrossSalary: payrollData.summary.totalGrossSalary,
+                        finalizedDate: payrollData.updatedAt || payrollData.createdAt,
+                    })
+                } else {
+                    setExistingPayroll(null)
+                }
+            } catch (error) {
+                // If error (404 or other), no finalized payroll exists
+                setExistingPayroll(null)
+            } finally {
+                setCheckingPayroll(false)
+            }
+        }
+
+        checkFinalizedPayroll()
+    }, [selectedCompanyId, selectedMonth])
+
     const handleCompanyMonthSelect = async () => {
         if (!selectedCompanyId) {
             setErrors(["Please select a company"])
@@ -91,6 +141,12 @@ export default function CalculatePayroll() {
         }
 
         setErrors([])
+
+        // If payroll exists, show dialog instead of proceeding
+        if (existingPayroll) {
+            setShowExistingPayrollDialog(true)
+            return
+        }
 
         try {
             await fetchCompanyDetails(selectedCompanyId)
@@ -103,6 +159,31 @@ export default function CalculatePayroll() {
         } catch (error) {
             setErrors(["Failed to fetch company details. Please try again."])
         }
+    }
+
+    const handleRecalculateAnyway = () => {
+        setShowRecalculateDialog(true)
+    }
+
+    const confirmRecalculate = async () => {
+        setShowRecalculateDialog(false)
+        setShowExistingPayrollDialog(false)
+        setExistingPayroll(null) // Clear existing payroll state to proceed
+
+        try {
+            await fetchCompanyDetails(selectedCompanyId)
+            const employeesResponse = await companyService.getCompanyEmployees(selectedCompanyId)
+            setEmployees(employeesResponse.data)
+            setCurrentStep(2)
+            updateStepStatus(2, false, true)
+        } catch (error) {
+            setErrors(["Failed to fetch company details. Please try again."])
+        }
+    }
+
+    const handleViewExistingPayroll = () => {
+        setShowExistingPayrollDialog(false)
+        router.push(`/payroll/reports?companyId=${selectedCompanyId}&startMonth=${format(selectedMonth, "yyyy-MM")}&endMonth=${format(selectedMonth, "yyyy-MM")}`)
     }
 
     const handleDataReview = () => {
@@ -137,9 +218,24 @@ export default function CalculatePayroll() {
                 payrollMonth,
             }
 
-            // Only add adminInputs if we have some
-            if (Object.keys(adminInputs).length > 0) {
-                request.adminInputs = adminInputs
+            // If admin input fields exist, ensure all employees have entries for all fields with default 0
+            if (adminInputFields.length > 0) {
+                const processedAdminInputs: Record<string, Record<string, number>> = {}
+                
+                employees
+                    .filter(employee => employee.status === "ACTIVE")
+                    .forEach((employee) => {
+                        processedAdminInputs[employee.employeeId] = {}
+                        
+                        adminInputFields.forEach((field) => {
+                            // Use existing value if present, otherwise default to 0
+                            const existingValue = adminInputs[employee.employeeId]?.[field.key]
+                            processedAdminInputs[employee.employeeId][field.key] = 
+                                existingValue !== undefined ? existingValue : 0
+                        })
+                    })
+                
+                request.adminInputs = processedAdminInputs
             }
 
             console.log("Sending calculate payroll request:", request)
@@ -185,6 +281,9 @@ export default function CalculatePayroll() {
         setSelectedMonth(new Date())
         setErrors([])
         setIsFinalized(false)
+        setExistingPayroll(null)
+        setShowExistingPayrollDialog(false)
+        setShowRecalculateDialog(false)
         resetCalculation()
         resetInputs()
     }
@@ -286,18 +385,88 @@ export default function CalculatePayroll() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Payroll Month</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label>Payroll Month</Label>
+                                    {checkingPayroll && (
+                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                    )}
+                                    {!checkingPayroll && existingPayroll && (
+                                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                            Finalized
+                                        </Badge>
+                                    )}
+                                    {!checkingPayroll && !existingPayroll && selectedCompanyId && (
+                                        <Badge variant="outline" className="text-muted-foreground">
+                                            Not Finalized
+                                        </Badge>
+                                    )}
+                                </div>
                                 <MonthPicker value={selectedMonth} onChange={(date) => date && setSelectedMonth(date)} />
                             </div>
                         </div>
 
+                        {/* Existing Payroll Alert Banner */}
+                        {existingPayroll && !checkingPayroll && (
+                            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950">
+                                <AlertCircle className="h-4 w-4 text-amber-600" />
+                                <AlertDescription className="text-amber-800 dark:text-amber-300">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                        <div className="space-y-1">
+                                            <p className="font-medium">Payroll already finalized for this month</p>
+                                            <p className="text-sm">
+                                                Finalized on {format(new Date(existingPayroll.finalizedDate), "MMM dd, yyyy")} • 
+                                                {existingPayroll.totalEmployees} employees • 
+                                                Net Salary: ₹{existingPayroll.totalNetSalary.toLocaleString("en-IN")}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleViewExistingPayroll}
+                                                className="border-amber-300 text-amber-700 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-colors"
+                                            >
+                                                <Eye className="h-4 w-4 mr-2" />
+                                                View
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleRecalculateAnyway}
+                                                className="border-amber-300 text-amber-700 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-colors"
+                                            >
+                                                <Calculator className="h-4 w-4 mr-2" />
+                                                Recalculate
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         <Button
                             onClick={handleCompanyMonthSelect}
-                            disabled={!selectedCompanyId || companiesLoading}
+                            disabled={!selectedCompanyId || companiesLoading || checkingPayroll}
                             className="w-full"
+                            type="button"
                         >
-                            <Calendar className="mr-2 h-4 w-4" />
-                            Continue to Data Review
+                            {checkingPayroll ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Checking...
+                                </>
+                            ) : existingPayroll ? (
+                                <>
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    View Existing Payroll
+                                </>
+                            ) : (
+                                <>
+                                    <Calendar className="mr-2 h-4 w-4" />
+                                    Continue to Data Review
+                                </>
+                            )}
                         </Button>
                     </CardContent>
                 </Card>
@@ -510,12 +679,19 @@ export default function CalculatePayroll() {
                                 <TableBody>
                                     {calculationResult.data.payrollResults.map((record) => {
                                         const salary = record.salary as any
-                                        const salaryCategory = salary?.salaryCategory || salary?.category
+                                        const salaryCategory = salary?.salaryCategory
+                                        const salarySubCategory = salary?.salarySubCategory
+                                        // Access grouped salary data with fallbacks for backward compatibility
+                                        const calculations = salary?.calculations || {}
+                                        const deductions = salary?.deductions || {}
+                                        const allowances = salary?.allowances || {}
+                                        const information = salary?.information || {}
+                                        const rate = calculations?.rate ?? salary?.rate
                                         const isSpecialized = salaryCategory === SalaryCategory.SPECIALIZED
-                                        const showPF = salary?.pf !== undefined && salary?.pf > 0
-                                        const showESIC = salary?.esic !== undefined && salary?.esic > 0
-                                        const pfDisabled = salary?.pf === 0 && salary?.grossSalary > 15000
-                                        const esicDisabled = salary?.esic === 0 && salary?.grossSalary > 15000
+                                        const pfEnabled = salary?.pfEnabled ?? false
+                                        const esicEnabled = salary?.esicEnabled ?? false
+                                        const pfAmount = deductions?.pf ?? salary?.pf ?? 0
+                                        const esicAmount = deductions?.esic ?? salary?.esic ?? 0
                                         
                                         return (
                                             <TableRow key={record.employeeId}>
@@ -531,9 +707,9 @@ export default function CalculatePayroll() {
                                                             <Badge variant="outline" className="text-xs">
                                                                 {salaryCategory}
                                                             </Badge>
-                                                            {salary?.salarySubCategory && (
+                                                            {salarySubCategory && (
                                                                 <span className="text-xs text-muted-foreground">
-                                                                    {salary.salarySubCategory}
+                                                                    {salarySubCategory}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -543,35 +719,17 @@ export default function CalculatePayroll() {
                                                 </TableCell>
                                                 <TableCell>{record.presentDays}</TableCell>
                                                 <TableCell>
-                                                    {isSpecialized && salary?.monthlySalary ? (
+                                                    {rate !== undefined && rate !== null ? (
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center">
                                                                 <IndianRupee className="h-3 w-3 mr-1" />
                                                                 <span className="text-sm font-medium">
-                                                                    {salary.monthlySalary.toLocaleString()}
+                                                                    {rate.toLocaleString()}
                                                                 </span>
                                                             </div>
-                                                            <span className="text-xs text-muted-foreground">/month</span>
-                                                        </div>
-                                                    ) : salary?.salaryPerDay ? (
-                                                        <div className="flex flex-col">
-                                                            <div className="flex items-center">
-                                                                <IndianRupee className="h-3 w-3 mr-1" />
-                                                                <span className="text-sm font-medium">
-                                                                    {salary.salaryPerDay.toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-xs text-muted-foreground">/day</span>
-                                                        </div>
-                                                    ) : salary?.wagesPerDay ? (
-                                                        <div className="flex flex-col">
-                                                            <div className="flex items-center">
-                                                                <IndianRupee className="h-3 w-3 mr-1" />
-                                                                <span className="text-sm font-medium">
-                                                                    {salary.wagesPerDay.toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-xs text-muted-foreground">/day</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {isSpecialized ? "/month" : "/day"}
+                                                            </span>
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground">N/A</span>
@@ -580,55 +738,61 @@ export default function CalculatePayroll() {
                                                 <TableCell>
                                                     <div className="flex items-center">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
-                                                        {salary?.basicPay?.toLocaleString() || "N/A"}
+                                                        {calculations?.basicPay ?? salary?.basicPay ? (calculations?.basicPay ?? salary?.basicPay).toLocaleString() : "N/A"}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
-                                                        {salary?.grossSalary?.toLocaleString() || "N/A"}
+                                                        {calculations?.grossSalary ?? salary?.grossSalary ? (calculations?.grossSalary ?? salary?.grossSalary).toLocaleString() : "N/A"}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {showPF ? (
+                                                    {pfAmount > 0 ? (
                                                         <div className="flex items-center">
                                                             <IndianRupee className="h-3 w-3 mr-1" />
-                                                            <span>{salary.pf.toLocaleString()}</span>
+                                                            <span>{pfAmount.toLocaleString()}</span>
                                                         </div>
-                                                    ) : pfDisabled ? (
-                                                        <div className="flex items-center gap-1" title="PF disabled: Gross salary > ₹15,000">
+                                                    ) : !pfEnabled ? (
+                                                        <div className="flex items-center gap-1" title="PF not enabled">
                                                             <span className="text-xs text-muted-foreground">-</span>
                                                             <Info className="h-3 w-3 text-muted-foreground" />
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                        <div className="flex items-center gap-1" title="PF enabled but amount is 0 (Gross salary may exceed threshold)">
+                                                            <span className="text-xs text-muted-foreground">-</span>
+                                                            <Info className="h-3 w-3 text-muted-foreground" />
+                                                        </div>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {showESIC ? (
+                                                    {esicAmount > 0 ? (
                                                         <div className="flex items-center">
                                                             <IndianRupee className="h-3 w-3 mr-1" />
-                                                            <span>{salary.esic.toLocaleString()}</span>
+                                                            <span>{esicAmount.toLocaleString()}</span>
                                                         </div>
-                                                    ) : esicDisabled ? (
-                                                        <div className="flex items-center gap-1" title="ESIC disabled: Gross salary > ₹15,000">
+                                                    ) : !esicEnabled ? (
+                                                        <div className="flex items-center gap-1" title="ESIC not enabled">
                                                             <span className="text-xs text-muted-foreground">-</span>
                                                             <Info className="h-3 w-3 text-muted-foreground" />
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                        <div className="flex items-center gap-1" title="ESIC enabled but amount is 0 (Gross salary may exceed threshold)">
+                                                            <span className="text-xs text-muted-foreground">-</span>
+                                                            <Info className="h-3 w-3 text-muted-foreground" />
+                                                        </div>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
-                                                        {salary?.totalDeductions?.toLocaleString() || "N/A"}
+                                                        {deductions?.totalDeductions ?? salary?.totalDeductions ? (deductions?.totalDeductions ?? salary?.totalDeductions).toLocaleString() : "N/A"}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="font-semibold">
                                                     <div className="flex items-center">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
-                                                        {salary?.netSalary?.toLocaleString() || "N/A"}
+                                                        {calculations?.netSalary ?? salary?.netSalary ? (calculations?.netSalary ?? salary?.netSalary).toLocaleString() : "N/A"}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -681,6 +845,107 @@ export default function CalculatePayroll() {
                     </CardContent>
                 </Card>
             )}
+
+            {/* Existing Payroll Summary Dialog */}
+            <Dialog open={showExistingPayrollDialog} onOpenChange={setShowExistingPayrollDialog}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <FileText className="h-5 w-5" />
+                            Existing Payroll Found
+                        </DialogTitle>
+                        <DialogDescription>
+                            A payroll has already been finalized for {selectedCompanyData?.name || "this company"} - {format(selectedMonth, "MMMM yyyy")}
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {existingPayroll && (
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                                    <p className="text-sm text-muted-foreground mb-1">Total Employees</p>
+                                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                                        {existingPayroll.totalEmployees}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+                                    <p className="text-sm text-muted-foreground mb-1">Net Salary</p>
+                                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                                        ₹{existingPayroll.totalNetSalary.toLocaleString("en-IN")}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                                    <p className="text-sm text-muted-foreground mb-1">Gross Salary</p>
+                                    <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                                        ₹{existingPayroll.totalGrossSalary.toLocaleString("en-IN")}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="p-4 bg-muted rounded-lg">
+                                <p className="text-sm text-muted-foreground mb-1">Finalized On</p>
+                                <p className="font-medium">
+                                    {format(new Date(existingPayroll.finalizedDate), "EEEE, MMMM dd, yyyy 'at' hh:mm a")}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowExistingPayrollDialog(false)}
+                            className="w-full sm:w-auto"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handleViewExistingPayroll}
+                            className="w-full sm:w-auto"
+                        >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View in Reports
+                        </Button>
+                        <Button
+                            onClick={handleRecalculateAnyway}
+                            className="w-full sm:w-auto"
+                        >
+                            <Calculator className="h-4 w-4 mr-2" />
+                            Recalculate Anyway
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Recalculate Confirmation Dialog */}
+            <AlertDialog open={showRecalculateDialog} onOpenChange={setShowRecalculateDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-amber-600" />
+                            Confirm Recalculation
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-2">
+                            <p>
+                                You are about to recalculate payroll for <strong>{selectedCompanyData?.name || "this company"}</strong> - <strong>{format(selectedMonth, "MMMM yyyy")}</strong>.
+                            </p>
+                                <p className="font-medium text-foreground">
+                                    This will create a new payroll record. The existing finalized payroll will be replaced by the new one.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Are you sure you want to proceed?
+                            </p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmRecalculate} className="bg-amber-600 hover:bg-amber-700">
+                            Yes, Recalculate
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

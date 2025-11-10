@@ -5,37 +5,92 @@ export interface CalculatePayrollDto {
 }
 
 /**
- * Payroll Salary Data Structure
- * Updated to match new backend response structure
+ * Payroll Salary Data Structure - Grouped Structure
+ * Updated to match new backend response structure with grouped fields
  */
-export interface PayrollSalaryData {
-  // Category-specific fields
-  monthlySalary?: number | null // Only for SPECIALIZED
-  salaryPerDay?: number | null // Only for CENTRAL/STATE
-  wagesPerDay: number // Calculated per-day rate
+
+// Salary Category and Sub-Category Types
+export type SalaryCategory = "CENTRAL" | "STATE" | "SPECIALIZED" | null
+export type SalarySubCategory = "SKILLED" | "UNSKILLED" | "HIGHSKILLED" | "SEMISKILLED" | null
+
+/**
+ * Information fields (employee/company details)
+ * Contains fields with purpose: INFORMATION
+ */
+export interface PayrollSalaryInformation {
+  companyName: string
+  employeeName: string
+  designation: string
+  department: string
+  monthlyPay: number
+  fatherName: string
+  uanNumber: string | number
+  // Allow for additional information fields from template
+  [key: string]: any
+}
+
+/**
+ * Calculation fields (basic pay, gross salary, net salary, etc.)
+ * Contains fields with purpose: CALCULATION
+ */
+export interface PayrollSalaryCalculations {
   basicDuty: number
   dutyDone: number
   basicPay: number
-  grossSalary: number // Calculated based on category
-  
-  // Template fields (allowances, deductions, etc.)
-  // ... other template fields ...
-  
-  // PF/ESIC calculation (NEW LOGIC)
-  pf: number // 0 if disabled or grossSalary > 15000
-  esic: number // 0 if disabled or grossSalary > 15000
-  
-  // Final calculations
-  totalDeductions: number
+  grossSalary: number
   netSalary: number
-  
-  // Metadata
-  serialNumber?: number
-  companyName?: string
-  designation?: string
-  // ... other fields ...
-  
-  // Allow for additional template fields
+  wagesPerDay: number
+  rate: number
+  totalDeduction?: number
+  // Allow for additional calculation fields from template
+  [key: string]: any
+}
+
+/**
+ * Allowance fields (bonus, etc.)
+ * Contains fields with purpose: ALLOWANCE
+ */
+export interface PayrollSalaryAllowances {
+  bonus: number
+  // Allow for additional allowance fields from template
+  [key: string]: any
+}
+
+/**
+ * Deduction fields (pf, esic, lwf, advance, etc.)
+ * Contains fields with purpose: DEDUCTION
+ */
+export interface PayrollSalaryDeductions {
+  pf: number
+  esic: number
+  lwf: number
+  advanceTaken: number
+  totalDeductions: number
+  // Allow for additional deduction fields from template
+  [key: string]: any
+}
+
+/**
+ * Payroll Salary Data - Grouped Structure
+ * All payroll APIs now return salary data in this grouped structure
+ */
+export interface PayrollSalaryData {
+  // Metadata (top-level, unchanged)
+  salaryCategory: SalaryCategory
+  salarySubCategory: SalarySubCategory
+  monthlySalary: number | null
+  salaryPerDay: number | null
+  pfEnabled: boolean
+  esicEnabled: boolean
+  serialNumber: number
+
+  // Grouped fields
+  information: PayrollSalaryInformation
+  calculations: PayrollSalaryCalculations
+  allowances: PayrollSalaryAllowances
+  deductions: PayrollSalaryDeductions
+
+  // Allow for backward compatibility with flat structure
   [key: string]: any
 }
 
@@ -83,7 +138,7 @@ export interface CompanyPayrollRecord {
   employeeId: string
   companyId: string
   month: string
-  salaryData: Record<string, any>
+  salaryData: PayrollSalaryData
   createdAt: string
   updatedAt: string
   employee: {
@@ -133,7 +188,7 @@ export interface EmployeePayrollRecord {
   employeeId: string
   companyId: string
   month: string
-  salaryData: Record<string, any>
+  salaryData: PayrollSalaryData
   createdAt: string
   updatedAt: string
 }
@@ -143,6 +198,9 @@ export interface EmployeePayrollResponse {
   message: string
   data: {
     employeeId: string
+    companyId: string
+    startMonth: string
+    endMonth: string
     records: EmployeePayrollRecord[]
   }
 }
@@ -178,7 +236,7 @@ export interface PayrollReportRecord {
   companyId: string;
   companyName: string;
   month: string;
-  salaryData: Record<string, any>;
+  salaryData: PayrollSalaryData;
   createdAt: string;
   updatedAt: string;
 }
@@ -207,4 +265,36 @@ export interface ReportFilters {
   endMonth?: string
   page: number
   limit: number
+}
+
+export interface PayrollByMonthSummary {
+  totalEmployees: number
+  totalGrossSalary: number
+  totalDeductions: number
+  totalNetSalary: number
+}
+
+export interface PayrollByMonthRecord {
+  id: string
+  employeeId: string
+  companyId: string
+  month: string
+  salaryData: PayrollSalaryData
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PayrollByMonthData {
+  companyName: string
+  payrollMonth: string
+  summary: PayrollByMonthSummary
+  createdAt: string
+  updatedAt: string
+  records: PayrollByMonthRecord[]
+}
+
+export interface PayrollByMonthResponse {
+  statusCode: number
+  message: string
+  data: PayrollByMonthData
 }

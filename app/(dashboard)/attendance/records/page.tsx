@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Building2, Calendar as CalendarIcon, Eye, Loader2, Trash2, Download, FileText, Search, ArrowUpDown, X, Filter } from "lucide-react"
+import { Building2, Calendar as CalendarIcon, Eye, Loader2, Trash2, Download, FileText, FileSpreadsheet, Search, ArrowUpDown, X, Filter } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -36,6 +36,9 @@ import {
 import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { attendanceService } from "@/services/attendanceService"
+import type { AttendanceExcelRecord, AttendanceExcelListParams } from "@/types/attendance"
 
 const schema = z.object({
   companyId: z.string().optional(),
@@ -68,6 +71,18 @@ export default function AttendanceRecordsPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewType, setPreviewType] = useState<"pdf" | "image" | "unsupported" | "loading">("loading")
   const [previewSheet, setPreviewSheet] = useState<AttendanceSheet | null>(null)
+  const [activeTab, setActiveTab] = useState<"sheets" | "excel">("sheets")
+
+  // Excel records state
+  const [excelRecords, setExcelRecords] = useState<AttendanceExcelRecord[]>([])
+  const [loadingExcel, setLoadingExcel] = useState(false)
+  const [excelPage, setExcelPage] = useState(1)
+  const [excelLimit, setExcelLimit] = useState(20)
+  const [excelTotalPages, setExcelTotalPages] = useState(1)
+  const [excelTotalCount, setExcelTotalCount] = useState(0)
+  const [excelSortBy, setExcelSortBy] = useState<"month" | "companyId" | "createdAt">("month")
+  const [excelSortOrder, setExcelSortOrder] = useState<"asc" | "desc">("desc")
+  const [previewExcel, setPreviewExcel] = useState<AttendanceExcelRecord | null>(null)
 
   // Pagination and sorting
   const [page, setPage] = useState(1)
@@ -93,9 +108,13 @@ export default function AttendanceRecordsPage() {
 
   // Fetch records when filters change
   useEffect(() => {
-    fetchRecords()
+    if (activeTab === "sheets") {
+      fetchRecords()
+    } else {
+      fetchExcelRecords()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, sortBy, sortOrder, form.watch("companyId"), form.watch("month"), form.watch("startMonth"), form.watch("endMonth")])
+  }, [page, limit, sortBy, sortOrder, excelPage, excelLimit, excelSortBy, excelSortOrder, activeTab, form.watch("companyId"), form.watch("month"), form.watch("startMonth"), form.watch("endMonth")])
 
   const fetchRecords = async () => {
     try {
@@ -153,9 +172,70 @@ export default function AttendanceRecordsPage() {
     }
   }
 
+  const fetchExcelRecords = async () => {
+    try {
+      setLoadingExcel(true)
+      const values = form.getValues()
+      
+      const params: AttendanceExcelListParams = {
+        page: excelPage,
+        limit: excelLimit,
+        sortBy: excelSortBy,
+        sortOrder: excelSortOrder,
+      }
+
+      if (values.companyId) {
+        params.companyId = values.companyId
+      }
+
+      if (values.month) {
+        params.month = format(values.month, "yyyy-MM")
+      } else if (values.startMonth && values.endMonth) {
+        params.startMonth = format(values.startMonth, "yyyy-MM")
+        params.endMonth = format(values.endMonth, "yyyy-MM")
+      }
+
+      const response = await attendanceService.getAttendanceExcelFiles(params)
+      
+      // Handle response - can be list or single record
+      if (response.data && Array.isArray((response.data as any).data)) {
+        // List response
+        const listData = response.data as { data: AttendanceExcelRecord[]; pagination: any }
+        setExcelRecords(listData.data || [])
+        setExcelTotalCount(listData.pagination?.total || 0)
+        setExcelTotalPages(listData.pagination?.totalPages || 1)
+      } else if (response.data && !Array.isArray(response.data) && (response.data as any).id) {
+        // Single record response
+        setExcelRecords([response.data as AttendanceExcelRecord])
+        setExcelTotalCount(1)
+        setExcelTotalPages(1)
+      } else {
+        setExcelRecords([])
+        setExcelTotalCount(0)
+        setExcelTotalPages(1)
+      }
+    } catch (e: any) {
+      toast({
+        title: "Error",
+        description: e?.message || "Failed to load Excel records",
+        variant: "destructive",
+      })
+      setExcelRecords([])
+      setExcelTotalCount(0)
+      setExcelTotalPages(1)
+    } finally {
+      setLoadingExcel(false)
+    }
+  }
+
   const onSubmit = (values: FormValues) => {
     setPage(1) // Reset to first page on new search
-    fetchRecords()
+    setExcelPage(1)
+    if (activeTab === "sheets") {
+      fetchRecords()
+    } else {
+      fetchExcelRecords()
+    }
   }
 
   const handleClearFilters = () => {
@@ -166,6 +246,12 @@ export default function AttendanceRecordsPage() {
       endMonth: undefined,
     })
     setPage(1)
+    setExcelPage(1)
+    if (activeTab === "sheets") {
+      fetchRecords()
+    } else {
+      fetchExcelRecords()
+    }
   }
 
   const handleSort = (column: "month" | "companyId" | "createdAt") => {
@@ -298,6 +384,54 @@ export default function AttendanceRecordsPage() {
         variant: "destructive",
         title: "Download Failed",
         description: "Failed to download the file. Please try again.",
+      })
+    }
+  }
+
+  // Excel handlers
+  const handleDeleteExcel = async (record: AttendanceExcelRecord) => {
+    if (!confirm(`Are you sure you want to delete the Excel file for ${record.companyName || "company"} - ${format(new Date(`${record.month}-01`), "MMMM yyyy")}?`)) {
+      return
+    }
+
+    try {
+      await attendanceService.deleteAttendanceExcel(record.id)
+      toast({ title: "Deleted", description: "Excel file deleted successfully" })
+      fetchExcelRecords()
+    } catch (e: any) {
+      toast({
+        title: "Delete failed",
+        description: e?.message || "Unable to delete",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDownloadExcel = async (url: string, record: AttendanceExcelRecord) => {
+    try {
+      const response = await fetch(url, { cache: "no-store" })
+      if (!response.ok) throw new Error("Failed to download")
+
+      const blob = await response.blob()
+      const filename = `attendance-excel-${record.companyName || "file"}-${record.month}.xlsx`
+      const downloadUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = downloadUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(downloadUrl)
+
+      toast({
+        title: "Download Started",
+        description: "Excel file download started successfully",
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Failed to download the Excel file. Please try again.",
       })
     }
   }
@@ -469,43 +603,57 @@ export default function AttendanceRecordsPage() {
         </CardContent>
       </Card>
 
-      {/* Results Table */}
+      {/* Results Table with Tabs */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Attendance Sheets</CardTitle>
-              <CardDescription>
-                {loading
-                  ? "Loading records..."
-                  : totalCount > 0
-                    ? `Showing ${records.length} of ${totalCount} record${totalCount !== 1 ? "s" : ""}`
-                    : "No records found"}
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Items per page:</span>
-              <Select
-                value={String(limit)}
-                onValueChange={(value) => {
-                  setLimit(Number(value))
-                  setPage(1)
-                }}
-              >
-                <SelectTrigger className="w-[80px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "sheets" | "excel")}>
+            <TabsList>
+              <TabsTrigger value="sheets" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Attendance Sheets
+              </TabsTrigger>
+              <TabsTrigger value="excel" className="flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel Files
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "sheets" | "excel")}>
+            {/* Sheets Tab */}
+            <TabsContent value="sheets" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardDescription>
+                    {loading
+                      ? "Loading records..."
+                      : totalCount > 0
+                        ? `Showing ${records.length} of ${totalCount} record${totalCount !== 1 ? "s" : ""}`
+                        : "No records found"}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Items per page:</span>
+                  <Select
+                    value={String(limit)}
+                    onValueChange={(value) => {
+                      setLimit(Number(value))
+                      setPage(1)
+                    }}
+                  >
+                    <SelectTrigger className="w-[80px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
           {loading ? (
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -643,6 +791,193 @@ export default function AttendanceRecordsPage() {
               )}
             </>
           )}
+            </TabsContent>
+
+            {/* Excel Tab */}
+            <TabsContent value="excel" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardDescription>
+                    {loadingExcel
+                      ? "Loading records..."
+                      : excelTotalCount > 0
+                        ? `Showing ${excelRecords.length} of ${excelTotalCount} record${excelTotalCount !== 1 ? "s" : ""}`
+                        : "No records found"}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Items per page:</span>
+                  <Select
+                    value={String(excelLimit)}
+                    onValueChange={(value) => {
+                      setExcelLimit(Number(value))
+                      setExcelPage(1)
+                    }}
+                  >
+                    <SelectTrigger className="w-[80px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {loadingExcel ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : excelRecords.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">No Excel Files Found</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {hasActiveFilters
+                      ? "Try adjusting your filters to see more results."
+                      : "Upload Excel files to see them here."}
+                  </p>
+                  {hasActiveFilters && (
+                    <Button variant="outline" onClick={handleClearFilters}>
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+                    <Table className="min-w-[1000px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-2"
+                              onClick={() => {
+                                if (excelSortBy === "companyId") {
+                                  setExcelSortOrder(excelSortOrder === "asc" ? "desc" : "asc")
+                                } else {
+                                  setExcelSortBy("companyId")
+                                  setExcelSortOrder("asc")
+                                }
+                              }}
+                            >
+                              Company
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-2"
+                              onClick={() => {
+                                if (excelSortBy === "month") {
+                                  setExcelSortOrder(excelSortOrder === "asc" ? "desc" : "asc")
+                                } else {
+                                  setExcelSortBy("month")
+                                  setExcelSortOrder("asc")
+                                }
+                              }}
+                            >
+                              Month
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead>File Type</TableHead>
+                          <TableHead>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-2"
+                              onClick={() => {
+                                if (excelSortBy === "createdAt") {
+                                  setExcelSortOrder(excelSortOrder === "asc" ? "desc" : "asc")
+                                } else {
+                                  setExcelSortBy("createdAt")
+                                  setExcelSortOrder("asc")
+                                }
+                              }}
+                            >
+                              Upload Date
+                              <ArrowUpDown className="h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {excelRecords.map((record) => {
+                          const monthDate = new Date(`${record.month}-01`)
+
+                          return (
+                            <TableRow key={record.id}>
+                              <TableCell className="font-medium">
+                                {record.companyName || "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {format(monthDate, "MMM yyyy")}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">
+                                  <FileSpreadsheet className="h-3 w-3 mr-1" />
+                                  Excel
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {record.createdAt
+                                  ? format(new Date(record.createdAt), "MMM dd, yyyy")
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDownloadExcel(addCacheBuster(record.attendanceExcelUrl), record)}
+                                  >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteExcel(record)}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {excelTotalPages > 1 && (
+                    <div className="flex justify-center mt-6">
+                      <Pagination
+                        currentPage={excelPage}
+                        totalPages={excelTotalPages}
+                        onPageChange={(p) => setExcelPage(typeof p === "number" ? p : 1)}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

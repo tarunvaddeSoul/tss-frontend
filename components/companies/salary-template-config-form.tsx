@@ -1175,8 +1175,8 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                         Add Custom Field
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px]">
-                      <DialogHeader>
+                    <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+                      <DialogHeader className="shrink-0">
                         <DialogTitle>Add Custom Field</DialogTitle>
                         <DialogDescription>
                           Create a custom field for your salary template. This field will be available for all
@@ -1185,7 +1185,8 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                       </DialogHeader>
 
                       <Form {...customFieldForm}>
-                        <form onSubmit={customFieldForm.handleSubmit(addCustomField)} className="space-y-6">
+                        <form onSubmit={customFieldForm.handleSubmit(addCustomField)} className="flex flex-col flex-1 min-h-0">
+                          <div className="flex-1 overflow-y-auto pr-2 space-y-6">
                           {/* Required Fields Section */}
                           <div className="space-y-4">
                             <div className="flex items-center gap-2 mb-4">
@@ -1459,8 +1460,9 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                               )}
                             />
                           </div>
+                          </div>
 
-                          <DialogFooter className="pt-4">
+                          <DialogFooter className="shrink-0 pt-4 border-t mt-4">
                             <Button type="button" variant="outline" onClick={() => setIsAddingCustomField(false)}>
                               Cancel
                             </Button>
@@ -1577,14 +1579,15 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
 
       {/* Edit Custom Field Dialog */}
       <Dialog open={!!editingField} onOpenChange={(open) => !open && setEditingField(null)}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Edit Custom Field</DialogTitle>
             <DialogDescription>Update the properties of your custom field.</DialogDescription>
           </DialogHeader>
 
           <Form {...customFieldForm}>
-            <form onSubmit={customFieldForm.handleSubmit(updateCustomField)} className="space-y-6">
+            <form onSubmit={customFieldForm.handleSubmit(updateCustomField)} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto pr-2 space-y-6">
               {/* Required Fields Section */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -1853,8 +1856,9 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                   )}
                 />
               </div>
+              </div>
 
-              <DialogFooter className="pt-4">
+              <DialogFooter className="shrink-0 pt-4 border-t mt-4">
                 <Button type="button" variant="outline" onClick={() => setEditingField(null)}>
                   Cancel
                 </Button>

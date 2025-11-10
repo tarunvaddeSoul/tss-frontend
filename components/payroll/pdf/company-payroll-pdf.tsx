@@ -1,5 +1,5 @@
 import { Document, Text, View, StyleSheet, PDFDownloadLink, Image, Page } from "@react-pdf/renderer"
-import { FileDown } from "lucide-react"
+import { FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { CompanyPayrollMonth, CompanyPayrollRecord } from "@/types/payroll"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
@@ -113,18 +113,24 @@ const convertToSalarySlipData = (
     return `01-${monthNum}-${year} to ${lastDay}-${monthNum}-${year}`
   }
 
-  // Calculate earnings
-  const basic = salaryData.basicPay || 0
-  const allowance = salaryData.allowance || salaryData.hra || salaryData.transportAllowance || 0
-  const otherAllowance = salaryData.otherAllowance || salaryData.bonus || 0
-  const other = salaryData.other || 0
-  const grossEarning = salaryData.grossSalary || 0
+  // Access grouped salary data with fallbacks for backward compatibility
+  const calculations = salaryData?.calculations || {}
+  const deductions = salaryData?.deductions || {}
+  const allowances = salaryData?.allowances || {}
+  const information = salaryData?.information || {}
 
-  // Calculate deductions
-  const epfContribution = salaryData.pf || salaryData.epfContribution12Percent || 0
-  const esicContribution = salaryData.esic || salaryData.esic075Percent || 0
-  const advance = salaryData.advance || 0
-  const grossDeduction = salaryData.totalDeductions || (epfContribution + esicContribution + advance)
+  // Calculate earnings - use grouped structure with fallbacks
+  const basic = calculations?.basicPay ?? salaryData?.basicPay ?? 0
+  const allowance = allowances?.allowance ?? allowances?.hra ?? allowances?.transportAllowance ?? salaryData?.allowance ?? salaryData?.hra ?? salaryData?.transportAllowance ?? 0
+  const otherAllowance = allowances?.otherAllowance ?? allowances?.bonus ?? salaryData?.otherAllowance ?? salaryData?.bonus ?? 0
+  const other = allowances?.other ?? salaryData?.other ?? 0
+  const grossEarning = calculations?.grossSalary ?? salaryData?.grossSalary ?? 0
+
+  // Calculate deductions - use grouped structure with fallbacks
+  const epfContribution = deductions?.pf ?? deductions?.epfContribution12Percent ?? salaryData?.pf ?? salaryData?.epfContribution12Percent ?? 0
+  const esicContribution = deductions?.esic ?? deductions?.esic075Percent ?? salaryData?.esic ?? salaryData?.esic075Percent ?? 0
+  const advance = deductions?.advance ?? deductions?.advanceTaken ?? salaryData?.advance ?? salaryData?.advanceTaken ?? 0
+  const grossDeduction = deductions?.totalDeductions ?? salaryData?.totalDeductions ?? (epfContribution + esicContribution + advance)
 
   return {
     company: companyName,
@@ -135,13 +141,13 @@ const convertToSalarySlipData = (
         ? `${employee.title || ""} ${employee.firstName} ${employee.lastName}`.trim()
         : record.employeeId,
       employee_id: record.employeeId,
-      category: employee?.category || salaryData.category || salaryData.salaryCategory || "N/A",
-      department: salaryData.department || "N/A",
-      location: salaryData.location || "N/A",
-      working_days: salaryData.dutyDone || salaryData.workingDays || 0,
-      account_no: employee?.bankAccountNumber || "",
-      esic_no: employee?.esicNumber || "",
-      uan_no: employee?.pfUanNumber || "",
+      category: employee?.category ?? salaryData?.category ?? salaryData?.salaryCategory ?? "N/A",
+      department: information?.department ?? salaryData?.department ?? "N/A",
+      location: information?.location ?? salaryData?.location ?? "N/A",
+      working_days: calculations?.dutyDone ?? calculations?.workingDays ?? salaryData?.dutyDone ?? salaryData?.workingDays ?? 0,
+      account_no: information?.bankAccountNumber ?? "",
+      esic_no: information?.esicNumber ?? "",
+      uan_no: information?.uanNumber ? String(information.uanNumber) : information?.pfUanNumber ?? "",
     },
     earnings: {
       basic,
@@ -156,7 +162,7 @@ const convertToSalarySlipData = (
       advance,
       gross_deduction: grossDeduction,
     },
-    net_pay: salaryData.netSalary || 0,
+    net_pay: calculations?.netSalary ?? salaryData?.netSalary ?? 0,
   }
 }
 
@@ -269,9 +275,19 @@ export const CompanyPayrollPDFDownloadButton = ({
       fileName={fileName}
     >
       {({ loading }) => (
-        <Button variant="outline" disabled={disabled || loading} className={className}>
-          <FileDown className="mr-2 h-4 w-4" />
-          {loading ? "Generating PDF..." : "Download PDF"}
+        <Button variant="outline" size="lg" disabled={disabled || loading} className={`min-w-0 ${className || ""}`}>
+          <FileText className="mr-2 h-5 w-5 shrink-0" />
+          {loading ? (
+            <>
+              <span className="hidden sm:inline truncate">Generating PDF...</span>
+              <span className="sm:hidden truncate">Generating...</span>
+            </>
+          ) : (
+            <>
+              <span className="hidden sm:inline truncate">View & Download PDF</span>
+              <span className="sm:hidden truncate">PDF</span>
+            </>
+          )}
         </Button>
       )}
     </PDFDownloadLink>

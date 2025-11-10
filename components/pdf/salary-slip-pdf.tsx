@@ -1,5 +1,5 @@
-import { Document, Text, View, StyleSheet, Image } from "@react-pdf/renderer"
-import { BRAND, BrandPage, PdfFooter, brandStyles } from "@/components/pdf/brand"
+import { Document, Text, View, StyleSheet } from "@react-pdf/renderer"
+import { BRAND, BrandPage, PdfFooter, PdfHeader, brandStyles } from "@/components/pdf/brand"
 
 // Salary slip data structure based on the provided JSON
 export interface SalarySlipData {
@@ -34,22 +34,6 @@ export interface SalarySlipData {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    marginBottom: 10,
-  },
-  companyName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: BRAND.colors.primary,
-    marginBottom: 5,
-    textAlign: "center",
-  },
   employeeDetails: {
     marginBottom: 20,
     padding: 12,
@@ -134,12 +118,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: BRAND.colors.primary,
   },
-  periodInfo: {
-    fontSize: 9,
-    color: BRAND.colors.muted,
-    textAlign: "center",
-    marginBottom: 15,
-  },
 })
 
 interface SalarySlipPDFProps {
@@ -150,14 +128,12 @@ interface SalarySlipPDFProps {
 export const SalarySlipPDFPage = ({ data }: SalarySlipPDFProps) => {
   return (
     <BrandPage>
-      {/* Header with Branding */}
-      <View style={styles.header}>
-        <Image src="/tss-logo.png" style={styles.logo} cache={false} />
-        <Text style={styles.companyName}>{data.company || "TULSYAN SECURITY SERVICES PVT. LTD."}</Text>
-        <Text style={styles.periodInfo}>
-          Salary Slip for {data.month || "N/A"} | Pay Period: {data.pay_period || "N/A"}
-        </Text>
-      </View>
+      {/* Brand Header */}
+      <PdfHeader
+        title="Salary Slip"
+        subtitle={`${data.month || "N/A"} | Pay Period: ${data.pay_period || "N/A"}`}
+        logoSrc="/tss-logo.png"
+      />
 
       {/* Employee Details */}
       <View style={styles.employeeDetails}>
@@ -173,14 +149,14 @@ export const SalarySlipPDFPage = ({ data }: SalarySlipPDFProps) => {
           <Text style={styles.employeeDetailsLabel}>Category:</Text>
           <Text style={styles.employeeDetailsValue}>{data.employee?.category || "N/A"}</Text>
         </View>
-        <View style={styles.employeeDetailsRow}>
+        {/* <View style={styles.employeeDetailsRow}>
           <Text style={styles.employeeDetailsLabel}>Department:</Text>
           <Text style={styles.employeeDetailsValue}>{data.employee?.department || "N/A"}</Text>
         </View>
         <View style={styles.employeeDetailsRow}>
           <Text style={styles.employeeDetailsLabel}>Location:</Text>
           <Text style={styles.employeeDetailsValue}>{data.employee?.location || "N/A"}</Text>
-        </View>
+        </View> */}
         <View style={styles.employeeDetailsRow}>
           <Text style={styles.employeeDetailsLabel}>Working Days:</Text>
           <Text style={styles.employeeDetailsValue}>{String(data.employee?.working_days ?? 0)}</Text>

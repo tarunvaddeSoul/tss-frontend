@@ -1,4 +1,5 @@
 import type { EmployeeTitle, Gender, Category, EducationQualification, Status } from "../enums/employee.enum"
+import type { SalaryCategory, SalarySubCategory, SalaryType } from "./salary"
 
 // Interface for Employee
 export interface IEmployee {
@@ -64,8 +65,15 @@ export interface Employee {
   bankPassbook?: string
   markSheet?: string
   otherDocument?: string
-  salary?: number
+  salary?: number // Legacy field - kept for backward compatibility
   aadhaarNumber?: string
+  // NEW: Salary fields
+  salaryCategory?: SalaryCategory | null
+  salarySubCategory?: SalarySubCategory | null
+  salaryPerDay?: number | null // Populated for CENTRAL/STATE
+  monthlySalary?: number | null // Populated for SPECIALIZED
+  pfEnabled?: boolean // Default: false
+  esicEnabled?: boolean // Default: false
   contactDetails?: IEmployeeContactInformation
   bankDetails?: IEmployeeBankingInformation
   additionalDetails?: IEmployeeAdditionalDetails
@@ -141,7 +149,9 @@ export interface IEmployeeEmploymentHistory {
   companyId?: string
   designationId?: string
   departmentId?: string
-  salary?: number
+  salary?: number // Historical snapshot
+  salaryPerDay?: number | null
+  salaryType?: SalaryType | null // NEW: PER_DAY or PER_MONTH
   joiningDate?: string
   leavingDate?: string | null
   endDate?: string | null
@@ -170,6 +180,12 @@ export interface UpdateEmployeeDto {
   category?: Category
   recruitedBy?: string
   age?: number
+  // NEW: Salary fields (all optional)
+  salaryCategory?: SalaryCategory
+  salarySubCategory?: SalarySubCategory
+  monthlySalary?: number
+  pfEnabled?: boolean
+  esicEnabled?: boolean
 }
 
 export interface UpdateEmployeeContactDetailsDto {
@@ -222,7 +238,7 @@ export interface CreateEmploymentHistoryDto {
   companyId: string
   designationId: string
   departmentId: string
-  salary: number
+  salary?: number // NOW OPTIONAL - auto-populated if not provided
   joiningDate: string
   status?: Status
 }
@@ -304,8 +320,14 @@ export interface EmployeeFormValues {
   markSheet?: File | null
   otherDocument?: File | null
   otherDocumentRemarks?: string
-  currentCompanySalary?: number
   aadhaarNumber: string
+  // NEW: Salary fields
+  salaryCategory?: SalaryCategory | null
+  salarySubCategory?: SalarySubCategory | null
+  salaryPerDay?: number | null
+  monthlySalary?: number | null
+  pfEnabled?: boolean
+  esicEnabled?: boolean
 }
 
 export interface EmployeeSearchParams {

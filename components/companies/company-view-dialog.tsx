@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { FileText, Download, Users, Calendar, Phone, Building, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast"
 import { companyService } from "@/services/companyService"
 import type { Company, CompanyEmployee } from "@/types/company"
+import { SalaryCategory, SalaryType } from "@/types/salary"
+import { PdfPreviewDialog } from "@/components/pdf/pdf-preview-dialog"
 
 interface CompanyViewDialogProps {
   company: Company
@@ -28,7 +30,7 @@ interface CompanyViewDialogProps {
 }
 
 export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialogProps) {
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [employees, setEmployees] = useState<CompanyEmployee[]>([])
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
   const [activeTab, setActiveTab] = useState("details")
@@ -57,64 +59,71 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
     }
   }
 
-  const handleGeneratePDF = async () => {
-    try {
-      setIsGeneratingPDF(true)
-      console.log("Generating PDF for company:", company)
+  // Filter to show only ACTIVE employees
+  const activeEmployees = useMemo(() => {
+    return employees.filter((emp) => emp.status === "ACTIVE")
+  }, [employees])
 
-      // Dynamically import both pdf and the component
-      const [{ pdf }, { default: CompanyViewPDF }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("@/components/pdf/company-view-pdf"),
-      ])
-
-      // Generate PDF
-      const blob = await pdf(<CompanyViewPDF company={company} />).toBlob()
-      console.log("PDF Blob:", blob)
-
-      // Create download link
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `company_${company.name.replace(/\s+/g, "_").toLowerCase()}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      // Cleanup
-      URL.revokeObjectURL(url)
-
-      toast({
-        title: "Success",
-        description: "PDF downloaded successfully",
-      })
-    } catch (error) {
-      console.error("Error generating PDF:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to generate PDF. Please try again.",
-      })
-    } finally {
-      setIsGeneratingPDF(false)
+  // Helper function to format salary display
+  // Uses salaryType and salaryPerDay from the updated API response
+  const formatSalary = (employee: CompanyEmployee): string => {
+    // Primary: Use salaryType and salaryPerDay from response
+    if (employee.salaryType === SalaryType.PER_DAY && employee.salaryPerDay) {
+      return `₹${employee.salaryPerDay.toLocaleString()}/day`
     }
+    if (employee.salaryType === SalaryType.PER_MONTH && employee.salary) {
+      return `₹${employee.salary.toLocaleString()}/month`
+    }
+
+    // Fallback: Use salaryCategory if salaryType is not available
+    if (employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary) {
+      return `₹${employee.monthlySalary.toLocaleString()}/month`
+    }
+    if (
+      (employee.salaryCategory === SalaryCategory.CENTRAL || employee.salaryCategory === SalaryCategory.STATE) &&
+      employee.salaryPerDay
+    ) {
+      return `₹${employee.salaryPerDay.toLocaleString()}/day`
+    }
+
+    // Final fallback: Use salary field
+    if (employee.salary) {
+      // If we have salaryType but no salaryPerDay, show salary with type
+      if (employee.salaryType === SalaryType.PER_DAY) {
+        return `₹${employee.salary.toFixed(2)}/day`
+      }
+      if (employee.salaryType === SalaryType.PER_MONTH) {
+        return `₹${employee.salary.toFixed(2)}/month`
+      }
+      return `₹${employee.salary.toFixed(2)}`
+    }
+
+    return "N/A"
+  }
+
+  const renderCompanyPDF = async () => {
+    const { default: CompanyViewPDF } = await import("@/components/pdf/company-view-pdf")
+    return <CompanyViewPDF company={company} />
   }
 
   const handleExportEmployeesExcel = async () => {
-    if (!employees.length) return
+    if (!activeEmployees.length) return
 
     try {
       const XLSX = await import("xlsx")
 
-      // Convert employees to Excel format
+      // Convert active employees to Excel format
       const worksheet = XLSX.utils.json_to_sheet(
-        employees.map((emp) => ({
+        activeEmployees.map((emp) => ({
+          "Employee ID": emp.employeeId || "N/A",
           Name: `${emp.title || ""} ${emp.firstName} ${emp.lastName}`.trim(),
           Designation: emp.designation || "N/A",
           Department: emp.department || "N/A",
           "Joining Date": emp.joiningDate || "N/A",
-          "Leaving Date": emp.leavingDate || "N/A",
-          Salary: emp.salary ? `₹${emp.salary.toFixed(2)}` : "N/A",
+          "Salary Type": emp.salaryType ? (emp.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month") : "N/A",
+          "Salary Category": emp.salaryCategory || "N/A",
+          "Salary Sub Category": emp.salarySubCategory || "N/A",
+          Salary: formatSalary(emp),
         })),
       )
 
@@ -127,7 +136,7 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
 
       toast({
         title: "Success",
-        description: "Employee list exported to Excel",
+        description: "Active employee list exported to Excel",
       })
     } catch (error) {
       console.error("Error exporting to Excel:", error)
@@ -161,19 +170,19 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">{company.name}</DialogTitle>
           <DialogDescription>Company ID: {company.id}</DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
+          <TabsList className="grid w-full grid-cols-2 shrink-0">
             <TabsTrigger value="details">Company Details</TabsTrigger>
-            <TabsTrigger value="employees">Employees ({employees.length})</TabsTrigger>
+            <TabsTrigger value="employees">Employees ({activeEmployees.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="details" className="space-y-6 pt-4">
+          <TabsContent value="details" className="space-y-6 pt-4 overflow-y-auto flex-1 min-h-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader className="pb-2">
@@ -314,13 +323,13 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
             </Card>
           </TabsContent>
 
-          <TabsContent value="employees" className="space-y-4 pt-4">
-            <div className="flex justify-end">
+          <TabsContent value="employees" className="space-y-4 pt-4 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="flex justify-end shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportEmployeesExcel}
-                disabled={employees.length === 0}
+                disabled={activeEmployees.length === 0}
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export to Excel
@@ -329,40 +338,74 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
 
             {isLoadingEmployees ? (
               <div className="text-center py-8">Loading employees...</div>
-            ) : employees.length > 0 ? (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Designation</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Joining Date</TableHead>
-                      <TableHead>Salary</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {employees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell>{employee.employeeId}</TableCell>
-                        <TableCell className="font-medium">
+            ) : activeEmployees.length > 0 ? (
+              <div className="rounded-md border overflow-x-auto scrollbar-sleek flex-1 min-h-0">
+                <table className="w-full min-w-[1200px] caption-bottom text-sm border-collapse">
+                  <thead className="[&_tr]:border-b">
+                    <tr className="border-b">
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">ID</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Name</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Designation</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Department</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Joining Date</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Salary Type</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Salary Category</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Salary Sub Category</th>
+                      <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Salary</th>
+                    </tr>
+                  </thead>
+                  <tbody className="[&_tr:last-child]:border-0">
+                    {activeEmployees.map((employee) => (
+                      <tr key={employee.id} className="border-b transition-colors hover:bg-muted/50">
+                        <td className="p-4 align-middle">{employee.employeeId}</td>
+                        <td className="p-4 align-middle font-medium">
                           {employee.title} {employee.firstName} {employee.lastName}
-                        </TableCell>
-                        <TableCell>{employee.designation || "N/A"}</TableCell>
-                        <TableCell>{employee.department || "N/A"}</TableCell>
-                        <TableCell>{employee.joiningDate || "N/A"}</TableCell>
-                        <TableCell>₹{employee.salary?.toFixed(2) || "0.00"}</TableCell>
-                      </TableRow>
+                        </td>
+                        <td className="p-4 align-middle">{employee.designation || "N/A"}</td>
+                        <td className="p-4 align-middle">{employee.department || "N/A"}</td>
+                        <td className="p-4 align-middle">{employee.joiningDate || "N/A"}</td>
+                        <td className="p-4 align-middle">
+                          {employee.salaryType ? (
+                            <Badge variant="outline" className="text-xs">
+                              {employee.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                          )}
+                        </td>
+                        <td className="p-4 align-middle">
+                          {employee.salaryCategory ? (
+                            <Badge variant="outline" className="text-xs">
+                              {employee.salaryCategory}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                          )}
+                        </td>
+                        <td className="p-4 align-middle">
+                          {employee.salarySubCategory ? (
+                            <Badge variant="outline" className="text-xs">
+                              {employee.salarySubCategory}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                          )}
+                        </td>
+                        <td className="p-4 align-middle">
+                          <span className="font-medium">{formatSalary(employee)}</span>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             ) : (
               <div className="text-center py-12 space-y-3">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
-                <div className="text-lg font-medium">No employees found</div>
-                <div className="text-sm text-muted-foreground">This company doesn't have any employees yet.</div>
+                <div className="text-lg font-medium">No active employees found</div>
+                <div className="text-sm text-muted-foreground">
+                  This company doesn't have any active employees at the moment.
+                </div>
               </div>
             )}
           </TabsContent>
@@ -372,12 +415,21 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
+          <Button onClick={() => setIsPreviewOpen(true)}>
             <FileText className="mr-2 h-4 w-4" />
-            {isGeneratingPDF ? "Generating..." : "Download PDF"}
+            View/Download PDF
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <PdfPreviewDialog
+        open={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        title={`${company.name} - Company Profile`}
+        description="Company details and salary slip template preview"
+        fileName={`company_${company.name.replace(/\s+/g, "_").toLowerCase()}.pdf`}
+        renderDocument={renderCompanyPDF}
+      />
     </Dialog>
   )
 }

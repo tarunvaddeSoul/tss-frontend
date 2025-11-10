@@ -14,11 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCompany } from "@/hooks/use-company"
 import { usePayroll, usePayrollAdminInputs } from "@/hooks/use-payroll"
-import { Calendar, Users, Calculator, CheckCircle, AlertCircle, Building2, IndianRupee, Loader2 } from "lucide-react"
+import { Calendar, Users, Calculator, CheckCircle, AlertCircle, Building2, IndianRupee, Loader2, Info } from "lucide-react"
 import { format } from "date-fns"
 import type { PayrollStep, CalculatePayrollDto } from "@/types/payroll"
 import { companyService } from "@/services/companyService"
 import { CompanyEmployee } from "@/types/company"
+import { SalaryCategory } from "@/types/salary"
 
 const PAYROLL_STEPS: PayrollStep[] = [
     {
@@ -489,67 +490,162 @@ export default function CalculatePayroll() {
                         <Separator />
 
                         {/* Detailed Records */}
-                        <div className="rounded-md border">
-                            <Table>
+                        <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+                            <Table className="min-w-[1200px]">
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Employee</TableHead>
+                                        <TableHead>Category</TableHead>
                                         <TableHead>Present Days</TableHead>
+                                        <TableHead>Rate</TableHead>
                                         <TableHead>Basic Pay</TableHead>
                                         <TableHead>Gross Salary</TableHead>
+                                        <TableHead>PF</TableHead>
+                                        <TableHead>ESIC</TableHead>
                                         <TableHead>Total Deductions</TableHead>
                                         <TableHead>Net Salary</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {calculationResult.data.payrollResults.map((record) => (
-                                        <TableRow key={record.employeeId}>
-                                            <TableCell>
-                                                <div>
-                                                    <p className="font-medium">{record.employeeName}</p>
-                                                    <p className="text-xs text-muted-foreground">{record.employeeId}</p>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{record.presentDays}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary?.basicPay?.toLocaleString() || "N/A"}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary?.grossSalary?.toLocaleString() || "N/A"}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary?.totalDeductions?.toLocaleString() || "N/A"}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="font-semibold">
-                                                <div className="flex items-center">
-                                                    <IndianRupee className="h-3 w-3 mr-1" />
-                                                    {record.salary?.netSalary?.toLocaleString() || "N/A"}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                {record.error ? (
-                                                    <Badge variant="destructive">Error</Badge>
-                                                ) : isFinalized ? (
-                                                    <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                                        Finalized
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="default">Pending</Badge>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {calculationResult.data.payrollResults.map((record) => {
+                                        const salary = record.salary as any
+                                        const salaryCategory = salary?.salaryCategory || salary?.category
+                                        const isSpecialized = salaryCategory === SalaryCategory.SPECIALIZED
+                                        const showPF = salary?.pf !== undefined && salary?.pf > 0
+                                        const showESIC = salary?.esic !== undefined && salary?.esic > 0
+                                        const pfDisabled = salary?.pf === 0 && salary?.grossSalary > 15000
+                                        const esicDisabled = salary?.esic === 0 && salary?.grossSalary > 15000
+                                        
+                                        return (
+                                            <TableRow key={record.employeeId}>
+                                                <TableCell>
+                                                    <div>
+                                                        <p className="font-medium">{record.employeeName}</p>
+                                                        <p className="text-xs text-muted-foreground">{record.employeeId}</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {salaryCategory ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {salaryCategory}
+                                                            </Badge>
+                                                            {salary?.salarySubCategory && (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {salary.salarySubCategory}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">N/A</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{record.presentDays}</TableCell>
+                                                <TableCell>
+                                                    {isSpecialized && salary?.monthlySalary ? (
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center">
+                                                                <IndianRupee className="h-3 w-3 mr-1" />
+                                                                <span className="text-sm font-medium">
+                                                                    {salary.monthlySalary.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground">/month</span>
+                                                        </div>
+                                                    ) : salary?.salaryPerDay ? (
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center">
+                                                                <IndianRupee className="h-3 w-3 mr-1" />
+                                                                <span className="text-sm font-medium">
+                                                                    {salary.salaryPerDay.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground">/day</span>
+                                                        </div>
+                                                    ) : salary?.wagesPerDay ? (
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center">
+                                                                <IndianRupee className="h-3 w-3 mr-1" />
+                                                                <span className="text-sm font-medium">
+                                                                    {salary.wagesPerDay.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground">/day</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">N/A</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center">
+                                                        <IndianRupee className="h-3 w-3 mr-1" />
+                                                        {salary?.basicPay?.toLocaleString() || "N/A"}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center">
+                                                        <IndianRupee className="h-3 w-3 mr-1" />
+                                                        {salary?.grossSalary?.toLocaleString() || "N/A"}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {showPF ? (
+                                                        <div className="flex items-center">
+                                                            <IndianRupee className="h-3 w-3 mr-1" />
+                                                            <span>{salary.pf.toLocaleString()}</span>
+                                                        </div>
+                                                    ) : pfDisabled ? (
+                                                        <div className="flex items-center gap-1" title="PF disabled: Gross salary > ₹15,000">
+                                                            <span className="text-xs text-muted-foreground">-</span>
+                                                            <Info className="h-3 w-3 text-muted-foreground" />
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {showESIC ? (
+                                                        <div className="flex items-center">
+                                                            <IndianRupee className="h-3 w-3 mr-1" />
+                                                            <span>{salary.esic.toLocaleString()}</span>
+                                                        </div>
+                                                    ) : esicDisabled ? (
+                                                        <div className="flex items-center gap-1" title="ESIC disabled: Gross salary > ₹15,000">
+                                                            <span className="text-xs text-muted-foreground">-</span>
+                                                            <Info className="h-3 w-3 text-muted-foreground" />
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center">
+                                                        <IndianRupee className="h-3 w-3 mr-1" />
+                                                        {salary?.totalDeductions?.toLocaleString() || "N/A"}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-semibold">
+                                                    <div className="flex items-center">
+                                                        <IndianRupee className="h-3 w-3 mr-1" />
+                                                        {salary?.netSalary?.toLocaleString() || "N/A"}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.error ? (
+                                                        <Badge variant="destructive">Error</Badge>
+                                                    ) : isFinalized ? (
+                                                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                                            Finalized
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="default">Pending</Badge>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
                                 </TableBody>
                             </Table>
                         </div>

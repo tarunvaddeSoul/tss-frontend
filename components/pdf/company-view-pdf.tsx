@@ -1,6 +1,7 @@
 import { Document, StyleSheet, Text, View } from "@react-pdf/renderer"
 import type { Company } from "@/types/company"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
+import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
 
 // Local styles (use brandStyles for most)
 const styles = StyleSheet.create({
@@ -84,31 +85,80 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
           </View>
         </Section>
 
-        {enabledFields.length > 0 && (
-          <Section title="Salary Template Configuration">
-            <View style={brandStyles.table}>
-              <View style={[brandStyles.tableRow, brandStyles.tableHeader]}>
-                <Text style={[brandStyles.tableHeaderCell, { width: "40%" }]}>Field Name</Text>
-                <Text style={[brandStyles.tableHeaderCell, { width: "20%" }]}>Type</Text>
-                <Text style={[brandStyles.tableHeaderCell, { width: "20%" }]}>Purpose</Text>
-                <Text style={[brandStyles.tableHeaderCell, { width: "20%" }]}>Default Value</Text>
-              </View>
-              {enabledFields.map((field) => (
-                <View key={field.key} style={brandStyles.tableRow}>
-                  <Text style={[brandStyles.tableCell, { width: "40%" }]}>{field.label}</Text>
-                  <Text style={[brandStyles.tableCell, { width: "20%" }]}>{field.type}</Text>
-                  <Text style={[brandStyles.tableCell, { width: "20%" }]}>{field.purpose}</Text>
-                  <Text style={[brandStyles.tableCell, { width: "20%" }]}>
-                    {field.defaultValue || field.rules?.defaultValue || "Not specified"}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </Section>
-        )}
-
         <PdfFooter rightNote="This is a computer-generated document" />
       </BrandPage>
+
+      {/* Page 2: Sample Salary Slip in New Format */}
+      {enabledFields.length > 0 && (() => {
+        // Create sample salary slip data
+        const getNumericValue = (field: any) => {
+          if (field.type === "NUMBER") {
+            return Number(field.rules?.defaultValue || field.defaultValue || 0)
+          }
+          return 0
+        }
+
+        const calculationFields = enabledFields.filter((f) => f.purpose === "CALCULATION")
+        const allowanceFields = enabledFields.filter((f) => f.purpose === "ALLOWANCE")
+        const deductionFields = enabledFields.filter((f) => f.purpose === "DEDUCTION")
+
+        const basicField = calculationFields.find((f) => f.key === "basic" || f.key === "basicSalary" || f.key === "basicPay")
+        const basic = basicField ? getNumericValue(basicField) : 15000
+        const allowance = allowanceFields.reduce((sum, field) => sum + getNumericValue(field), 0)
+        const grossEarning = basic + allowance
+
+        const epfContribution = deductionFields
+          .filter((f) => f.key === "pf" || f.key === "epfContribution12Percent")
+          .reduce((sum, field) => sum + getNumericValue(field), 0)
+        const esicContribution = deductionFields
+          .filter((f) => f.key === "esic" || f.key === "esic075Percent")
+          .reduce((sum, field) => sum + getNumericValue(field), 0)
+        const advance = deductionFields
+          .filter((f) => f.key === "advance")
+          .reduce((sum, field) => sum + getNumericValue(field), 0)
+        const grossDeduction = epfContribution + esicContribution + advance
+        const netPay = grossEarning - grossDeduction
+
+        const currentDate = new Date()
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        const month = `${monthNames[currentDate.getMonth()]}-${currentDate.getFullYear().toString().slice(-2)}`
+        const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
+        const monthNum = String(currentDate.getMonth() + 1).padStart(2, "0")
+        const payPeriod = `01-${monthNum}-${currentDate.getFullYear()} to ${String(lastDay).padStart(2, "0")}-${monthNum}-${currentDate.getFullYear()}`
+
+        const sampleSalarySlipData: SalarySlipData = {
+          company: company.name,
+          month,
+          pay_period: payPeriod,
+          employee: {
+            name: "Sample Employee",
+            employee_id: "E-SAMPLE",
+            category: "CENTRAL",
+            department: "Sample Department",
+            location: "Sample Location",
+            working_days: 27,
+            account_no: "",
+            esic_no: "",
+            uan_no: "",
+          },
+          earnings: {
+            basic,
+            allowance,
+            other_allowance: 0,
+            other: 0,
+            gross_earning: grossEarning,
+          },
+          deductions: {
+            epf_contribution_12_percent: epfContribution,
+            esic_0_75_percent: esicContribution,
+            advance,
+            gross_deduction: grossDeduction,
+          },
+          net_pay: netPay,
+        }
+
+        return <SalarySlipPDFPage key="sample" data={sampleSalarySlipData} />
+      })()}
     </Document>
   )
 }

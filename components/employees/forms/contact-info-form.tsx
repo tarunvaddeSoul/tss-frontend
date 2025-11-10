@@ -94,19 +94,19 @@ export function ContactInfoForm({ employee, onUpdate }: ContactInfoFormProps) {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle>Contact Information</CardTitle>
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 space-y-0 pb-4">
+        <CardTitle className="truncate">Contact Information</CardTitle>
         {hasChanges && (
-          <Button onClick={form.handleSubmit(handleSubmit)} disabled={isSubmitting} size="sm" className="ml-auto">
+          <Button onClick={form.handleSubmit(handleSubmit)} disabled={isSubmitting} size="sm" className="w-full sm:w-auto shrink-0 sm:ml-auto">
             {isSubmitting ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
+                <Loader2 className="h-4 w-4 mr-2 animate-spin shrink-0" />
+                <span className="truncate">Saving...</span>
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
+                <Save className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">Save Changes</span>
               </>
             )}
           </Button>

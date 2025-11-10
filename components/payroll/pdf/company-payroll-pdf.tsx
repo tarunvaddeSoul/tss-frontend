@@ -1,8 +1,9 @@
-import { Document, Text, View, StyleSheet, PDFDownloadLink } from "@react-pdf/renderer"
+import { Document, Text, View, StyleSheet, PDFDownloadLink, Image, Page } from "@react-pdf/renderer"
 import { FileDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { CompanyPayrollMonth } from "@/types/payroll"
+import type { CompanyPayrollMonth, CompanyPayrollRecord } from "@/types/payroll"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
+import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
 
 function getCurrentDateTime(): string {
   const now = new Date()
@@ -81,11 +82,95 @@ const styles = StyleSheet.create({
 interface CompanyPayrollPDFProps {
   data: CompanyPayrollMonth[]
   companyName: string
+  companyDetails?: {
+    address?: string
+    contactPersonName?: string
+    contactPersonNumber?: string
+    companyOnboardingDate?: string
+  }
 }
 
-const CompanyPayrollPDF = ({ data, companyName }: CompanyPayrollPDFProps) => {
+// Helper function to convert CompanyPayrollRecord to SalarySlipData
+const convertToSalarySlipData = (
+  record: CompanyPayrollRecord,
+  companyName: string,
+  month: string
+): SalarySlipData => {
+  const salaryData = record.salaryData
+  const employee = record.employee
+
+  // Format month (e.g., "2025-07" to "Jul-25")
+  const formatMonth = (monthStr: string) => {
+    const [year, monthNum] = monthStr.split("-")
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    return `${monthNames[parseInt(monthNum) - 1]}-${year.slice(-2)}`
+  }
+
+  // Get pay period (first and last day of month)
+  const getPayPeriod = (monthStr: string) => {
+    const [year, monthNum] = monthStr.split("-")
+    const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate()
+    return `01-${monthNum}-${year} to ${lastDay}-${monthNum}-${year}`
+  }
+
+  // Calculate earnings
+  const basic = salaryData.basicPay || 0
+  const allowance = salaryData.allowance || salaryData.hra || salaryData.transportAllowance || 0
+  const otherAllowance = salaryData.otherAllowance || salaryData.bonus || 0
+  const other = salaryData.other || 0
+  const grossEarning = salaryData.grossSalary || 0
+
+  // Calculate deductions
+  const epfContribution = salaryData.pf || salaryData.epfContribution12Percent || 0
+  const esicContribution = salaryData.esic || salaryData.esic075Percent || 0
+  const advance = salaryData.advance || 0
+  const grossDeduction = salaryData.totalDeductions || (epfContribution + esicContribution + advance)
+
+  return {
+    company: companyName,
+    month: formatMonth(month),
+    pay_period: getPayPeriod(month),
+    employee: {
+      name: employee
+        ? `${employee.title || ""} ${employee.firstName} ${employee.lastName}`.trim()
+        : record.employeeId,
+      employee_id: record.employeeId,
+      category: employee?.category || salaryData.category || salaryData.salaryCategory || "N/A",
+      department: salaryData.department || "N/A",
+      location: salaryData.location || "N/A",
+      working_days: salaryData.dutyDone || salaryData.workingDays || 0,
+      account_no: employee?.bankAccountNumber || "",
+      esic_no: employee?.esicNumber || "",
+      uan_no: employee?.pfUanNumber || "",
+    },
+    earnings: {
+      basic,
+      allowance,
+      other_allowance: otherAllowance,
+      other,
+      gross_earning: grossEarning,
+    },
+    deductions: {
+      epf_contribution_12_percent: epfContribution,
+      esic_0_75_percent: esicContribution,
+      advance,
+      gross_deduction: grossDeduction,
+    },
+    net_pay: salaryData.netSalary || 0,
+  }
+}
+
+const CompanyPayrollPDF = ({ data, companyName, companyDetails }: CompanyPayrollPDFProps) => {
   const totalEmployees = data.reduce((sum, month) => sum + month.employeeCount, 0)
   const totalNetSalary = data.reduce((sum, month) => sum + month.totalNetSalary, 0)
+
+  // Collect all employee records for salary slips
+  const allEmployeeRecords: Array<{ record: CompanyPayrollRecord; month: string }> = []
+  data.forEach((monthData) => {
+    monthData.records.forEach((record) => {
+      allEmployeeRecords.push({ record, month: monthData.month })
+    })
+  })
 
   return (
     <Document
@@ -94,58 +179,42 @@ const CompanyPayrollPDF = ({ data, companyName }: CompanyPayrollPDFProps) => {
       subject="Company Payroll Report"
       keywords="Tulsyan Security Solutions, Payroll, Company"
     >
+      {/* Page 1: Company Details */}
       <BrandPage>
         <PdfHeader title={`${companyName} - Payroll Report`} subtitle="Company Payroll Summary" />
 
-        {/* Monthly Data */}
-        {data.map((month) => (
-          <View key={month.month} style={styles.monthSection}>
-            <View style={styles.monthHeader}>
-              <Text style={styles.monthTitle}>{month.month}</Text>
-              <Text style={styles.monthStats}>
-                Employees: {month.employeeCount} | Total Net: ₹{month.totalNetSalary.toLocaleString()}
-              </Text>
-            </View>
-
-            {/* Employee Details Table */}
-            <View style={styles.table}>
-              {/* Header Row */}
-              <View style={[styles.tableRow, styles.tableHeader]}>
-                <Text style={[styles.tableCell, styles.col1]}>Employee</Text>
-                <Text style={[styles.tableCell, styles.col2]}>Basic Pay</Text>
-                <Text style={[styles.tableCell, styles.col3]}>Gross Salary</Text>
-                <Text style={[styles.tableCell, styles.col4]}>Net Salary</Text>
-                <Text style={[styles.tableCell, styles.col5]}>Deductions</Text>
-              </View>
-
-              {/* Data Rows */}
-              {month.records.map((record) => (
-                <View key={record.id} style={styles.tableRow}>
-                  <Text style={[styles.tableCell, styles.col1]}>
-                    {record.employee
-                      ? `${record.employee.firstName} ${record.employee.lastName}`
-                      : record.employeeId}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.col2]}>
-                    ₹{(record.salaryData.basicPay || 0).toLocaleString()}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.col3]}>
-                    ₹{(record.salaryData.grossSalary || 0).toLocaleString()}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.col4]}>
-                    ₹{(record.salaryData.netSalary || 0).toLocaleString()}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.col5]}>
-                    ₹{(record.salaryData.totalDeductions || 0).toLocaleString()}
-                  </Text>
-                </View>
-              ))}
-            </View>
+        <Section title="Company Information">
+          <View style={brandStyles.row}>
+            <Text style={brandStyles.label}>Company Name:</Text>
+            <Text style={brandStyles.value}>{companyName}</Text>
           </View>
-        ))}
+          {companyDetails?.address && (
+            <View style={brandStyles.row}>
+              <Text style={brandStyles.label}>Address:</Text>
+              <Text style={brandStyles.value}>{companyDetails.address}</Text>
+            </View>
+          )}
+          {companyDetails?.contactPersonName && (
+            <View style={brandStyles.row}>
+              <Text style={brandStyles.label}>Contact Person:</Text>
+              <Text style={brandStyles.value}>{companyDetails.contactPersonName}</Text>
+            </View>
+          )}
+          {companyDetails?.contactPersonNumber && (
+            <View style={brandStyles.row}>
+              <Text style={brandStyles.label}>Contact Number:</Text>
+              <Text style={brandStyles.value}>{companyDetails.contactPersonNumber}</Text>
+            </View>
+          )}
+          {companyDetails?.companyOnboardingDate && (
+            <View style={brandStyles.row}>
+              <Text style={brandStyles.label}>Onboarding Date:</Text>
+              <Text style={brandStyles.value}>{companyDetails.companyOnboardingDate}</Text>
+            </View>
+          )}
+        </Section>
 
-        {/* Summary */}
-        <Section title="Overall Summary">
+        <Section title="Payroll Summary">
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Months:</Text>
             <Text style={brandStyles.value}>{data.length}</Text>
@@ -156,12 +225,18 @@ const CompanyPayrollPDF = ({ data, companyName }: CompanyPayrollPDFProps) => {
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Net Salary:</Text>
-            <Text style={brandStyles.value}>₹{totalNetSalary.toLocaleString()}</Text>
+            <Text style={brandStyles.value}>₹{totalNetSalary.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
           </View>
         </Section>
 
         <PdfFooter rightNote="This is a computer-generated report" />
       </BrandPage>
+
+      {/* Page 2+: Individual Salary Slips */}
+      {allEmployeeRecords.map(({ record, month }) => {
+        const salarySlipData = convertToSalarySlipData(record, companyName, month)
+        return <SalarySlipPDFPage key={record.id} data={salarySlipData} />
+      })}
     </Document>
   )
 }
@@ -169,6 +244,12 @@ const CompanyPayrollPDF = ({ data, companyName }: CompanyPayrollPDFProps) => {
 interface CompanyPayrollPDFDownloadButtonProps {
   data: CompanyPayrollMonth[]
   companyName: string
+  companyDetails?: {
+    address?: string
+    contactPersonName?: string
+    contactPersonNumber?: string
+    companyOnboardingDate?: string
+  }
   disabled?: boolean
   className?: string
 }
@@ -176,6 +257,7 @@ interface CompanyPayrollPDFDownloadButtonProps {
 export const CompanyPayrollPDFDownloadButton = ({
   data,
   companyName,
+  companyDetails,
   disabled = false,
   className,
 }: CompanyPayrollPDFDownloadButtonProps) => {
@@ -183,7 +265,7 @@ export const CompanyPayrollPDFDownloadButton = ({
 
   return (
     <PDFDownloadLink
-      document={<CompanyPayrollPDF data={data} companyName={companyName} />}
+      document={<CompanyPayrollPDF data={data} companyName={companyName} companyDetails={companyDetails} />}
       fileName={fileName}
     >
       {({ loading }) => (

@@ -4,9 +4,13 @@ import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Upload, User, Phone, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle } from "lucide-react"
+import { Upload, User, Phone, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, DollarSign, Info } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { format } from "date-fns"
+import { SalaryCategory, SalarySubCategory } from "@/types/salary"
+import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
+import { Switch } from "@/components/ui/switch"
+import { InlineLoader } from "@/components/ui/loader"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,7 +45,6 @@ const employeeFormSchema = z.object({
   currentCompanyDepartmentId: z.string().optional(),
   currentCompanyJoiningDate: z.date().optional(),
   currentCompanyId: z.string().optional(),
-  currentCompanySalary: z.number().optional(),
   mobileNumber: z.string().regex(/^\d{10}$/, "Invalid mobile number"),
   recruitedBy: z.string().min(1, "Recruiter name is required"),
   gender: z.string().min(1, "Gender is required"),
@@ -83,7 +86,50 @@ const employeeFormSchema = z.object({
   otherDocument: z.any().optional(),
   otherDocumentRemarks: z.string().optional(),
   aadhaarNumber: z.string().regex(/^\d{12}$/, "Invalid Aadhaar number"),
-})
+  // NEW: Salary fields
+  salaryCategory: z.nativeEnum(SalaryCategory).optional().nullable(),
+  salarySubCategory: z.nativeEnum(SalarySubCategory).optional().nullable(),
+  salaryPerDay: z.number().min(0.01, "Rate per day must be greater than 0").optional().nullable(),
+  monthlySalary: z.number().min(0.01, "Monthly salary must be greater than 0").optional().nullable(),
+  pfEnabled: z.boolean().default(false),
+  esicEnabled: z.boolean().default(false),
+}).refine(
+  (data) => {
+    // If salaryCategory is CENTRAL or STATE, salarySubCategory is required
+    if (data.salaryCategory === SalaryCategory.CENTRAL || data.salaryCategory === SalaryCategory.STATE) {
+      return !!data.salarySubCategory
+    }
+    return true
+  },
+  {
+    message: "Subcategory is required for CENTRAL and STATE categories",
+    path: ["salarySubCategory"],
+  }
+).refine(
+  (data) => {
+    // If salaryCategory is CENTRAL or STATE, salaryPerDay is required
+    if (data.salaryCategory === SalaryCategory.CENTRAL || data.salaryCategory === SalaryCategory.STATE) {
+      return data.salaryPerDay !== null && data.salaryPerDay !== undefined && data.salaryPerDay > 0
+    }
+    return true
+  },
+  {
+    message: "Rate per day is required for CENTRAL and STATE categories",
+    path: ["salaryPerDay"],
+  }
+).refine(
+  (data) => {
+    // If salaryCategory is SPECIALIZED, monthlySalary is required
+    if (data.salaryCategory === SalaryCategory.SPECIALIZED) {
+      return data.monthlySalary !== null && data.monthlySalary !== undefined && data.monthlySalary > 0
+    }
+    return true
+  },
+  {
+    message: "Monthly salary is required for SPECIALIZED category",
+    path: ["monthlySalary"],
+  }
+)
 
 // Add date formatting utility
 const formatDateToDDMMYYYY = (date: Date) => {
@@ -112,11 +158,13 @@ export function EmployeeForm({
   const [sameAsPermanent, setSameAsPermanent] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [stepsWithErrors, setStepsWithErrors] = useState<Set<number>>(new Set())
+  const [isExplicitSubmit, setIsExplicitSubmit] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
 
   // Define form steps
   const steps = [
     { id: "basic", title: "Basic Information", icon: User, description: "Personal details and contact information" },
+    { id: "salary", title: "Salary", icon: DollarSign, description: "Salary configuration" },
     { id: "employment", title: "Employment", icon: Briefcase, description: "Employment details (optional)", optional: true },
     { id: "bank", title: "Bank Details", icon: CreditCard, description: "Banking information" },
     { id: "additional", title: "Additional Details", icon: FileText, description: "PF, ESIC, and certificates" },
@@ -186,10 +234,74 @@ export function EmployeeForm({
       markSheet: initialValues?.markSheet || null,
       otherDocument: initialValues?.otherDocument || null,
       otherDocumentRemarks: initialValues?.otherDocumentRemarks || "",
-      currentCompanySalary: initialValues?.currentCompanySalary || 0,
       aadhaarNumber: initialValues?.aadhaarNumber || "",
+      // NEW: Salary fields
+      salaryCategory: initialValues?.salaryCategory || null,
+      salarySubCategory: initialValues?.salarySubCategory || null,
+      salaryPerDay: initialValues?.salaryPerDay || null,
+      monthlySalary: initialValues?.monthlySalary || null,
+      pfEnabled: initialValues?.pfEnabled ?? false,
+      esicEnabled: initialValues?.esicEnabled ?? false,
     },
   })
+
+  // State for active rate loading
+  const [loadingActiveRate, setLoadingActiveRate] = useState(false)
+  const [activeRate, setActiveRate] = useState<number | null>(null)
+  const [rateError, setRateError] = useState<string | null>(null)
+
+  // Watch salary category and subcategory to fetch active rate
+  const salaryCategory = form.watch("salaryCategory")
+  const salarySubCategory = form.watch("salarySubCategory")
+  const employeeOnboardingDate = form.watch("employeeOnboardingDate")
+
+  // Fetch active rate when category/subcategory changes
+  useEffect(() => {
+    const fetchActiveRate = async () => {
+      if (
+        (salaryCategory === SalaryCategory.CENTRAL || salaryCategory === SalaryCategory.STATE) &&
+        salarySubCategory &&
+        employeeOnboardingDate
+      ) {
+        setLoadingActiveRate(true)
+        setRateError(null)
+        try {
+          const dateString = format(employeeOnboardingDate, "yyyy-MM-dd")
+          const response = await salaryRateScheduleService.getActiveRate({
+            category: salaryCategory,
+            subCategory: salarySubCategory,
+            date: dateString,
+          })
+          
+          // API returns an array of active rate schedules
+          if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+            // Get the first active rate (or find the one with effectiveTo === null for current active)
+            const activeRateSchedule = response.data.find((rate) => rate.effectiveTo === null) || response.data[0]
+            setActiveRate(activeRateSchedule.ratePerDay)
+            // Auto-populate salaryPerDay if not manually set
+            const currentSalaryPerDay = form.getValues("salaryPerDay")
+            if (!currentSalaryPerDay || currentSalaryPerDay === 0) {
+              form.setValue("salaryPerDay", activeRateSchedule.ratePerDay)
+            }
+          } else {
+            setActiveRate(null)
+            setRateError("No active rate schedule found for this category and date")
+          }
+        } catch (error: any) {
+          setActiveRate(null)
+          setRateError(error.message || "Failed to fetch active rate")
+        } finally {
+          setLoadingActiveRate(false)
+        }
+      } else {
+        setActiveRate(null)
+        setRateError(null)
+      }
+    }
+
+    fetchActiveRate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salaryCategory, salarySubCategory, employeeOnboardingDate])
 
   // Load saved form data on component mount
   useEffect(() => {
@@ -255,11 +367,12 @@ export function EmployeeForm({
     // Define which fields belong to which step
     const stepFields: Record<number, (keyof z.infer<typeof employeeFormSchema>)[]> = {
       0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'], // Basic Information
-      1: [], // Employment (optional)
-      2: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'], // Bank Details
-      3: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'], // Additional Details
-      4: ['referenceName', 'referenceAddress', 'referenceNumber'], // Reference
-      5: [], // Documents (optional)
+      1: ['salaryCategory', 'salarySubCategory', 'salaryPerDay', 'monthlySalary', 'pfEnabled', 'esicEnabled'], // Salary Configuration
+      2: [], // Employment (optional)
+      3: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'], // Bank Details
+      4: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'], // Additional Details
+      5: ['referenceName', 'referenceAddress', 'referenceNumber'], // Reference
+      6: [], // Documents (optional)
     }
     
     // Check each step for errors
@@ -268,7 +381,7 @@ export function EmployeeForm({
       const fields = stepFields[stepNum]
       
       // Skip optional steps (employment, documents)
-      if (stepNum === 1 || stepNum === 5) return
+      if (stepNum === 2 || stepNum === 6) return
       
       const hasError = fields.some((field) => errors[field])
       if (hasError) {
@@ -291,9 +404,10 @@ export function EmployeeForm({
       // Find which step contains this field
       const stepFields: Record<number, string[]> = {
         0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'],
-        2: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'],
-        3: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'],
-        4: ['referenceName', 'referenceAddress', 'referenceNumber'],
+        1: ['salaryCategory', 'salarySubCategory', 'salaryPerDay', 'monthlySalary', 'pfEnabled', 'esicEnabled'],
+        3: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'],
+        4: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'],
+        5: ['referenceName', 'referenceAddress', 'referenceNumber'],
       }
       
       let targetStep = 0
@@ -343,8 +457,12 @@ export function EmployeeForm({
     
     try {
       // Format dates to DD-MM-YYYY
+      // Remove salaryPerDay - it's auto-calculated by backend from SalaryRateSchedule
+      // Remove monthlySalary if not SPECIALIZED category
+      const { salaryPerDay, monthlySalary, ...restValues } = values
+      
       const formattedValues = {
-        ...values,
+        ...restValues,
         dateOfBirth: formatDateToDDMMYYYY(values.dateOfBirth),
         employeeOnboardingDate: formatDateToDDMMYYYY(values.employeeOnboardingDate),
         policeVerificationDate: formatDateToDDMMYYYY(values.policeVerificationDate),
@@ -353,6 +471,8 @@ export function EmployeeForm({
         currentCompanyJoiningDate: values.currentCompanyJoiningDate 
           ? formatDateToDDMMYYYY(values.currentCompanyJoiningDate)
           : undefined,
+        // Only include monthlySalary if category is SPECIALIZED
+        ...(values.salaryCategory === SalaryCategory.SPECIALIZED && monthlySalary ? { monthlySalary } : {}),
       }
 
       await onSubmit(formattedValues as unknown as EmployeeFormValues)
@@ -421,14 +541,18 @@ export function EmployeeForm({
   }
 
   // Navigation handlers
-  const handleNext = () => {
+  const handleNext = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.preventDefault()
+    e?.stopPropagation()
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
   }
 
-  const handlePrevious = () => {
+  const handlePrevious = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.preventDefault()
+    e?.stopPropagation()
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
@@ -613,7 +737,44 @@ export function EmployeeForm({
 
   return (
     <Form {...form}>
-      <form id="employee-form" ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+      <form 
+        id="employee-form" 
+        ref={formRef} 
+        onSubmit={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          
+          // Only submit if:
+          // 1. We're on the last step (Documents)
+          // 2. The submit was triggered by the Submit button explicitly
+          const submitEvent = e.nativeEvent as SubmitEvent
+          const submitter = submitEvent.submitter as HTMLButtonElement | null
+          
+          if (
+            currentStep === steps.length - 1 && 
+            (isExplicitSubmit || (submitter && submitter.type === 'submit'))
+          ) {
+            setIsExplicitSubmit(false) // Reset flag
+            form.handleSubmit(handleFormSubmit)(e)
+          }
+        }}
+        onKeyDown={(e) => {
+          // Prevent form submission on Enter key unless explicitly on Submit button
+          if (e.key === 'Enter') {
+            const target = e.target as HTMLElement
+            const isSubmitButton = target.closest('button[type="submit"]')
+            const isTextarea = target.tagName === 'TEXTAREA'
+            const isInput = target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'submit'
+            
+            // Only allow Enter on Submit button or textarea
+            if (!isSubmitButton && !isTextarea && isInput) {
+              e.preventDefault()
+              e.stopPropagation()
+            }
+          }
+        }}
+        className="space-y-6"
+      >
         {/* Validation Error Alert */}
         {totalErrors > 0 && (
           <Alert variant="destructive" className="border-destructive">
@@ -657,40 +818,57 @@ export function EmployeeForm({
                   const StepIcon = step.icon
                   const isActive = index === currentStep
                   const isCompleted = index < currentStep
-                  const isClickable = isCompleted || !step.optional
+                  // All steps are always clickable to allow free navigation
+                  const isClickable = true
                   
                   return (
                     <div key={step.id} className="flex items-center flex-1">
                       <div
-                        onClick={() => isClickable && handleStepClick(index)}
+                        onClick={() => handleStepClick(index)}
                         className={cn(
-                          "flex flex-col items-center cursor-pointer transition-all relative",
-                          isClickable ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-50"
+                          "flex flex-col items-center cursor-pointer transition-all relative w-full",
+                          "hover:opacity-80"
                         )}
                       >
-                        <div
-                          className={cn(
-                            "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all relative",
-                            isActive && "border-primary bg-primary text-primary-foreground",
-                            isCompleted && !stepsWithErrors.has(index) && "border-green-500 bg-green-500 text-white",
-                            stepsWithErrors.has(index) && "border-destructive bg-destructive/10 text-destructive border-2",
-                            !isActive && !isCompleted && !stepsWithErrors.has(index) && "border-muted bg-background"
+                        {/* Icon Container with Optional Badge Overlay */}
+                        <div className="relative mb-2">
+                          <div
+                            className={cn(
+                              "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all relative",
+                              isActive && "border-primary bg-primary text-primary-foreground",
+                              isCompleted && !stepsWithErrors.has(index) && "border-green-500 bg-green-500 text-white",
+                              stepsWithErrors.has(index) && "border-destructive bg-destructive/10 text-destructive border-2",
+                              !isActive && !isCompleted && !stepsWithErrors.has(index) && "border-muted bg-background"
+                            )}
+                          >
+                            {stepsWithErrors.has(index) ? (
+                              <AlertCircle className="h-5 w-5" />
+                            ) : (
+                              <StepIcon className="h-5 w-5" />
+                            )}
+                          </div>
+                          {/* Optional Badge as Overlay on Icon */}
+                          {step.optional && (
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
+                              <Badge 
+                                variant="outline" 
+                                className="text-[10px] px-1.5 py-0 h-4 bg-background/95 backdrop-blur-sm border-primary/30"
+                              >
+                                Opt
+                              </Badge>
+                            </div>
                           )}
-                        >
-                          {stepsWithErrors.has(index) ? (
-                            <AlertCircle className="h-5 w-5" />
-                          ) : (
-                            <StepIcon className="h-5 w-5" />
+                          {/* Error Indicator */}
+                          {stepsWithErrors.has(index) && (
+                            <div className="absolute -top-1 -right-1">
+                              <div className="w-3 h-3 bg-destructive rounded-full border-2 border-background" />
+                            </div>
                           )}
                         </div>
-                        {stepsWithErrors.has(index) && (
-                          <div className="absolute -top-1 -right-1">
-                            <div className="w-3 h-3 bg-destructive rounded-full border-2 border-background" />
-                          </div>
-                        )}
-                        <div className="mt-2 text-center">
+                        {/* Title with Fixed Height for Alignment */}
+                        <div className="text-center min-h-[2.5rem] flex flex-col items-center justify-start">
                           <div className={cn(
-                            "text-xs font-medium",
+                            "text-xs font-medium leading-tight",
                             isActive && "text-primary",
                             isCompleted && !stepsWithErrors.has(index) && "text-green-600",
                             stepsWithErrors.has(index) && "text-destructive font-semibold",
@@ -698,11 +876,8 @@ export function EmployeeForm({
                           )}>
                             {step.title}
                           </div>
-                          {step.optional && (
-                            <Badge variant="outline" className="mt-1 text-xs">Optional</Badge>
-                          )}
                           {stepsWithErrors.has(index) && (
-                            <Badge variant="destructive" className="mt-1 text-xs">Has Errors</Badge>
+                            <Badge variant="destructive" className="mt-1 text-[10px] px-1.5 py-0 h-4">Errors</Badge>
                           )}
                         </div>
                       </div>
@@ -1101,7 +1276,212 @@ export function EmployeeForm({
         )}
 
         {currentStep === 1 && (
-          /* Step 2: Employment Details - Optional */
+          /* Step 2: Salary Configuration */
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-primary" />
+                <CardTitle>Salary Configuration</CardTitle>
+              </div>
+              <CardDescription>Configure employee salary category and settings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="salaryCategory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Salary Category *</FormLabel>
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={(value) => {
+                        field.onChange(value === "" ? null : value)
+                        // Clear dependent fields when category changes
+                        if (value === SalaryCategory.SPECIALIZED) {
+                          form.setValue("salarySubCategory", null)
+                          form.setValue("salaryPerDay", null)
+                        } else {
+                          form.setValue("monthlySalary", null)
+                        }
+                      }}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select salary category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={SalaryCategory.CENTRAL}>CENTRAL</SelectItem>
+                        <SelectItem value={SalaryCategory.STATE}>STATE</SelectItem>
+                        <SelectItem value={SalaryCategory.SPECIALIZED}>SPECIALIZED</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {(salaryCategory === SalaryCategory.CENTRAL || salaryCategory === SalaryCategory.STATE) && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="salarySubCategory"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Subcategory *</FormLabel>
+                        <Select
+                          value={field.value || ""}
+                          onValueChange={(value) => {
+                            field.onChange(value === "" ? null : value)
+                            // Clear salaryPerDay when subcategory changes to trigger rate fetch
+                            form.setValue("salaryPerDay", null)
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select subcategory" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={SalarySubCategory.SKILLED}>SKILLED</SelectItem>
+                            <SelectItem value={SalarySubCategory.UNSKILLED}>UNSKILLED</SelectItem>
+                            <SelectItem value={SalarySubCategory.HIGHSKILLED}>HIGHSKILLED</SelectItem>
+                            <SelectItem value={SalarySubCategory.SEMISKILLED}>SEMISKILLED</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {loadingActiveRate && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <InlineLoader size="sm" />
+                      <span>Fetching active rate...</span>
+                    </div>
+                  )}
+
+                  {activeRate && !loadingActiveRate && (
+                    <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                      <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <AlertDescription className="text-blue-800 dark:text-blue-200">
+                        Active rate for {salaryCategory} - {salarySubCategory}: ₹{activeRate.toLocaleString()}/day
+                        {form.getValues("salaryPerDay") !== activeRate && (
+                          <span className="ml-2 text-xs">(You can override this value manually)</span>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {rateError && !loadingActiveRate && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{rateError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="salaryPerDay"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Rate Per Day (₹) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="Enter rate per day"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        {activeRate && !loadingActiveRate && (
+                          <p className="text-xs text-muted-foreground">
+                            Leave empty to use active rate: ₹{activeRate.toLocaleString()}/day
+                          </p>
+                        )}
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {salaryCategory === SalaryCategory.SPECIALIZED && (
+                <FormField
+                  control={form.control}
+                  name="monthlySalary"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Salary (₹) *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          placeholder="Enter monthly salary"
+                          {...field}
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="pfEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">PF Enabled</FormLabel>
+                        <div className="text-sm text-muted-foreground">
+                          Enable Provident Fund deduction
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="esicEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">ESIC Enabled</FormLabel>
+                        <div className="text-sm text-muted-foreground">
+                          Enable ESIC deduction
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {currentStep === 2 && (
+          /* Step 3: Employment Details - Optional */
           <Card className="border-dashed">
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -1118,24 +1498,6 @@ export function EmployeeForm({
                 name="currentCompanyJoiningDate"
                 render={({ field }) => (
                   <ClearableDatePicker field={field} label="Company Date of Joining" />
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="currentCompanySalary"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salary</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Enter salary"
-                        {...field}
-                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
                 )}
               />
               <FormField
@@ -1194,8 +1556,8 @@ export function EmployeeForm({
             </Card>
         )}
 
-        {currentStep === 2 && (
-          /* Step 3: Bank Details */
+        {currentStep === 3 && (
+          /* Step 4: Bank Details */
           <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -1263,8 +1625,8 @@ export function EmployeeForm({
             </Card>
         )}
 
-        {currentStep === 3 && (
-          /* Step 4: Additional Details */
+        {currentStep === 4 && (
+          /* Step 5: Additional Details */
           <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -1366,7 +1728,7 @@ export function EmployeeForm({
             </Card>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           /* Step 5: Reference Details */
           <Card>
               <CardHeader>
@@ -1422,8 +1784,8 @@ export function EmployeeForm({
           </Card>
         )}
 
-        {currentStep === 5 && (
-          /* Step 6: Documents */
+        {currentStep === 6 && (
+          /* Step 7: Documents */
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -1605,7 +1967,11 @@ export function EmployeeForm({
               <Button
                 type="button"
                 variant="outline"
-                onClick={handlePrevious}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handlePrevious(e)
+                }}
                 disabled={currentStep === 0 || isLoading}
                 className="flex items-center gap-2"
               >
@@ -1627,7 +1993,11 @@ export function EmployeeForm({
               {currentStep < steps.length - 1 ? (
                 <Button
                   type="button"
-                  onClick={handleNext}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleNext(e)
+                  }}
                   disabled={isLoading}
                   className="flex items-center gap-2"
                 >
@@ -1635,7 +2005,16 @@ export function EmployeeForm({
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="submit" disabled={isLoading} size="lg" className="min-w-[120px]">
+                <Button 
+                  type="submit" 
+                  disabled={isLoading} 
+                  size="lg" 
+                  className="min-w-[120px]"
+                  onClick={(e) => {
+                    // Mark as explicit submit when button is clicked
+                    setIsExplicitSubmit(true)
+                  }}
+                >
                   {isLoading ? "Submitting..." : "Submit"}
                 </Button>
               )}

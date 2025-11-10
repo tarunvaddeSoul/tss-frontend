@@ -292,7 +292,7 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
                   state: employee.state || "",
                   pincode: employee.pincode || 0,
                   currentCompanyJoiningDate: parseDate(employee.dateOfJoining),
-                  currentCompanySalary: employee.salary || 0,
+                  // currentCompanySalary: employee.salary || 0,
                   currentCompanyDesignationId: employee.employmentHistories?.[0]?.designationId || "",
                   currentCompanyDepartmentId: employee.employmentHistories?.[0]?.departmentId || "",
                   currentCompanyId: employee.employmentHistories?.[0]?.companyId || "",

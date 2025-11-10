@@ -25,7 +25,9 @@ import {
   Edit,
   Eye,
   Trash,
+  DollarSign,
 } from "lucide-react"
+import { SalaryCategory, SalaryType } from "@/types/salary"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
@@ -47,8 +49,14 @@ import { Company } from "@/types/company"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { TerminateEmployeeDialog } from "@/components/employees/terminate-employee-dialog"
+import dynamic from "next/dynamic"
 // import { EmployeeViewPDF } from "@/components/employees/employee-view-pdf"
 // import { PDFViewer } from "@/components/pdf-viewer"
+
+const DynamicPdfPreviewDialog = dynamic(
+  () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
+  { ssr: false }
+)
 
 interface Designation {
   id: string
@@ -69,6 +77,9 @@ export default function EmployeeListPage() {
   const [activeTab, setActiveTab] = useState<string>("details")
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false)
   const [employeeToTerminate, setEmployeeToTerminate] = useState<Employee | null>(null)
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewEmployee, setPdfPreviewEmployee] = useState<Employee | null>(null)
+  const [pdfLoadingEmployee, setPdfLoadingEmployee] = useState(false)
   const [searchParams, setSearchParams] = useState<EmployeeSearchParams>({
     page: 1,
     limit: 10,
@@ -377,27 +388,36 @@ export default function EmployeeListPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
+          <CardContent className="p-0">
+            <div className="rounded-md border overflow-x-auto scrollbar-sleek w-full">
+              <div className="min-w-[1200px]">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead>Designation</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Company</TableHead>
+                    <TableHead>Salary Type</TableHead>
+                    <TableHead>Salary Category</TableHead>
+                    <TableHead>Salary Sub Category</TableHead>
+                    <TableHead>Salary</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10">
+                      <TableCell colSpan={9} className="text-center py-10">
                         Loading employees...
                       </TableCell>
                     </TableRow>
                   ) : employees.length > 0 ? (
-                    employees.map((employee) => (
+                    employees.map((employee) => {
+                      const activeHistory = employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")
+                      const salaryType = activeHistory?.salaryType || (employee.salaryCategory === SalaryCategory.SPECIALIZED ? SalaryType.PER_MONTH : SalaryType.PER_DAY)
+                      
+                      return (
                       <TableRow key={employee.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -419,31 +439,101 @@ export default function EmployeeListPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "N/A"}
+                              {activeHistory?.designationName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "N/A"}
+                              {activeHistory?.departmentName || "N/A"}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className="bg-primary/10">
-                              {employee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "N/A"}
+                              {activeHistory?.companyName || "N/A"}
                             </Badge>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {salaryType ? (
+                            <Badge variant="outline" className="text-xs">
+                              {salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {employee.salaryCategory ? (
+                            <Badge variant="outline" className="text-xs">
+                              {employee.salaryCategory}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {employee.salarySubCategory ? (
+                            <Badge variant="outline" className="text-xs">
+                              {employee.salarySubCategory}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            if (activeHistory?.salaryType === SalaryType.PER_DAY && activeHistory.salaryPerDay) {
+                              return <span className="text-sm font-semibold">₹{activeHistory.salaryPerDay.toLocaleString()}/day</span>
+                            }
+                            if (activeHistory?.salaryType === SalaryType.PER_MONTH && activeHistory.salary) {
+                              return <span className="text-sm font-semibold">₹{activeHistory.salary.toLocaleString()}/month</span>
+                            }
+                            if (employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary) {
+                              return <span className="text-sm font-semibold">₹{employee.monthlySalary.toLocaleString()}/month</span>
+                            }
+                            if (employee.salaryPerDay) {
+                              return <span className="text-sm font-semibold">₹{employee.salaryPerDay.toLocaleString()}/day</span>
+                            }
+                            return <span className="text-xs text-muted-foreground">Not configured</span>
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleView(employee)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleView(employee)} title="View">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)} title="Edit">
                               <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={async () => {
+                                try {
+                                  setPdfLoadingEmployee(true)
+                                  // Fetch full employee details before opening PDF
+                                  const fullEmployeeData = await employeeService.getEmployeeById(employee.id)
+                                  setPdfPreviewEmployee(fullEmployeeData.data)
+                                  setPdfPreviewOpen(true)
+                                } catch (error) {
+                                  console.error("Error fetching employee details:", error)
+                                  toast.error("Failed to load employee details for PDF")
+                                } finally {
+                                  setPdfLoadingEmployee(false)
+                                }
+                              }}
+                              disabled={pdfLoadingEmployee}
+                              title="View & Download PDF"
+                            >
+                              {pdfLoadingEmployee ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
                             </Button>
                             {employee.status !== "INACTIVE" && (
                               <Button
@@ -459,22 +549,24 @@ export default function EmployeeListPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                    )
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10">
+                      <TableCell colSpan={9} className="text-center py-10">
                         No employees found
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
 
             {totalPages > 1 && (
               <div className="mt-4 flex justify-center">
                 <Pagination
-                  currentPage={searchParams.page}
+                  currentPage={searchParams.page ?? 1}
                   totalPages={totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -593,6 +685,21 @@ export default function EmployeeListPage() {
             if (!open) setEmployeeToTerminate(null)
           }}
           onSuccess={handleTerminationSuccess}
+        />
+      )}
+
+      {/* PDF Preview Dialog */}
+      {pdfPreviewEmployee && (
+        <DynamicPdfPreviewDialog
+          open={pdfPreviewOpen}
+          onOpenChange={setPdfPreviewOpen}
+          title={`Employee Profile - ${pdfPreviewEmployee.firstName} ${pdfPreviewEmployee.lastName}`}
+          description={`Employee ID: ${pdfPreviewEmployee.id}`}
+          fileName={`employee-${pdfPreviewEmployee.firstName}-${pdfPreviewEmployee.lastName}.pdf`}
+          renderDocument={async () => {
+            const { default: EmployeeViewPDF } = await import("@/components/employees/employee-view-pdf")
+            return <EmployeeViewPDF employee={pdfPreviewEmployee} />
+          }}
         />
       )}
     </div>

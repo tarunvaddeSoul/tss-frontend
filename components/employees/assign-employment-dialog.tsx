@@ -36,7 +36,6 @@ const assignEmploymentSchema = z.object({
   departmentId: z.string().uuid("Please select a valid department"),
   designationId: z.string().uuid("Please select a valid designation"),
   joiningDate: z.date({ required_error: "Joining date is required" }),
-  salary: z.number().min(0, "Salary must be a positive number"),
 })
 
 interface AssignEmploymentDialogProps {
@@ -62,7 +61,6 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
       departmentId: "",
       designationId: "",
       joiningDate: new Date(),
-      salary: 0,
     },
   })
 
@@ -74,11 +72,22 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
       try {
         setIsLoading(true)
         
-        // Check for active employment first
-        const activeEmploymentResponse = await employeeService.getActiveEmployment(employee.id)
-        setActiveEmployment(activeEmploymentResponse.data || null)
+        // Check for active employment first - don't treat 404 as an error (no active employment is expected)
+        try {
+          const activeEmploymentResponse = await employeeService.getActiveEmployment(employee.id)
+          setActiveEmployment(activeEmploymentResponse.data || null)
+        } catch (activeEmploymentError: any) {
+          // If 404 (no active employment), that's fine - just set to null
+          if (activeEmploymentError?.response?.status === 404 || activeEmploymentError?.response?.statusCode === 404) {
+            setActiveEmployment(null)
+          } else {
+            // Only log other errors, but don't block the process
+            console.warn("Could not check active employment:", activeEmploymentError)
+            setActiveEmployment(null)
+          }
+        }
 
-        // Load dropdown options
+        // Load dropdown options - these should always load regardless of active employment check
         const [companiesResponse, designationsResponse, departmentsResponse] = await Promise.all([
           companyService.getCompanies({ page: 1, limit: 100 }),
           designationService.getDesignations(),
@@ -95,15 +104,14 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
           departmentId: "",
           designationId: "",
           joiningDate: new Date(),
-          salary: 0,
         })
       } catch (error) {
-        // console.error("Error loading assignment data:", error)
-        // toast({
-        //   title: "Error",
-        //   description: "Failed to load data. Please try again.",
-        //   variant: "destructive",
-        // })
+        console.error("Error loading assignment data:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load some data. Please try again.",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }
@@ -130,7 +138,6 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
         companyId: data.companyId,
         departmentId: data.departmentId,
         designationId: data.designationId,
-        salary: data.salary,
         joiningDate: format(data.joiningDate, "dd-MM-yyyy"),
         status: Status.ACTIVE, // Always active when assigning new employment
       }
@@ -330,29 +337,6 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="salary"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4" />
-                          Monthly Salary <span className="text-red-500">*</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="Enter monthly salary"
-                            {...field}
-                            onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
-                            disabled={!!activeEmployment}
-                          />
-                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

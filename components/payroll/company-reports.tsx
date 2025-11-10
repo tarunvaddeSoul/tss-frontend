@@ -22,6 +22,12 @@ export function CompanyReports() {
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("")
   const [companyName, setCompanyName] = useState<string>("")
+  const [companyDetails, setCompanyDetails] = useState<{
+    address?: string
+    contactPersonName?: string
+    contactPersonNumber?: string
+    companyOnboardingDate?: string
+  } | null>(null)
   const [payrollData, setPayrollData] = useState<CompanyPayrollMonth[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,10 +42,24 @@ export function CompanyReports() {
     setError(null)
 
     try {
-      const response = await payrollService.getPastPayrolls(selectedCompanyId, page, 10)
-      setPayrollData(response.data.records || [])
-      setTotalPages(response.data.totalPages || 1)
-      setCompanyName(response.data.companyName || "")
+      const [payrollResponse, companyResponse] = await Promise.all([
+        payrollService.getPastPayrolls(selectedCompanyId, page, 10),
+        companyService.getCompanyById(selectedCompanyId),
+      ])
+      
+      setPayrollData(payrollResponse.data.records || [])
+      setTotalPages(payrollResponse.data.totalPages || 1)
+      setCompanyName(payrollResponse.data.companyName || "")
+      
+      // Fetch company details for PDF
+      if (companyResponse.data) {
+        setCompanyDetails({
+          address: companyResponse.data.address,
+          contactPersonName: companyResponse.data.contactPersonName,
+          contactPersonNumber: companyResponse.data.contactPersonNumber,
+          companyOnboardingDate: companyResponse.data.companyOnboardingDate,
+        })
+      }
     } catch (err) {
       setError("Failed to fetch payroll data. Please try again.")
       toast({
@@ -130,6 +150,7 @@ export function CompanyReports() {
               <CompanyPayrollPDFDownloadButton
                 data={payrollData}
                 companyName={companyName}
+                companyDetails={companyDetails || undefined}
                 disabled={loading || payrollData.length === 0}
               />
             </div>
@@ -157,15 +178,16 @@ export function CompanyReports() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Month</TableHead>
-                    <TableHead>Employee Count</TableHead>
-                    <TableHead>Total Net Salary</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto scrollbar-sleek">
+                <Table className="min-w-[600px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead>Employee Count</TableHead>
+                      <TableHead>Total Net Salary</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {payrollData.map((month) => (
                     <>
@@ -189,7 +211,8 @@ export function CompanyReports() {
                           <TableCell colSpan={4} className="p-0">
                             <div className="bg-muted/30 p-4">
                               <h4 className="text-sm font-medium mb-2">Employee Details</h4>
-                              <Table>
+                              <div className="overflow-x-auto scrollbar-sleek">
+                                <Table className="min-w-[600px]">
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead>Employee</TableHead>
@@ -217,6 +240,7 @@ export function CompanyReports() {
                                   ))}
                                 </TableBody>
                               </Table>
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -225,6 +249,7 @@ export function CompanyReports() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
 
               {totalPages > 1 && (
                 <div className="mt-4">

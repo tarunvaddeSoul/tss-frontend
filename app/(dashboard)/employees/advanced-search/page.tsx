@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Services
 import { employeeService } from "@/services/employeeService"
@@ -44,6 +45,18 @@ interface AdvancedSearchFormValues {
   startDate: Date | null
   endDate: Date | null
   status: string
+  // New advanced filters
+  salaryCategory: string
+  salarySubCategory: string
+  pfEnabled: boolean | undefined
+  esicEnabled: boolean | undefined
+  minSalary: number | undefined
+  maxSalary: number | undefined
+  title: string
+  bloodGroup: string
+  city: string
+  state: string
+  district: string
 }
 
 export default function AdvancedEmployeeSearch() {
@@ -73,6 +86,18 @@ export default function AdvancedEmployeeSearch() {
       startDate: null,
       endDate: null,
       status: "",
+      // New advanced filters
+      salaryCategory: "",
+      salarySubCategory: "",
+      pfEnabled: undefined,
+      esicEnabled: undefined,
+      minSalary: undefined,
+      maxSalary: undefined,
+      title: "",
+      bloodGroup: "",
+      city: "",
+      state: "",
+      district: "",
     },
   })
 
@@ -109,6 +134,18 @@ export default function AdvancedEmployeeSearch() {
         startDate: formValues.startDate ? formatDateToDDMMYYYY(formValues.startDate) : undefined,
         endDate: formValues.endDate ? formatDateToDDMMYYYY(formValues.endDate) : undefined,
         status: formValues.status && formValues.status !== "all" ? formValues.status : undefined,
+        // New advanced filters
+        salaryCategory: formValues.salaryCategory && formValues.salaryCategory !== "all" ? (formValues.salaryCategory as "CENTRAL" | "STATE" | "SPECIALIZED") : undefined,
+        salarySubCategory: formValues.salarySubCategory && formValues.salarySubCategory !== "all" ? (formValues.salarySubCategory as "SKILLED" | "UNSKILLED" | "HIGHSKILLED" | "SEMISKILLED") : undefined,
+        pfEnabled: formValues.pfEnabled !== undefined ? formValues.pfEnabled : undefined,
+        esicEnabled: formValues.esicEnabled !== undefined ? formValues.esicEnabled : undefined,
+        minSalary: formValues.minSalary ? Number(formValues.minSalary) : undefined,
+        maxSalary: formValues.maxSalary ? Number(formValues.maxSalary) : undefined,
+        title: formValues.title && formValues.title !== "all" ? (formValues.title as "MR" | "MS") : undefined,
+        bloodGroup: formValues.bloodGroup || undefined,
+        city: formValues.city || undefined,
+        state: formValues.state || undefined,
+        district: formValues.district || undefined,
       }
 
       const response = await employeeService.getEmployees(params)
@@ -173,7 +210,7 @@ export default function AdvancedEmployeeSearch() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-0">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Advanced Employee Search</h1>
         <p className="text-muted-foreground">Search for employees using multiple criteria</p>
@@ -371,6 +408,163 @@ export default function AdvancedEmployeeSearch() {
                     <SelectItem value="POST_GRADUATE">Post Graduate</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Salary Filters Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-lg font-semibold">Salary Filters</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="salaryCategory">Salary Category</Label>
+                    <Select
+                      onValueChange={(value) => setValue("salaryCategory", value)}
+                      value={formValues.salaryCategory}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select salary category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="CENTRAL">Central</SelectItem>
+                        <SelectItem value="STATE">State</SelectItem>
+                        <SelectItem value="SPECIALIZED">Specialized</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="salarySubCategory">Salary Sub-Category</Label>
+                    <Select
+                      onValueChange={(value) => setValue("salarySubCategory", value)}
+                      value={formValues.salarySubCategory}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select sub-category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="SKILLED">Skilled</SelectItem>
+                        <SelectItem value="UNSKILLED">Unskilled</SelectItem>
+                        <SelectItem value="HIGHSKILLED">High Skilled</SelectItem>
+                        <SelectItem value="SEMISKILLED">Semi Skilled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="minSalary">Minimum Salary</Label>
+                    <Input
+                      id="minSalary"
+                      type="number"
+                      placeholder="Enter minimum salary"
+                      {...register("minSalary", { valueAsNumber: true })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="maxSalary">Maximum Salary</Label>
+                    <Input
+                      id="maxSalary"
+                      type="number"
+                      placeholder="Enter maximum salary"
+                      {...register("maxSalary", { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="pfEnabled"
+                      checked={formValues.pfEnabled === true}
+                      onCheckedChange={(checked) => setValue("pfEnabled", checked ? true : undefined)}
+                    />
+                    <Label htmlFor="pfEnabled" className="cursor-pointer">
+                      PF Enabled
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="esicEnabled"
+                      checked={formValues.esicEnabled === true}
+                      onCheckedChange={(checked) => setValue("esicEnabled", checked ? true : undefined)}
+                    />
+                    <Label htmlFor="esicEnabled" className="cursor-pointer">
+                      ESIC Enabled
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Information Filters Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-lg font-semibold">Personal Information Filters</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Select
+                      onValueChange={(value) => setValue("title", value)}
+                      value={formValues.title}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select title" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="MR">Mr.</SelectItem>
+                        <SelectItem value="MS">Ms.</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bloodGroup">Blood Group</Label>
+                    <Input
+                      id="bloodGroup"
+                      placeholder="e.g., A+, B-, O+"
+                      {...register("bloodGroup")}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Filters Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-lg font-semibold">Location Filters</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      placeholder="Enter city"
+                      {...register("city")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State</Label>
+                    <Input
+                      id="state"
+                      placeholder="Enter state"
+                      {...register("state")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="district">District</Label>
+                    <Input
+                      id="district"
+                      placeholder="Enter district"
+                      {...register("district")}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2">

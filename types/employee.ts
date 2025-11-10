@@ -347,4 +347,16 @@ export interface EmployeeSearchParams {
   startDate?: string
   endDate?: string
   status?: string
+  // New advanced filters
+  salaryCategory?: "CENTRAL" | "STATE" | "SPECIALIZED"
+  salarySubCategory?: "SKILLED" | "UNSKILLED" | "HIGHSKILLED" | "SEMISKILLED"
+  pfEnabled?: boolean
+  esicEnabled?: boolean
+  minSalary?: number
+  maxSalary?: number
+  title?: "MR" | "MS"
+  bloodGroup?: string
+  city?: string
+  state?: string
+  district?: string
 }

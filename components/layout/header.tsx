@@ -25,7 +25,7 @@ export function Header() {
   }
 
   return (
-    <header className="border-b bg-card sticky top-0 z-40">
+    <header className="border-b bg-card shrink-0 z-40">
       <div className="flex h-16 items-center px-4 justify-between">
         {/* Mobile logo - hidden on desktop */}
         <div className="font-semibold text-lg lg:hidden">TSS</div>

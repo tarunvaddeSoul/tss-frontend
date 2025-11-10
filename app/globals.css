@@ -97,17 +97,13 @@
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
   html {
     font-size: 18px; /* Increased from 16px */
   }
   
-  /* Better readability with larger text */
   body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
     font-size: 18px; /* Increased from 16px */
     line-height: 1.6;
   }
@@ -287,5 +283,16 @@
 
   .scrollbar-sleek::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Prevent overscroll in dashboard layout only */
+  body:has([data-dashboard-layout]) {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  html:has([data-dashboard-layout]) {
+    height: 100%;
+    overflow: hidden;
   }
 }

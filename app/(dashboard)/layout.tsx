@@ -27,9 +27,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden" data-dashboard-layout>
       <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0 min-h-0">
         <Header />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 min-h-0">{children}</main>
       </div>

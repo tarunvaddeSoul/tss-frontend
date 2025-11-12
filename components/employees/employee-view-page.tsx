@@ -311,8 +311,12 @@ export default function EmployeeViewPage() {
               <Briefcase className="h-4 w-4 shrink-0" />
               <span>Employment</span>
             </TabsTrigger>
-            <TabsTrigger value="financial" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+            <TabsTrigger value="salary" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
               <DollarSign className="h-4 w-4 shrink-0" />
+              <span>Salary</span>
+            </TabsTrigger>
+            <TabsTrigger value="financial" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[120px] shrink-0 whitespace-nowrap">
+              <CreditCard className="h-4 w-4 shrink-0" />
               <span>Financial</span>
             </TabsTrigger>
             <TabsTrigger value="documents" className="flex items-center justify-center gap-2 text-sm px-4 py-2 min-w-[140px] shrink-0 whitespace-nowrap">
@@ -555,8 +559,8 @@ export default function EmployeeViewPage() {
           </div>
         </TabsContent>
 
-        {/* Financial Information Tab */}
-        <TabsContent value="financial" className="space-y-4 sm:space-y-6">
+        {/* Salary Information Tab */}
+        <TabsContent value="salary" className="space-y-4 sm:space-y-6">
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             {/* Salary Information */}
             <Card>
@@ -572,8 +576,15 @@ export default function EmployeeViewPage() {
                     <InfoItem
                       icon={<DollarSign className="h-4 w-4" />}
                       label="Salary Category"
-                      value={`${employee.salaryCategory}${employee.salarySubCategory ? ` - ${employee.salarySubCategory}` : ""}`}
+                      value={employee.salaryCategory}
                     />
+                    {employee.salarySubCategory && (
+                      <InfoItem
+                        icon={<DollarSign className="h-4 w-4" />}
+                        label="Salary Sub-Category"
+                        value={employee.salarySubCategory}
+                      />
+                    )}
                     {employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary ? (
                       <InfoItem
                         icon={<DollarSign className="h-4 w-4" />}
@@ -614,7 +625,12 @@ export default function EmployeeViewPage() {
                 )}
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
 
+        {/* Financial Information Tab */}
+        <TabsContent value="financial" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">

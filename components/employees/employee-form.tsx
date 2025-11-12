@@ -141,9 +141,6 @@ const parseDateFromDDMMYYYY = (dateString: string) => {
   return new Date(year, month - 1, day)
 }
 
-// Add localStorage key constant
-const FORM_STORAGE_KEY = "employee_form_data"
-
 export function EmployeeForm({
   initialValues,
   onSubmit,
@@ -303,55 +300,6 @@ export function EmployeeForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [salaryCategory, salarySubCategory, employeeOnboardingDate])
 
-  // Load saved form data on component mount
-  useEffect(() => {
-    const savedFormData = localStorage.getItem(FORM_STORAGE_KEY)
-    if (savedFormData) {
-      try {
-        const parsedData = JSON.parse(savedFormData)
-        // Convert string dates back to Date objects
-        const formDataWithDates = {
-          ...parsedData,
-          dateOfBirth: parsedData.dateOfBirth ? new Date(parsedData.dateOfBirth) : new Date(),
-          employeeOnboardingDate: parsedData.employeeOnboardingDate ? new Date(parsedData.employeeOnboardingDate) : new Date(),
-          policeVerificationDate: parsedData.policeVerificationDate ? new Date(parsedData.policeVerificationDate) : new Date(),
-          trainingCertificateDate: parsedData.trainingCertificateDate ? new Date(parsedData.trainingCertificateDate) : new Date(),
-          medicalCertificateDate: parsedData.medicalCertificateDate ? new Date(parsedData.medicalCertificateDate) : new Date(),
-          currentCompanyJoiningDate: parsedData.currentCompanyJoiningDate ? new Date(parsedData.currentCompanyJoiningDate) : new Date(),
-        }
-        form.reset(formDataWithDates)
-        setGender(formDataWithDates.gender)
-        setSameAsPermanent(formDataWithDates.presentAddress === formDataWithDates.permanentAddress)
-        
-        toast({
-          title: "Form Data Restored",
-          description: "Your previous form data has been restored.",
-        })
-      } catch (error) {
-        console.error("Error restoring form data:", error)
-        localStorage.removeItem(FORM_STORAGE_KEY)
-      }
-    }
-  }, [])
-
-  // Save form data as user types
-  useEffect(() => {
-    const subscription = form.watch((value) => {
-      // Don't save file inputs
-      const formDataToSave = {
-        ...value,
-        photo: null,
-        aadhaar: null,
-        panCard: null,
-        bankPassbook: null,
-        markSheet: null,
-        otherDocument: null,
-      }
-      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formDataToSave))
-    })
-    return () => subscription.unsubscribe()
-  }, [form])
-
   useEffect(() => {
     const subscription = form.watch(() => {
       onChange?.()
@@ -476,9 +424,6 @@ export function EmployeeForm({
       }
 
       await onSubmit(formattedValues as unknown as EmployeeFormValues)
-      
-      // Clear saved form data on successful submission
-      localStorage.removeItem(FORM_STORAGE_KEY)
       
       // Clear error indicators
       setStepsWithErrors(new Set())

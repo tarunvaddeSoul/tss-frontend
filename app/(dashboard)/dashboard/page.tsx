@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label"
 import { AlertCircle, RefreshCw, Calendar } from "lucide-react"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { StatCards } from "@/components/dashboard/stat-cards"
-import { DashboardCharts } from "@/components/dashboard/dashboard-charts"
+import { GrowthCharts } from "@/components/dashboard/growth-charts"
+import { CompanyTenure } from "@/components/dashboard/company-tenure"
+import { EmployeeDistribution } from "@/components/dashboard/employee-distribution"
 import { SpecialDates } from "@/components/dashboard/special-dates"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
 
 export default function DashboardPage() {
   const [daysAhead, setDaysAhead] = useState<number>(30)
@@ -40,18 +41,23 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Charts Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-80" />
+        {/* Growth Charts Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
         </div>
 
-        {/* Activity Skeleton */}
+        {/* Distribution Charts Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-96" />
-          <Skeleton className="h-96" />
+          <Skeleton className="h-80" />
+          <Skeleton className="h-80" />
         </div>
+
+        {/* Company Tenure Skeleton */}
+        <Skeleton className="h-96" />
+
+        {/* Special Dates Skeleton */}
+        <Skeleton className="h-64" />
       </div>
     )
   }
@@ -126,14 +132,17 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <StatCards data={data} companyEmployeeCounts={companyEmployeeCounts} />
 
-      {/* Charts */}
-      <DashboardCharts data={data} companyEmployeeCounts={companyEmployeeCounts} />
+      {/* Growth Charts */}
+      <GrowthCharts data={data} />
+
+      {/* Employee Distribution */}
+      <EmployeeDistribution data={data} />
+
+      {/* Company Tenure */}
+      <CompanyTenure data={data} />
 
       {/* Special Dates */}
       <SpecialDates data={data} />
-
-      {/* Recent Activity */}
-      <RecentActivity data={data} />
     </div>
   )
 }

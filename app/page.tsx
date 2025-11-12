@@ -28,6 +28,11 @@ import {
   PhoneCall,
   ExternalLink,
   Award as AwardIcon,
+  Sparkles,
+  Recycle,
+  Wrench,
+  DollarSign,
+  Trophy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -69,8 +74,8 @@ const companyData = {
     "Facility Management",
   ],
   leadership: [
-    { name: "Kshitiz Tulsyan", designation: "Director" },
-    { name: "Anubhav Tulsyan", designation: "Director" },
+    { name: "Kshitiz Tulsyan", designation: "Director", image: "/directors/kshitiz.png" },
+    { name: "Anubhav Tulsyan", designation: "Director", image: "/directors/anubhav.png" },
   ],
   contactInfo: {
     address: "24 A, Chandra Nagar, MR 9 Road, Indore, Madhya Pradesh - 452010, India",
@@ -85,6 +90,31 @@ const companyData = {
     "Young Entrepreneur Award",
     "Special recognition for Sanitation Training Workshop",
   ],
+  caseStudies: [
+    {
+      client: "Bharat Petroleum Corporation Limited (BPCL)",
+      project: "COCO Petrol Pump Management - Madhya Pradesh",
+      scope: "Managed full-time sales, service, safety, and hygiene for BPCL's largest COCO pump.",
+      tenure: "3 years",
+      annualSales: "11,000 KL",
+      manpower: "45 employees",
+      image: "/petrol-pump/petrol-pump.png",
+    },
+  ],
+  csrInitiatives: [
+    {
+      initiative: "Traffic Management",
+      impact: "Reduced congestion, improved road safety, and enhanced transport efficiency.",
+    },
+    {
+      initiative: "Waste Management",
+      impact: "Transformed a dumping site into a public-friendly area and selfie point.",
+    },
+    {
+      initiative: "Social Awareness Film - 'Warning Call'",
+      impact: "Highlighted environmental issues like deforestation and pollution caused by traditional funeral practices.",
+    },
+  ],
 }
 
 export default function HomePage() {
@@ -92,7 +122,6 @@ export default function HomePage() {
   const currentYear = new Date().getFullYear()
   const yearsOfExperience = currentYear - companyData.founded
 
-  // Use single logo that works in both light and dark modes
   const logoSrc = "/tss-logo.png"
 
   return (
@@ -101,10 +130,11 @@ export default function HomePage() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/10 rounded-full mix-blend-multiply filter blur-xl opacity-50"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/10 rounded-full mix-blend-multiply filter blur-xl opacity-50"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
       </div>
 
       {/* Header */}
-      <header className="relative z-50 border-b border-border/40 bg-background/80 backdrop-blur-md sticky top-0">
+      <header className="relative z-50 border-b border-border/40 bg-background/95 backdrop-blur-md sticky top-0 shadow-sm">
         <div className="container mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative w-10 h-10">
@@ -141,11 +171,8 @@ export default function HomePage() {
 
           <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
-            <Link href="/login" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
-              Login
-            </Link>
             <Button asChild className="bg-primary hover:bg-primary-dark text-primary-foreground shadow-sm hover:shadow-md transition-all">
-              <Link href="/signup">Get Started</Link>
+              <Link href="#contact">Request a Quote</Link>
             </Button>
           </div>
 
@@ -165,12 +192,9 @@ export default function HomePage() {
               <Link href="#services" className="block py-2 text-sm font-medium text-foreground/80 hover:text-foreground">Services</Link>
               <Link href="#about" className="block py-2 text-sm font-medium text-foreground/80 hover:text-foreground">About Us</Link>
               <Link href="#contact" className="block py-2 text-sm font-medium text-foreground/80 hover:text-foreground">Contact</Link>
-              <div className="pt-4 flex gap-2">
-                <Button variant="outline" className="flex-1" asChild>
-                  <Link href="/login">Login</Link>
-                </Button>
-                <Button className="flex-1 bg-primary hover:bg-primary-dark" asChild>
-                  <Link href="/signup">Get Started</Link>
+              <div className="pt-4">
+                <Button className="w-full bg-primary hover:bg-primary-dark" asChild>
+                  <Link href="#contact">Request a Quote</Link>
                 </Button>
               </div>
             </div>
@@ -180,55 +204,84 @@ export default function HomePage() {
 
       <main className="relative z-10">
         {/* Hero Section */}
-        <section id="home" className="w-full py-20 lg:py-32">
+        <section id="home" className="w-full py-20 lg:py-32 relative overflow-hidden">
           <div className="container mx-auto px-4 lg:px-8">
-            <div className="max-w-5xl mx-auto text-center space-y-8">
-              <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-2">
-                <AwardIcon className="h-4 w-4 mr-2" />
-                {yearsOfExperience}+ Years of Excellence • {companyData.employees} Employees
-              </Badge>
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              {/* Left Content */}
+              <div className="space-y-8">
+                <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-2 text-sm">
+                  <AwardIcon className="h-4 w-4 mr-2" />
+                  {yearsOfExperience}+ Years of Excellence • {companyData.employees} Employees
+                </Badge>
 
-              <div className="space-y-6">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-tight">
-                  Comprehensive{" "}
-                  <span className="bg-gradient-to-r from-primary via-primary-dark to-primary bg-clip-text text-transparent">
-                    Outsourcing Solutions
-                  </span>
-                  <br />
-                  <span className="text-3xl md:text-4xl lg:text-5xl">Since {companyData.founded}</span>
-                </h1>
-                <p className="text-lg md:text-xl text-foreground/70 max-w-3xl mx-auto leading-relaxed">
-                  {companyData.overview}
-                </p>
+                <div className="space-y-6">
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-tight">
+                    Comprehensive{" "}
+                    <span className="bg-gradient-to-r from-primary via-primary-dark to-primary bg-clip-text text-transparent">
+                      Outsourcing Solutions
+                    </span>
+                    <br />
+                    <span className="text-3xl md:text-4xl lg:text-5xl">Since {companyData.founded}</span>
+                  </h1>
+                  <p className="text-lg md:text-xl text-foreground/70 max-w-2xl leading-relaxed">
+                    {companyData.overview}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                  <Button size="lg" className="bg-primary hover:bg-primary-dark text-primary-foreground px-8 shadow-lg hover:shadow-xl transition-all group" asChild>
+                    <Link href="#contact">
+                      Request a Quote
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="outline" className="border-border hover:bg-muted px-8" asChild>
+                    <Link href="#services">
+                      <Briefcase className="mr-2 h-5 w-5" />
+                      Our Services
+                    </Link>
+                  </Button>
+                </div>
+
+                <div className="pt-4 flex flex-wrap items-center gap-6 text-sm text-foreground/60">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-success" />
+                    <span>Trusted by {companyData.employees}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary" />
+                    <span>{companyData.headOffice}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Award className="h-5 w-5 text-warning" />
+                    <span>Award-Winning Services</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-                <Button size="lg" className="bg-primary hover:bg-primary-dark text-primary-foreground px-8 shadow-lg hover:shadow-xl transition-all group" asChild>
-                  <Link href="/signup">
-                    Get Started
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" className="border-border hover:bg-muted px-8" asChild>
-                  <Link href="#contact">
-                    <PhoneCall className="mr-2 h-5 w-5" />
-                    Contact Us
-                  </Link>
-                </Button>
-              </div>
-
-              <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-foreground/60">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-success" />
-                  <span>Trusted by {companyData.employees}</span>
+              {/* Right Image - Security Guards */}
+              <div className="relative">
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-primary/20">
+                  <Image
+                    src="/security-guards/security-guards.png"
+                    alt="Professional Security Guards"
+                    width={600}
+                    height={400}
+                    className="object-cover w-full h-auto"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent"></div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <span>{companyData.headOffice}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-warning" />
-                  <span>Award-Winning Services</span>
+                <div className="absolute -bottom-6 -left-6 bg-card border-2 border-primary/20 rounded-xl p-4 shadow-xl hidden lg:block">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                      <Shield className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground">{companyData.employees}</p>
+                      <p className="text-xs text-muted-foreground">Trained Professionals</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -245,14 +298,14 @@ export default function HomePage() {
               </Badge>
               <h2 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">What We Stand For</h2>
             </div>
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-6xl mx-auto">
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
               {companyData.coreValues.map((value, index) => (
-                <Card key={index} className="text-center border-2 hover:border-primary/50 transition-all hover:shadow-md bg-gradient-to-br from-card to-card/50">
+                <Card key={index} className="text-center border-2 hover:border-primary/50 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50 group">
                   <CardContent className="p-6">
-                    <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 group-hover:scale-110 transition-all">
                       <Star className="h-7 w-7 text-primary" />
                     </div>
-                    <h3 className="font-semibold text-foreground text-sm leading-tight break-words">{value}</h3>
+                    <h3 className="font-semibold text-foreground text-base leading-tight">{value}</h3>
                   </CardContent>
                 </Card>
               ))}
@@ -260,7 +313,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Services Section */}
+        {/* Services Section with Images */}
         <section id="services" className="w-full py-20 lg:py-32">
           <div className="container mx-auto px-4 lg:px-8">
             <div className="text-center space-y-4 mb-16">
@@ -279,23 +332,147 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {companyData.areasOfSpecialization.map((service, index) => {
-                const icons = [Shield, FileText, Leaf, Building2, Zap, Briefcase, Globe]
+                const icons = [Shield, FileText, Recycle, Building2, Wrench, DollarSign, Globe]
                 const Icon = icons[index % icons.length]
                 return (
-                  <Card key={index} className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-card via-card/95 to-card/90 hover:from-primary/5 hover:to-card/95">
-                    <CardContent className="p-8">
-                      <div className="space-y-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl flex items-center justify-center group-hover:from-primary/20 group-hover:to-primary/10 transition-all shadow-sm">
-                          <Icon className="h-8 w-8 text-primary" />
+                  <Card key={index} className="group hover:shadow-2xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-card via-card/95 to-card/90 overflow-hidden">
+                    <div className="relative h-48 bg-gradient-to-br from-primary/10 to-primary/5 overflow-hidden">
+                      {index === 0 && (
+                        <Image
+                          src="/security-guards/security-guards-1.png"
+                          alt="Security Services"
+                          fill
+                          className="object-cover opacity-20 group-hover:opacity-30 transition-opacity"
+                        />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
+                          <Icon className="h-10 w-10 text-primary" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground leading-tight min-h-[3rem] flex items-center">{service}</h3>
                       </div>
+                    </div>
+                    <CardContent className="p-6">
+                      <h3 className="text-xl font-semibold text-foreground leading-tight mb-2">{service}</h3>
+                      <p className="text-sm text-muted-foreground">Professional {service.toLowerCase()} solutions tailored to your needs</p>
                     </CardContent>
                   </Card>
                 )
               })}
+            </div>
+          </div>
+        </section>
+
+        {/* Security Services Detailed Section */}
+        <section className="w-full py-20 lg:py-32 bg-muted/30 border-y border-border/40">
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="relative">
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+                  <Image
+                    src="/security-guards/security-guards-1.png"
+                    alt="Professional Security Services"
+                    width={600}
+                    height={500}
+                    className="object-cover w-full h-auto"
+                  />
+                </div>
+              </div>
+              <div className="space-y-6">
+                <Badge className="bg-primary/10 text-primary border-primary/20">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Core Business
+                </Badge>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+                  Professional{" "}
+                  <span className="bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                    Security Services
+                  </span>
+                </h2>
+                <p className="text-lg text-foreground/70 leading-relaxed">
+                  Security Services is the core business of TSSPL. The company employs well-trained security guards equipped with modern security systems, supervised by ex-Army personnel to ensure discipline and operational excellence.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4 pt-4">
+                  {[
+                    "Site risk assessment",
+                    "Security policy and governance",
+                    "Incident management",
+                    "Access control and authentication",
+                    "Security monitoring",
+                    "Asset protection",
+                  ].map((item, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-foreground/80">{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button size="lg" variant="outline" className="mt-4" asChild>
+                  <Link href="#contact">
+                    Learn More
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Training Section */}
+        <section className="w-full py-20 lg:py-32">
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-6 order-2 lg:order-1">
+                <Badge className="bg-primary/10 text-primary border-primary/20">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Training Excellence
+                </Badge>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+                  Comprehensive{" "}
+                  <span className="bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                    Training Programs
+                  </span>
+                </h2>
+                <p className="text-lg text-foreground/70 leading-relaxed">
+                  Our rigorous training programs ensure that every team member is equipped with the latest skills and knowledge. From security protocols to emergency response, we maintain the highest standards of professional development.
+                </p>
+                <div className="space-y-4 pt-4">
+                  {[
+                    "Regular firefighting and emergency response training",
+                    "Professional grooming and behavior standards",
+                    "Security training and awareness programs",
+                    "Monthly review meetings for continuous improvement",
+                  ].map((item, index) => (
+                    <div key={index} className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg border border-border/50">
+                      <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-foreground/80">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="relative order-1 lg:order-2">
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+                  <Image
+                    src="/training/training.png"
+                    alt="Training Programs"
+                    width={600}
+                    height={500}
+                    className="object-cover w-full h-auto"
+                  />
+                </div>
+                <div className="absolute -bottom-6 -right-6 bg-card border-2 border-primary/20 rounded-xl p-4 shadow-xl hidden lg:block">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                      <Award className="h-6 w-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground">Certified</p>
+                      <p className="text-xs text-muted-foreground">Training Programs</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -318,13 +495,13 @@ export default function HomePage() {
               </div>
               <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {companyData.competitiveAdvantages.map((advantage, index) => (
-                  <Card key={index} className="border-2 hover:border-primary/50 transition-all hover:shadow-xl bg-gradient-to-br from-card via-card/95 to-card/90 hover:from-primary/5 hover:to-card/95">
+                  <Card key={index} className="border-2 hover:border-primary/50 transition-all hover:shadow-xl bg-gradient-to-br from-card via-card/95 to-card/90 group">
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform">
                           <CheckCircle className="h-7 w-7 text-primary" />
                         </div>
-                        <p className="text-foreground leading-relaxed text-base break-words pt-1">{advantage}</p>
+                        <p className="text-foreground leading-relaxed text-base pt-1">{advantage}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -339,43 +516,116 @@ export default function HomePage() {
           <div className="container mx-auto px-4 lg:px-8">
             <div className="grid md:grid-cols-4 gap-8">
               {[
-                { number: companyData.employees, label: "Employees", icon: Users },
-                { number: `${yearsOfExperience}+`, label: "Years Experience", icon: Clock },
-                { number: `${companyData.contactInfo.branchOffices.length}+`, label: "Branch Offices", icon: Building2 },
-                { number: "100%", label: "Client Satisfaction", icon: Award },
+                { number: companyData.employees, label: "Employees", icon: Users, color: "text-primary" },
+                { number: `${yearsOfExperience}+`, label: "Years Experience", icon: Clock, color: "text-success" },
+                { number: `${companyData.contactInfo.branchOffices.length}+`, label: "Branch Offices", icon: Building2, color: "text-info" },
+                { number: "100%", label: "Client Satisfaction", icon: Award, color: "text-warning" },
               ].map((stat, index) => (
-                <div key={index} className="text-center space-y-2">
+                <div key={index} className="text-center space-y-4 group">
                   <div className="flex justify-center mb-4">
-                    <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center">
-                      <stat.icon className="h-7 w-7 text-primary" />
+                    <div className={`w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg`}>
+                      <stat.icon className={`h-8 w-8 ${stat.color}`} />
                     </div>
                   </div>
-                  <div className="text-4xl font-bold text-foreground">{stat.number}</div>
-                  <div className="text-sm text-foreground/70">{stat.label}</div>
+                  <div className="text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">{stat.number}</div>
+                  <div className="text-base text-foreground/70 font-medium">{stat.label}</div>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* About Section */}
-        <section id="about" className="w-full py-20 lg:py-32 bg-muted/30 border-y border-border/40">
+        {/* Case Study Section */}
+        <section className="w-full py-20 lg:py-32 bg-muted/30 border-y border-border/40">
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="text-center space-y-4 mb-12">
+              <Badge className="bg-primary/10 text-primary border-primary/20">
+                <Trophy className="h-4 w-4 mr-2" />
+                Success Stories
+              </Badge>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground leading-tight">
+                Our{" "}
+                <span className="bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                  Case Studies
+                </span>
+              </h2>
+            </div>
+            {companyData.caseStudies.map((study, index) => (
+              <Card key={index} className="max-w-5xl mx-auto border-2 hover:border-primary/50 transition-all overflow-hidden">
+                <div className="grid lg:grid-cols-2 gap-0">
+                  <div className="relative h-64 lg:h-auto">
+                    <Image
+                      src={study.image}
+                      alt={study.project}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <CardContent className="p-8 lg:p-12 flex flex-col justify-center">
+                    <Badge className="w-fit mb-4 bg-primary/10 text-primary border-primary/20">
+                      {study.client}
+                    </Badge>
+                    <h3 className="text-2xl font-bold text-foreground mb-4">{study.project}</h3>
+                    <p className="text-foreground/70 mb-6 leading-relaxed">{study.scope}</p>
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+                      <div>
+                        <p className="text-2xl font-bold text-primary">{study.tenure}</p>
+                        <p className="text-xs text-muted-foreground">Tenure</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-primary">{study.annualSales}</p>
+                        <p className="text-xs text-muted-foreground">Annual Sales</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-primary">{study.manpower}</p>
+                        <p className="text-xs text-muted-foreground">Manpower</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        {/* Leadership Section */}
+        <section id="about" className="w-full py-20 lg:py-32">
           <div className="container mx-auto px-4 lg:px-8">
             <div className="max-w-5xl mx-auto space-y-12">
               <div className="text-center space-y-4">
                 <Badge className="bg-primary/10 text-primary border-primary/20">
                   <Users className="h-4 w-4 mr-2" />
-                  About Us
+                  Leadership
                 </Badge>
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground leading-tight">
-                  Leading{" "}
+                  Meet Our{" "}
                   <span className="bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
-                    Outsourcing Solutions Provider
+                    Leadership Team
                   </span>
                 </h2>
-                <p className="text-base md:text-lg text-foreground/70 max-w-3xl mx-auto leading-relaxed">
-                  Founded in {companyData.founded}, {companyData.name} has been at the forefront of providing comprehensive outsourcing solutions. The company is guided by a strong commitment to excellence, reliability, and long-term client partnerships.
+                <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
+                  Guided by experienced directors committed to excellence and innovation
                 </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8">
+                {companyData.leadership.map((leader, index) => (
+                  <Card key={index} className="border-2 hover:border-primary/50 transition-all hover:shadow-xl overflow-hidden group">
+                    <div className="relative h-64 bg-gradient-to-br from-primary/10 to-primary/5">
+                      <Image
+                        src={leader.image}
+                        alt={leader.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+                    </div>
+                    <CardContent className="p-6">
+                      <h3 className="text-2xl font-bold text-foreground mb-2">{leader.name}</h3>
+                      <p className="text-primary font-semibold">{leader.designation}</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               <div className="grid md:grid-cols-2 gap-8">
@@ -395,7 +645,7 @@ export default function HomePage() {
                           <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                             <CheckCircle className="h-4 w-4 text-primary" />
                           </div>
-                          <span className="text-foreground/80 text-sm leading-relaxed break-words">{mission}</span>
+                          <span className="text-foreground/80 text-sm leading-relaxed">{mission}</span>
                         </li>
                       ))}
                     </ul>
@@ -406,58 +656,99 @@ export default function HomePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                        <Users className="h-5 w-5 text-primary" />
+                        <Award className="h-5 w-5 text-primary" />
                       </div>
-                      Leadership
+                      Certifications & Awards
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {companyData.leadership.map((leader, index) => (
-                        <div key={index} className="flex items-center gap-4 p-4 bg-gradient-to-r from-muted/50 via-muted/40 to-muted/30 rounded-xl border border-border/50 hover:border-primary/30 hover:shadow-md transition-all">
-                          <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <Users className="h-7 w-7 text-primary" />
+                      {companyData.certifications.map((cert, index) => (
+                        <div key={index} className="flex items-center gap-3 p-4 bg-gradient-to-r from-muted/50 via-muted/40 to-muted/30 rounded-xl border border-border/50 hover:border-primary/30 hover:shadow-md transition-all">
+                          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Award className="h-5 w-5 text-primary" />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-foreground break-words">{leader.name}</p>
-                            <p className="text-sm text-muted-foreground mt-1">{leader.designation}</p>
-                          </div>
+                          <span className="text-foreground text-sm leading-relaxed">{cert}</span>
                         </div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
               </div>
+            </div>
+          </div>
+        </section>
 
-              {/* Certifications & Awards */}
-              <Card className="bg-gradient-to-br from-card via-card/95 to-card/90 border-2 hover:border-primary/30 transition-all">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <Award className="h-5 w-5 text-primary" />
-                    </div>
-                    Certifications & Awards
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {companyData.certifications.map((cert, index) => (
-                      <div key={index} className="flex items-center gap-3 p-4 bg-gradient-to-r from-muted/50 via-muted/40 to-muted/30 rounded-xl border border-border/50 hover:border-primary/30 hover:shadow-md transition-all">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Award className="h-5 w-5 text-primary" />
-                        </div>
-                        <span className="text-foreground text-sm break-words leading-relaxed">{cert}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
+        {/* Awards Section */}
+        <section className="w-full py-20 lg:py-32 bg-muted/30 border-y border-border/40">
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center space-y-4 mb-12">
+                <Badge className="bg-primary/10 text-primary border-primary/20">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Recognition
+                </Badge>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+                  Awards &{" "}
+                  <span className="bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                    Certifications
+                  </span>
+                </h2>
+              </div>
+              <Card className="border-2 hover:border-primary/50 transition-all overflow-hidden">
+                <div className="relative h-96">
+                  <Image
+                    src="/awards/image.png"
+                    alt="Awards and Certifications"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
               </Card>
             </div>
           </div>
         </section>
 
+        {/* CSR Initiatives */}
+        <section className="w-full py-20 lg:py-32">
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="text-center space-y-4 mb-12">
+              <Badge className="bg-primary/10 text-primary border-primary/20">
+                <Heart className="h-4 w-4 mr-2" />
+                Corporate Social Responsibility
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+                Our{" "}
+                <span className="bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
+                  CSR Initiatives
+                </span>
+              </h2>
+              <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
+                Committed to making a positive impact in our communities
+              </p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {companyData.csrInitiatives.map((initiative, index) => (
+                <Card key={index} className="border-2 hover:border-primary/50 transition-all hover:shadow-xl bg-gradient-to-br from-card via-card/95 to-card/90">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                        <Heart className="h-6 w-6 text-primary" />
+                      </div>
+                      {initiative.initiative}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-foreground/70 leading-relaxed">{initiative.impact}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Contact Section */}
-        <section id="contact" className="w-full py-20 lg:py-32">
+        <section id="contact" className="w-full py-20 lg:py-32 bg-muted/30 border-y border-border/40">
           <div className="container mx-auto px-4 lg:px-8">
             <div className="max-w-4xl mx-auto space-y-16">
               <div className="text-center space-y-4">
@@ -486,7 +777,7 @@ export default function HomePage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-foreground mb-2 text-lg">Head Office</h3>
-                          <p className="text-sm text-muted-foreground leading-relaxed break-words">{companyData.contactInfo.address}</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{companyData.contactInfo.address}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -502,7 +793,7 @@ export default function HomePage() {
                           <h3 className="font-semibold text-foreground mb-3 text-lg">Phone</h3>
                           <div className="space-y-2">
                             {companyData.contactInfo.phone.map((phone, index) => (
-                              <a key={index} href={`tel:${phone}`} className="block text-sm text-muted-foreground hover:text-primary transition-colors break-words font-medium">
+                              <a key={index} href={`tel:${phone}`} className="block text-sm text-muted-foreground hover:text-primary transition-colors font-medium">
                                 {phone}
                               </a>
                             ))}
@@ -560,28 +851,28 @@ export default function HomePage() {
                         <input
                           type="text"
                           placeholder="First Name"
-                          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                         />
                         <input
                           type="text"
                           placeholder="Last Name"
-                          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                         />
                       </div>
                       <input
                         type="email"
                         placeholder="Email Address"
-                        className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                       />
                       <input
                         type="tel"
                         placeholder="Phone Number"
-                        className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                       />
                       <textarea
                         placeholder="Your Message"
                         rows={4}
-                        className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                        className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none transition-all"
                       />
                       <Button type="submit" className="w-full bg-primary hover:bg-primary-dark text-primary-foreground shadow-lg hover:shadow-xl transition-all">
                         Send Message
@@ -610,7 +901,7 @@ export default function HomePage() {
                   <span className="text-xs text-muted-foreground">Services Pvt. Ltd.</span>
                 </div>
               </div>
-              <p className="text-sm text-foreground/70 leading-relaxed break-words">
+              <p className="text-sm text-foreground/70 leading-relaxed">
                 {companyData.overview.substring(0, 120)}...
               </p>
               <div className="flex gap-4">
@@ -643,12 +934,6 @@ export default function HomePage() {
                 <Link href="#contact" className="block text-sm text-foreground/70 hover:text-foreground transition-colors">
                   Contact
                 </Link>
-                <Link href="/login" className="block text-sm text-foreground/70 hover:text-foreground transition-colors">
-                  Login
-                </Link>
-                <Link href="/signup" className="block text-sm text-foreground/70 hover:text-foreground transition-colors">
-                  Get Started
-                </Link>
               </div>
             </div>
 
@@ -661,7 +946,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span className="break-words">{companyData.contactInfo.phone[0]}</span>
+                  <span>{companyData.contactInfo.phone[0]}</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Mail className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
@@ -675,10 +960,14 @@ export default function HomePage() {
             <p className="text-xs text-foreground/60">
               &copy; {currentYear} {companyData.name}. All rights reserved.
             </p>
-            <div className="flex gap-6 text-xs text-foreground/60">
+            <div className="flex items-center gap-6 text-xs text-foreground/60">
               <span>Formerly: {companyData.formerName}</span>
               <span>•</span>
               <span>Est. {companyData.founded}</span>
+              <span>•</span>
+              <Link href="/login" className="text-foreground/40 hover:text-foreground/60 transition-colors">
+                Login
+              </Link>
             </div>
           </div>
         </div>

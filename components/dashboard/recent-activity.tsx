@@ -4,17 +4,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { UserPlus, DollarSign, Building2, Calendar } from "lucide-react"
-import type { DashboardReport } from "@/types/dashboard"
+import type { DashboardReportData } from "@/types/dashboard"
 
 interface RecentActivityProps {
-  data: DashboardReport
+  data: DashboardReportData
 }
 
 export function RecentActivity({ data }: RecentActivityProps) {
   const { recentJoinees, recentPayrolls } = data.recentActivity
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    // Handle both DD-MM-YYYY and YYYY-MM-DD formats
+    let date: Date
+    if (dateString.includes("-")) {
+      const parts = dateString.split("-")
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD format
+        date = new Date(dateString)
+      } else {
+        // DD-MM-YYYY format
+        date = new Date(parts[2] + "-" + parts[1] + "-" + parts[0])
+      }
+    } else {
+      date = new Date(dateString)
+    }
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   }
 
@@ -61,15 +74,21 @@ export function RecentActivity({ data }: RecentActivityProps) {
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{employee.id}</span>
-                      <span>•</span>
-                      <span>Age {employee.age}</span>
+                      {employee.age && (
+                        <>
+                          <span>•</span>
+                          <span>Age {employee.age}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
                     <Badge variant="outline" className="text-xs mb-1">
-                      {employee.employeeOnboardingDate}
+                      {formatDate(employee.employeeOnboardingDate)}
                     </Badge>
-                    <p className="text-xs text-muted-foreground">{employee.category}</p>
+                    {employee.category && (
+                      <p className="text-xs text-muted-foreground">{employee.category}</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -120,7 +139,11 @@ export function RecentActivity({ data }: RecentActivityProps) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-green-500">{formatCurrency(payroll.salaryData.netSalary)}</p>
+                    <p className="text-sm font-medium text-green-500">
+                      {payroll.salaryData?.calculations?.netSalary || payroll.salaryData?.netSalary
+                        ? formatCurrency(payroll.salaryData.calculations?.netSalary ?? payroll.salaryData.netSalary)
+                        : "N/A"}
+                    </p>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Calendar className="h-3 w-3" />
                       <span>{payroll.month}</span>

@@ -3,25 +3,25 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, PieChart, Building2 } from "lucide-react"
-import type { DashboardReport, CompanyEmployeeCount } from "@/types/dashboard"
+import type { DashboardReportData, CompanyEmployeeCount } from "@/types/dashboard"
 
 interface DashboardChartsProps {
-  data: DashboardReport
+  data: DashboardReportData
   companyEmployeeCounts: CompanyEmployeeCount[]
 }
 
 export function DashboardCharts({ data, companyEmployeeCounts }: DashboardChartsProps) {
-  const { employeesByDepartment, employeesByDesignation } = data.employeeStats
+  const { byDepartment, byDesignation } = data.employeeStats
 
   // Calculate percentages for better visualization
-  const totalEmployees = data.employeeStats.totalEmployees
-  const departmentData = employeesByDepartment.map((dept) => ({
+  const totalEmployees = data.summary.totalEmployees
+  const departmentData = byDepartment.map((dept) => ({
     name: dept.departmentName,
     count: dept._count.departmentName,
     percentage: ((dept._count.departmentName / totalEmployees) * 100).toFixed(1),
   }))
 
-  const designationData = employeesByDesignation.map((designation) => ({
+  const designationData = byDesignation.map((designation) => ({
     name: designation.designationName,
     count: designation._count.designationName,
     percentage: ((designation._count.designationName / totalEmployees) * 100).toFixed(1),

@@ -3,15 +3,15 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Building2, UserPlus, Building, TrendingUp, TrendingDown } from "lucide-react"
-import type { DashboardReport, CompanyEmployeeCount } from "@/types/dashboard"
+import type { DashboardReportData, CompanyEmployeeCount } from "@/types/dashboard"
 
 interface StatCardsProps {
-  data: DashboardReport
+  data: DashboardReportData
   companyEmployeeCounts: CompanyEmployeeCount[]
 }
 
 export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
-  const { employeeStats, companyStats } = data
+  const { summary, employeeStats, companyStats } = data
 
   // Calculate companies with employees vs without employees
   const companiesWithEmployees = companyEmployeeCounts.filter((company) => company.employeeCount > 0).length
@@ -20,8 +20,8 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
   const stats = [
     {
       title: "Total Employees",
-      value: employeeStats.totalEmployees,
-      change: employeeStats.newEmployeesThisMonth,
+      value: summary.totalEmployees,
+      change: summary.newEmployeesThisMonth,
       changeLabel: "new this month",
       icon: Users,
       gradient: "from-primary-light/20 to-primary/20",
@@ -29,8 +29,8 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
     },
     {
       title: "Active Employees",
-      value: employeeStats.activeInactive.active,
-      change: employeeStats.activeInactive.inactive,
+      value: summary.activeEmployees,
+      change: summary.inactiveEmployees,
       changeLabel: "inactive",
       icon: UserPlus,
       gradient: "from-success/20 to-success/10",
@@ -38,8 +38,8 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
     },
     {
       title: "Total Companies",
-      value: companyStats.totalCompanies,
-      change: companyStats.newCompaniesThisMonth,
+      value: summary.totalCompanies,
+      change: summary.newCompaniesThisMonth,
       changeLabel: "new this month",
       icon: Building2,
       gradient: "from-info/20 to-info/10",
@@ -47,7 +47,7 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
     },
     {
       title: "Active Companies",
-      value: companyStats.activeInactive.active,
+      value: summary.activeCompanies,
       change: companiesWithEmployees,
       changeLabel: "with employees",
       icon: Building,
@@ -66,31 +66,37 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
         return (
           <Card
             key={stat.title}
-            className="relative overflow-hidden security-card hover:border-primary/20 transition-all duration-300"
+            className="relative overflow-hidden security-card hover:border-primary/20 transition-all duration-300 group"
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-50`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-50 transition-opacity duration-300`} />
             <CardContent className="relative p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-base font-medium text-muted-foreground">{stat.title}</p>
-                  <div className="flex items-baseline space-x-2">
-                    <p className="text-4xl font-bold tracking-tight">{stat.value.toLocaleString()}</p>
+              <div className="flex items-start justify-between">
+                <div className="space-y-3 flex-1">
+                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{stat.title}</p>
+                  <div className="flex items-baseline space-x-3">
+                    <p className="text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      {stat.value.toLocaleString()}
+                    </p>
                     {stat.change > 0 && (
-                    <Badge variant="secondary" className="text-sm">
-                      +{stat.change}
-                    </Badge>
+                      <Badge 
+                        variant="secondary" 
+                        className="text-xs font-semibold bg-success/10 text-success border-success/20"
+                      >
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        +{stat.change}
+                      </Badge>
                     )}
                   </div>
                   {stat.change !== undefined && (
-                    <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                      <TrendIcon className="h-4 w-4" />
-                      <span>
+                    <div className="flex items-center space-x-1.5 text-xs text-muted-foreground pt-1">
+                      <TrendIcon className={`h-3.5 w-3.5 ${isPositive ? 'text-success' : 'text-muted-foreground'}`} />
+                      <span className="font-medium">
                         {stat.change} {stat.changeLabel}
                       </span>
                     </div>
                   )}
                 </div>
-                <div className={`p-3 rounded-full bg-white/10 ${stat.iconColor}`}>
+                <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg ${stat.iconColor} opacity-90 group-hover:opacity-100 transition-opacity`}>
                   <Icon className="h-6 w-6" />
                 </div>
               </div>

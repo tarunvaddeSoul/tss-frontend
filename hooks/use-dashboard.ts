@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react"
 import { dashboardService } from "@/services/dashboardService"
 import { companyService } from "@/services/companyService"
-import type { DashboardReport, CompanyEmployeeCount } from "@/types/dashboard"
+import type { DashboardReportData, CompanyEmployeeCount } from "@/types/dashboard"
 
 interface UseDashboardReturn {
-  data: DashboardReport | null
+  data: DashboardReportData | null
   companyEmployeeCounts: CompanyEmployeeCount[]
   loading: boolean
   error: string | null
@@ -14,7 +14,7 @@ interface UseDashboardReturn {
 }
 
 export function useDashboard(daysAhead = 30): UseDashboardReturn {
-  const [data, setData] = useState<DashboardReport | null>(null)
+  const [data, setData] = useState<DashboardReportData | null>(null)
   const [companyEmployeeCounts, setCompanyEmployeeCounts] = useState<CompanyEmployeeCount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

@@ -124,7 +124,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
               Terminate Employee from TSS
             </DialogTitle>
             <DialogDescription>
-              Terminate this employee from Tulsyan Security Solutions. This will mark the employee as INACTIVE in the system.
+              Terminate this employee from Tulsyan Security Services. This will mark the employee as INACTIVE in the system.
             </DialogDescription>
           </DialogHeader>
 
@@ -188,7 +188,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
                     </FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormDescription>
-                      Select the last working day with Tulsyan Security Solutions.
+                      Select the last working day with Tulsyan Security Services.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -252,7 +252,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                You are about to terminate <strong>{employee.firstName} {employee.lastName}</strong> from Tulsyan Security Solutions.
+                You are about to terminate <strong>{employee.firstName} {employee.lastName}</strong> from Tulsyan Security Services.
               </p>
               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
                 <p>

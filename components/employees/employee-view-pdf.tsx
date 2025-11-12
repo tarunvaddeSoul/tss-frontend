@@ -173,7 +173,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
       title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
       author={BRAND.name}
       subject="Employee Profile"
-      keywords="Tulsyan Security Solutions, Employee, Profile"
+      keywords="Tulsyan Security Services, Employee, Profile"
     >
       <BrandPage>
         {/* Company Branding Header */}

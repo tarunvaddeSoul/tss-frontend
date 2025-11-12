@@ -94,7 +94,7 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
         title={`Salary Slip - ${salarySlipData.employee.name} - ${salarySlipData.month}`}
         author={BRAND.name}
         subject="Salary Slip"
-        keywords="Tulsyan Security Solutions, Salary, Payslip"
+        keywords="Tulsyan Security Services, Salary, Payslip"
       >
         <SalarySlipPDFPage data={salarySlipData} />
       </Document>
@@ -143,7 +143,7 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
       title={`${title} - Payroll Report`}
       author={BRAND.name}
       subject="Payroll Report"
-      keywords="Tulsyan Security Solutions, Payroll, Report"
+      keywords="Tulsyan Security Services, Payroll, Report"
     >
       <BrandPage orientation="landscape">
         <PdfHeader 

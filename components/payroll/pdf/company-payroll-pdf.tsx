@@ -183,7 +183,7 @@ const CompanyPayrollPDF = ({ data, companyName, companyDetails }: CompanyPayroll
       title={`${companyName} - Payroll Report`}
       author={BRAND.name}
       subject="Company Payroll Report"
-      keywords="Tulsyan Security Solutions, Payroll, Company"
+      keywords="Tulsyan Security Services, Payroll, Company"
     >
       {/* Page 1: Company Details */}
       <BrandPage>

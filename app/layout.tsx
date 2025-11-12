@@ -11,8 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Tulsyan Security Solutions",
-  description: "Security management system for Tulsyan Security Solutions",
+  title: "Tulsyan Security Services",
+  description: "Security management system for Tulsyan Security Services",
 }
 
 export default function RootLayout({

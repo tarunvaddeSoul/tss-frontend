@@ -15,7 +15,7 @@ try {
 }
 
 export const BRAND = {
-  name: "Tulsyan Security Solutions Pvt. Ltd.",
+  name: "Tulsyan Security Services Pvt. Ltd.",
   tagline: "Professional Security Services",
   colors: {
     primary: "#D12702",

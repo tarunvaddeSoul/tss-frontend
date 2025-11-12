@@ -14,7 +14,7 @@ const AttendanceReportPDF = ({ title, month, records }: AttendanceReportPDFProps
       title={`${title} - Attendance Report`}
       author={BRAND.name}
       subject="Attendance Report"
-      keywords="Tulsyan Security Solutions, Attendance, Report"
+      keywords="Tulsyan Security Services, Attendance, Report"
     >
       <BrandPage>
         <PdfHeader title={title} subtitle={month ? `Attendance Report • ${month}` : "Attendance Report"} />

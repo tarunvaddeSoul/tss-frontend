@@ -98,7 +98,7 @@ const EmployeePayrollPDF = ({ data, employeeId }: EmployeePayrollPDFProps) => {
       title={`Employee ${employeeId} - Payroll Report`}
       author={BRAND.name}
       subject="Employee Payroll Report"
-      keywords="Tulsyan Security Solutions, Payroll, Employee"
+      keywords="Tulsyan Security Services, Payroll, Employee"
     >
       {/* Generate one salary slip per month */}
       {sortedData.map((record) => {

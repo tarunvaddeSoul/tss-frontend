@@ -304,7 +304,7 @@ const SalarySlipPDF = ({ data }: SalarySlipPDFProps) => {
       title={`Salary Slip - ${data.employee.name} - ${data.month}`}
       author={BRAND.name}
       subject="Salary Slip"
-      keywords="Tulsyan Security Solutions, Salary, Payslip"
+      keywords="Tulsyan Security Services, Salary, Payslip"
     >
       <SalarySlipPDFPage data={data} />
     </Document>

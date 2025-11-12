@@ -46,7 +46,7 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
       title={`${company.name} - Company Profile`}
       author={BRAND.name}
       subject="Company Profile"
-      keywords="Tulsyan Security Solutions, Company, Profile"
+      keywords="Tulsyan Security Services, Company, Profile"
     >
       <BrandPage>
         <PdfHeader title={company.name} subtitle="Company Profile" tag={company.status || "ACTIVE"} logoSrc="/tss-logo.png" />

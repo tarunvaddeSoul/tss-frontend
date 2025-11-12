@@ -48,7 +48,7 @@ function AuthLayoutContent({ children }: { children: React.ReactNode }) {
         {children}
       </motion.div>
       <div className="mt-8 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} Tulsyan Security Solutions. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Tulsyan Security Services. All rights reserved.</p>
       </div>
     </div>
   )

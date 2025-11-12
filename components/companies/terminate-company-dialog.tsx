@@ -136,7 +136,7 @@ export function TerminateCompanyDialog({ company, open, onOpenChange, onSuccess 
               Terminate Company from TSS
             </DialogTitle>
             <DialogDescription>
-              Terminate this company from Tulsyan Security Solutions. This will mark the company as INACTIVE in the system.
+              Terminate this company from Tulsyan Security Services. This will mark the company as INACTIVE in the system.
             </DialogDescription>
           </DialogHeader>
 
@@ -278,7 +278,7 @@ export function TerminateCompanyDialog({ company, open, onOpenChange, onSuccess 
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                You are about to terminate <strong>{company.name}</strong> from Tulsyan Security Solutions.
+                You are about to terminate <strong>{company.name}</strong> from Tulsyan Security Services.
               </p>
               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
                 <p>

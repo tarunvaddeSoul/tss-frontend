@@ -221,16 +221,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authService.resetPassword(credentials)
       toast({
         title: "Password reset",
-        description: "Your password has been reset successfully.",
+        description: "Your password has been reset successfully. Please login with your new password.",
         variant: "default",
       })
-      router.push("/login")
+      // Don't redirect automatically - let the component handle it after showing success message
     } catch (error: any) {
-      toast({
-        title: "Reset password failed",
-        description: error.message || "Unable to reset password. Please try again.",
-        variant: "destructive",
-      })
+      // Don't show toast here - let the component handle error display
+      // The component will show both toast and inline error message
       throw error
     } finally {
       setIsLoading(false)

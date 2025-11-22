@@ -13,6 +13,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Tulsyan Security Services",
   description: "Security management system for Tulsyan Security Services",
+  icons: {
+    icon: "/tss-logo.png",
+  },
 }
 
 export default function RootLayout({

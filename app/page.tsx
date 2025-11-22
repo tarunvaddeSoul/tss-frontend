@@ -236,6 +236,7 @@ export default function HomePage() {
                 src={logoSrc}
                 alt={companyData.name}
                 fill
+                sizes="(max-width: 768px) 100vw, 33vw"
                 className="object-contain"
                 priority
               />
@@ -415,6 +416,7 @@ export default function HomePage() {
                     src="/security-guards/security-guards.png"
                     alt="Security Team"
                     fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-cover hover:scale-105 transition-transform duration-[1.5s]"
                     priority
                   />
@@ -531,7 +533,7 @@ export default function HomePage() {
                           <div className="flex -space-x-4">
                              {companyData.leadership.map((leader, i) => (
                                 <div key={i} className="relative w-14 h-14 rounded-full border-2 border-black overflow-hidden">
-                                   <Image src={leader.image} alt={leader.name} fill className="object-cover" />
+                                   <Image src={leader.image} alt={leader.name} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
                       </div>
                 ))}
               </div>
@@ -548,6 +550,7 @@ export default function HomePage() {
                        src="/training/training.png" 
                        alt="Training Session" 
                        fill 
+                       sizes="(max-width: 768px) 100vw, 50vw"
                        className="object-cover opacity-60 hover:opacity-80 transition-opacity duration-700"
                     />
                     <div className="absolute bottom-0 left-0 p-10 w-full bg-gradient-to-t from-black/90 to-transparent">
@@ -592,6 +595,7 @@ export default function HomePage() {
                           src={companyData.caseStudies[0].image} 
                           alt="Case Study" 
                     fill
+                          sizes="(max-width: 768px) 100vw, 50vw"
                           className="object-cover"
                   />
                 </div>
@@ -640,7 +644,7 @@ export default function HomePage() {
                      <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
                         <span>{companyData.contactInfo.address}</span>
-                      </div>
+                     </div>
               </div>
             </div>
           </div>

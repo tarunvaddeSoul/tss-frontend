@@ -28,6 +28,16 @@ const nextConfig = {
       'date-fns',
     ],
   },
+  // Fix for stack overflow during build trace collection
+  // Exclude platform-specific binaries and unnecessary files from tracing
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@swc/core-linux-x64-gnu',
+      'node_modules/@swc/core-linux-x64-musl',
+      'node_modules/@esbuild/linux-x64',
+      'node_modules/webpack',
+    ],
+  },
   // Webpack optimizations
   webpack: (config, { dev, isServer }) => {
     // Tree shaking optimizations

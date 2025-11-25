@@ -11,91 +11,166 @@ import {
   Mail,
   MapPin,
   CheckCircle,
-  Star,
   Zap,
   Menu,
   X,
   ArrowRight,
-  Briefcase,
-  Target,
-  Heart,
-  Trophy,
-  ChevronRight,
   Play,
   Quote,
+  Leaf,
+  Building2,
+  HomeIcon as HomeIconLucide,
+  Settings,
+  Trophy,
+  ChevronRight,
+  Star,
+  ChevronLeft,
+  Maximize2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { useState, useEffect, useRef } from "react"
 import { motion, useScroll, useTransform, AnimatePresence, useSpring, useInView } from "framer-motion"
+import { useTheme } from "next-themes"
+import { Moon, Sun } from "lucide-react"
+import { Card } from "@/components/ui/card" // Kept for compatibility if needed, though we use custom styling
 
-// Company data from profile
+// --- Data ---
+
 const companyData = {
-  name: "Tulsyan Security Solutions Pvt. Ltd. (TSSPL)",
-  brandName: "Tulsyan Security Solutions Pvt. Ltd.",
-  formerName: "Tulsyan Outsourcing Pvt. Ltd.",
+  name: "Tulsyan Security Services Pvt. Ltd.",
+  shortName: "Tulsyan Security Services Pvt. Ltd.",
   founded: 2013,
   headOffice: "Indore, Madhya Pradesh",
   employees: "2000+",
-  industry: "Manpower & Outsourcing",
-  overview:
-    "Tulsyan Security Solutions Pvt. Ltd. is a trusted provider of comprehensive outsourcing solutions, specializing in Security Services, Housekeeping, Solid Waste Management, and Facility Management.",
-  coreValues: ["Integrity", "Reliability", "Professionalism", "Responsiveness", "Customer First"],
-  areasOfSpecialization: [
+  industry: "Manpower Services",
+  tagline: "Complete Solutions: Manpower, Machines, Material, Methods",
+  mission: [
+    "Provide high Quality, Affordable contract Outsourcing solutions.",
+    "Create and cultivate long-term relationship with clients.",
+    "Respond immediately to the changing needs of clients.",
+    "Achieve Complete customer satisfaction.",
+    "Improve Customer services Standards continuously.",
+  ],
+  coreValues: ["Integrity", "Customer First", "Professionalism", "Responsiveness", "Reliability"],
+  sectors: [
+    "Wealth Management",
+    "Housekeeping Material Supply",
+    "Garment",
+    "Social Service",
+    "Graphic Designing",
+    "Recruitment Consultancy",
+  ],
+  stats: [
+    { label: "Years of Excellence", value: 10, suffix: "+" },
+    { label: "Employees", value: 2000, suffix: "+" },
+    { label: "Cities Covered", value: 15, suffix: "+" },
+    { label: "Client Retention", value: 98, suffix: "%" },
+  ],
+  specializations: [
     {
       title: "Security Services",
-      description: "Expertly trained personnel equipped with modern security systems.",
+      description: "Total security solutions with zero investment on machines. Expertly trained personnel for all sectors.",
       icon: Shield,
+      image: "/slideshow/security-guards.png"
     },
     {
       title: "Facility Management",
-      description: "Comprehensive maintenance and operational support for your infrastructure.",
-      icon: Briefcase,
-    },
-    {
-      title: "Housekeeping",
-      description: "Professional cleaning and hygiene maintenance standards.",
-      icon: Zap,
+      description: "Complete Facility Management Services for total peace of mind. We handle the details so you can focus on business.",
+      icon: Building2,
+      image: "/slideshow/image 1.png"
     },
     {
       title: "Solid Waste Mgmt",
-      description: "Sustainable and efficient waste processing solutions.",
-      icon: CheckCircle,
+      description: "Comprehensive waste management solutions ensuring a healthy and compliant environment.",
+      icon: Leaf,
+      image: "/slideshow/waste-management.png"
     },
     {
-      title: "Payroll Mgmt",
-      description: "Accurate and timely payroll processing and consultancy.",
+      title: "Housekeeping",
+      description: "Professional cleaning services creating hygienic environments for corporate and industrial spaces.",
+      icon: HomeIconLucide,
+      image: "/waste-management/image.png"
+    },
+    {
+      title: "Payroll & HR",
+      description: "Payroll Management & Consultancy Services reducing administrative burden and ensuring compliance.",
       icon: Users,
+      image: "/training/training.png" // Placeholder
+    },
+    {
+      title: "O&M Management",
+      description: "Electrical & Mechanical / Operations & Maintenance Management & Allied Services.",
+      icon: Settings,
+      image: "/petrol-pump/petrol-pump.png"
     },
   ],
+  advantages: [
+    "Zero investment on Machines",
+    "Total Security Solutions",
+    "Less administrative burden to control manpower",
+    "Healthy and Hygienic environment",
+    "No stress for machine break-downs",
+    "No stress for inventory of chemicals and consumables",
+  ],
   leadership: [
-    { name: "Kshitiz Tulsyan", designation: "Director", image: "/directors/kshitiz.png" },
-    { name: "Anubhav Tulsyan", designation: "Director", image: "/directors/anubhav.png" },
+    {
+      name: "Kshitiz Tulsyan",
+      designation: "Director",
+      image: "/directors/kshitiz.jpg",
+      bio: "Leading the strategic expansion into diverse sectors."
+    },
+    {
+      name: "Anubhav Tulsyan",
+      designation: "Director",
+      image: "/directors/anubhav.png",
+      bio: "Driving operational excellence and innovation."
+    },
+  ],
+  certifications: [
+    { name: "ISO 18788 : 2015", scope: "Private Security Operations" },
+    { name: "ISO 14001 : 2015", scope: "Environmental Mgt Sys" },
+    { name: "ISO 45001 : 2018", scope: "Occupational Health & Safety" },
+    { name: "ISO/IEC : 27001 : 2022", scope: "Information Security Mgt" },
+    { name: "ISO 30409 : 2026", scope: "Human Resource Mgt" },
+  ],
+  clients: [
+    "/clients/aditya-birla.png",
+    "/clients/ashoka-hotel.png",
+    "/clients/brilliant-convention-centre.png",
+    "/clients/electricity-department.png",
+    "/clients/epfo.png",
+    "/clients/franklin.png",
+    "/clients/hotwax-systems.png",
+    "/clients/iit-jodhpur.png",
+    "/clients/municipal_corp.png",
+    "/clients/nvda.png",
+    "/clients/parishad-mhow.png",
+    "/clients/prestige.png",
+    "/clients/vistara.png",
+  ],
+  media: [
+    "/media-coverage/image.png",
+    "/media-coverage/image 1.png",
+    "/media-coverage/image 2.png",
+    "/media-coverage/image 3.png",
+    "/media-coverage/image 4.png",
   ],
   contactInfo: {
     address: "24 A, Chandra Nagar, MR 9 Road, Indore, MP - 452010",
     phone: ["0731-4098357", "9993997072"],
     email: "info@tulsyans.com",
+    branches: ["Bhopal", "Jodhpur", "Ahmedabad", "Dewas", "Dhar", "Pithampur", "Kota"],
   },
-  caseStudies: [
-    {
-      client: "Bharat Petroleum Corporation Limited (BPCL)",
-      project: "COCO Petrol Pump Management - Madhya Pradesh",
-      scope: "Managed full-time sales, service, safety, and hygiene for BPCL's largest COCO pump.",
-      tenure: "3 years",
-      annualSales: "11,000 KL",
-      manpower: "45 employees",
-      image: "/petrol-pump/petrol-pump.png",
-    },
-  ],
-  stats: [
-    { label: "Years of Excellence", value: 10, suffix: "+" },
-    { label: "Security Personnel", value: 2000, suffix: "+" },
-    { label: "Cities Covered", value: 15, suffix: "+" },
-    { label: "Client Retention", value: 98, suffix: "%" },
-  ],
+  galleryImages: [
+    { src: "/slideshow/security-guards.png", alt: "Security Team", category: "Security" },
+    { src: "/slideshow/waste-management.png", alt: "Waste Management", category: "Services" },
+    { src: "/slideshow/traffic-management.png", alt: "Traffic Control", category: "Security" },
+    { src: "/training/training.png", alt: "Staff Training", category: "Training" },
+    { src: "/slideshow/image 1.png", alt: "Facility Services", category: "Services" },
+    { src: "/petrol-pump/petrol-pump.png", alt: "Petrol Pump Mgmt", category: "Operations" },
+  ]
 }
 
 // --- Components ---
@@ -104,6 +179,7 @@ function Counter({ value, suffix }: { value: number; suffix: string }) {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true })
   const springValue = useSpring(0, { duration: 2000, bounce: 0 })
+  const [displayValue, setDisplayValue] = useState(0)
 
   useEffect(() => {
     if (isInView) {
@@ -111,12 +187,11 @@ function Counter({ value, suffix }: { value: number; suffix: string }) {
     }
   }, [isInView, value, springValue])
 
-  const [displayValue, setDisplayValue] = useState(0)
-
   useEffect(() => {
-    springValue.on("change", (latest) => {
+    const unsubscribe = springValue.on("change", (latest) => {
       setDisplayValue(Math.round(latest))
     })
+    return () => unsubscribe()
   }, [springValue])
 
   return (
@@ -127,51 +202,190 @@ function Counter({ value, suffix }: { value: number; suffix: string }) {
   )
 }
 
-function SpotlightCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  const divRef = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [opacity, setOpacity] = useState(0)
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!divRef.current) return
-    const rect = divRef.current.getBoundingClientRect()
-    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top })
-  }
-
-  const handleFocus = () => {
-    setOpacity(1)
-  }
-
-  const handleBlur = () => {
-    setOpacity(0)
-  }
-
-  const handleMouseEnter = () => {
-    setOpacity(1)
-  }
-
-  const handleMouseLeave = () => {
-    setOpacity(0)
-  }
+function FooterThemeToggle() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
 
   return (
-    <div
-      ref={divRef}
-      onMouseMove={handleMouseMove}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-lg ${className}`}
+    <button
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+      aria-label="Toggle theme"
     >
-      <div
-        className="pointer-events-none absolute -inset-px opacity-0 transition duration-300"
-        style={{
-          opacity,
-          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, rgba(180,32,37,0.1), transparent 40%)`,
-        }}
-      />
-      <div className="relative h-full">{children}</div>
+      {theme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+    </button>
+  )
+}
+
+function Marquee({ children, direction = "left", speed = 30, className = "" }: { children: React.ReactNode, direction?: "left" | "right", speed?: number, className?: string }) {
+  return (
+    <div className={`flex overflow-hidden whitespace-nowrap ${className}`}>
+      <motion.div
+        className="flex flex-shrink-0 gap-12 items-center"
+        initial={{ x: direction === "left" ? 0 : "-100%" }}
+        animate={{ x: direction === "left" ? "-100%" : 0 }}
+        transition={{ ease: "linear", duration: speed, repeat: Infinity }}
+      >
+        {children}
+        {children}
+      </motion.div>
+      <motion.div
+        className="flex flex-shrink-0 gap-12 items-center"
+        initial={{ x: direction === "left" ? 0 : "-100%" }}
+        animate={{ x: direction === "left" ? "-100%" : 0 }}
+        transition={{ ease: "linear", duration: speed, repeat: Infinity }}
+      >
+        {children}
+        {children}
+      </motion.div>
+    </div>
+  )
+}
+
+function Lightbox({ image, onClose }: { image: { src: string, alt: string, category: string } | null, onClose: () => void }) {
+  if (!image) return null
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="relative w-full max-w-6xl h-auto max-h-[90vh] aspect-video rounded-2xl overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Image
+          src={image.src}
+          alt={image.alt}
+          fill
+          className="object-contain"
+        />
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-primary transition-colors z-10"
+        >
+          <X className="h-6 w-6" />
+        </button>
+        <div className="absolute bottom-0 left-0 w-full p-8 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-white pointer-events-none">
+          <Badge className="bg-primary text-white border-none mb-2">{image.category}</Badge>
+          <h3 className="text-3xl font-bold">{image.alt}</h3>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function BentoGallery({ onImageClick }: { onImageClick: (img: any) => void }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[800px] md:h-[600px]">
+      {/* Large Item */}
+      <motion.div
+        className="md:col-span-2 md:row-span-2 relative rounded-3xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl transition-shadow"
+        onMouseEnter={() => setHoveredIndex(0)}
+        onMouseLeave={() => setHoveredIndex(null)}
+        onClick={() => onImageClick(companyData.galleryImages[0])}
+        whileHover={{ scale: 0.99 }}
+        transition={{ duration: 0.4 }}
+      >
+        <Image
+          src={companyData.galleryImages[0].src}
+          alt={companyData.galleryImages[0].alt}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-90 transition-opacity" />
+        <div className="absolute bottom-6 left-6 text-white">
+          <Badge className="bg-primary border-none mb-2">{companyData.galleryImages[0].category}</Badge>
+          <h3 className="text-2xl font-bold">{companyData.galleryImages[0].alt}</h3>
+        </div>
+        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white">
+            <Maximize2 className="h-5 w-5" />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Medium Items */}
+      <motion.div
+        className="md:col-span-1 md:row-span-1 relative rounded-3xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl"
+        onClick={() => onImageClick(companyData.galleryImages[1])}
+        whileHover={{ scale: 0.99 }}
+      >
+        <Image
+          src={companyData.galleryImages[1].src}
+          alt={companyData.galleryImages[1].alt}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
+        <div className="absolute bottom-4 left-4 text-white translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <span className="font-bold">{companyData.galleryImages[1].alt}</span>
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="md:col-span-1 md:row-span-2 relative rounded-3xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl"
+        onClick={() => onImageClick(companyData.galleryImages[3])}
+        whileHover={{ scale: 0.99 }}
+      >
+        <Image
+          src={companyData.galleryImages[3].src}
+          alt={companyData.galleryImages[3].alt}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+        <div className="absolute bottom-6 left-6 text-white">
+          <Badge variant="secondary" className="bg-white/20 backdrop-blur-md border-none mb-2 text-white">{companyData.galleryImages[3].category}</Badge>
+          <h3 className="text-xl font-bold">{companyData.galleryImages[3].alt}</h3>
+        </div>
+      </motion.div>
+
+      {/* More Items */}
+      <motion.div
+        className="md:col-span-1 md:row-span-1 relative rounded-3xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl"
+        onClick={() => onImageClick(companyData.galleryImages[2])}
+        whileHover={{ scale: 0.99 }}
+      >
+        <Image
+          src={companyData.galleryImages[2].src}
+          alt={companyData.galleryImages[2].alt}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors" />
+        <div className="absolute bottom-4 left-4 text-white translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+          <span className="font-bold">{companyData.galleryImages[2].alt}</span>
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="md:col-span-2 md:row-span-1 relative rounded-3xl overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl"
+        onClick={() => onImageClick(companyData.galleryImages[5])}
+        whileHover={{ scale: 0.99 }}
+      >
+        <Image
+          src={companyData.galleryImages[5].src}
+          alt={companyData.galleryImages[5].alt}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-transparent" />
+        <div className="absolute bottom-6 left-6 text-white">
+          <h3 className="text-xl font-bold">{companyData.galleryImages[5].alt}</h3>
+          <p className="text-white/80 text-sm">Operational Excellence</p>
+        </div>
+      </motion.div>
     </div>
   )
 }
@@ -181,160 +395,85 @@ function SpotlightCard({ children, className = "" }: { children: React.ReactNode
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [activeTab, setActiveTab] = useState("home")
+  const [selectedImage, setSelectedImage] = useState<{ src: string, alt: string, category: string } | null>(null)
   const { scrollYProgress } = useScroll()
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
-  })
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 })
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50)
-      
-      // Determine active section
-      const sections = ["home", "services", "about", "contact"]
-      for (const section of sections) {
-        const element = document.getElementById(section)
-        if (element) {
-          const rect = element.getBoundingClientRect()
-          if (rect.top <= 150 && rect.bottom >= 150) {
-            setActiveTab(section)
-            break
-          }
-        }
-      }
-    }
+    const handleScroll = () => setScrolled(window.scrollY > 50)
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  const logoSrc = "/tss-logo.png"
-
   return (
-    <div className="min-h-screen bg-background font-sans selection:bg-brand-primary/20 selection:text-brand-primary">
-      
-      {/* Progress Bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-brand-primary z-[100] origin-left"
-        style={{ scaleX }}
-      />
+    <div className="min-h-screen bg-background font-sans selection:bg-primary/20 selection:text-primary text-foreground overflow-x-hidden">
+      <AnimatePresence>
+        {selectedImage && <Lightbox image={selectedImage} onClose={() => setSelectedImage(null)} />}
+      </AnimatePresence>
+
+      {/* Scroll Progress */}
+      <motion.div className="fixed top-0 left-0 right-0 h-1 bg-primary z-[100] origin-left" style={{ scaleX }} />
 
       {/* Header */}
-      <header
-        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] md:w-[90%] max-w-7xl transition-all duration-500 ${
-          scrolled
-            ? "bg-background/80 backdrop-blur-md border border-border/50 shadow-lg rounded-full py-3 px-6 dark:bg-background/80"
-            : "bg-transparent py-6 px-0"
-        }`}
-      >
-        <div className="flex items-center justify-between">
+      <header className={`fixed top-0 left-0 z-50 w-full transition-all duration-500 ${scrolled ? "bg-background/80 backdrop-blur-md border-b border-border/50 py-3" : "bg-transparent py-6"}`}>
+        <div className="container mx-auto px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className={`relative transition-all duration-300 ${scrolled ? "w-8 h-8" : "w-10 h-10"}`}>
-              <Image
-                src={logoSrc}
-                alt={companyData.name}
-                fill
-                sizes="(max-width: 768px) 100vw, 33vw"
-                className="object-contain"
-                priority
-              />
+            <div className={`relative transition-all duration-300 ${scrolled ? "w-8 h-8" : "w-12 h-12"}`}>
+              <Image src="/tss-logo.png" alt={companyData.name} fill className="object-contain" priority />
             </div>
             <div className="flex flex-col">
-              <span className={`font-bold tracking-tight text-foreground transition-all duration-300 ${scrolled ? "text-sm" : "text-lg md:text-xl"}`}>
-                Tulsyan Security <span className="hidden md:inline">Solutions Pvt. Ltd.</span><span className="md:hidden">Solutions</span>
+              <span className={`font-bold tracking-tight text-foreground transition-all duration-300 ${scrolled ? "text-lg" : "text-xl md:text-2xl"}`}>
+                {companyData.shortName}
               </span>
             </div>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className={`hidden md:flex items-center gap-1 rounded-full p-1.5 transition-colors duration-300 ${scrolled ? "bg-transparent border-none" : "bg-muted/50 backdrop-blur-md border border-white/5"}`}>
-            {["Home", "Services", "About", "Contact"].map((item) => {
-              const isActive = activeTab === item.toLowerCase()
-              return (
-                <Link
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
-                  onClick={() => setActiveTab(item.toLowerCase())}
-                  className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-300 border border-transparent
-                    hover:text-brand-primary hover:bg-brand-primary/10 hover:border-brand-primary
-                    ${isActive 
-                      ? "text-brand-primary bg-brand-primary/10 border-brand-primary" 
-                      : scrolled ? "text-foreground/70" : "text-muted-foreground"
-                    }`}
-                >
-                  {item}
-            </Link>
-              )
-            })}
+          <nav className="hidden md:flex items-center gap-1 bg-background/50 backdrop-blur-sm p-1.5 rounded-full border border-border/50 shadow-sm">
+            {["Home", "About", "Services", "Gallery", "Contact"].map((item) => (
+              <Link
+                key={item}
+                href={`#${item.toLowerCase()}`}
+                className="px-5 py-2 text-sm font-medium rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-300"
+              >
+                {item}
+              </Link>
+            ))}
           </nav>
 
           <div className="flex items-center gap-4">
-            <div className="hidden md:block">
-            <ThemeToggle />
-            </div>
-            <Button 
-              asChild 
-              className={`rounded-full bg-brand-primary text-white hover:bg-brand-primary-dark shadow-lg hover:shadow-brand-primary/25 transition-all duration-300 ${scrolled ? "h-9 px-4 text-xs" : "h-11 px-6"}`}
-            >
-              <Link href="#contact">Book a Call</Link>
+            <Button asChild className="hidden md:inline-flex rounded-full bg-primary text-white hover:bg-primary-dark shadow-lg shadow-primary/20">
+              <Link href="#contact">Get a Quote</Link>
             </Button>
-            
-            <button 
-              className="md:hidden p-2 text-foreground"
-              onClick={() => setMobileMenuOpen(true)}
-            >
+            <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(true)}>
               <Menu className="h-6 w-6" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, x: "100%" }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: "100%" }}
-            transition={{ type: "spring", bounce: 0, duration: 0.4 }}
             className="fixed inset-0 z-[60] bg-background"
           >
             <div className="p-6 flex flex-col h-full">
               <div className="flex justify-between items-center mb-12">
-                <span className="font-bold text-xl">Menu</span>
+                <span className="font-bold text-xl text-primary">{companyData.shortName}</span>
                 <button onClick={() => setMobileMenuOpen(false)} className="p-2 hover:bg-muted rounded-full">
                   <X className="h-6 w-6" />
                 </button>
               </div>
               <div className="flex flex-col gap-6 text-2xl font-medium">
-                {["Home", "Services", "About", "Contact"].map((item) => {
-                  const isActive = activeTab === item.toLowerCase()
-                  return (
-                    <Link
-                      key={item}
-                      href={`#${item.toLowerCase()}`}
-                      onClick={() => {
-                        setActiveTab(item.toLowerCase())
-                        setMobileMenuOpen(false)
-                      }}
-                      className={`transition-colors ${isActive ? "text-brand-primary" : "hover:text-brand-primary"}`}
-                    >
-                      {item}
-                    </Link>
-                  )
-                })}
-              </div>
-              <div className="mt-auto space-y-6">
-                <div className="p-6 bg-muted/50 rounded-3xl">
-                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Get in Touch</h4>
-                   <p className="text-lg mb-2">{companyData.contactInfo.phone[0]}</p>
-                   <p className="text-muted-foreground">{companyData.contactInfo.email}</p>
-                </div>
-                <Button className="w-full h-12 rounded-xl text-lg bg-brand-primary text-white" onClick={() => setMobileMenuOpen(false)} asChild>
-                  <Link href="#contact">Get Started</Link>
-                </Button>
+                {["Home", "About", "Services", "Gallery", "Contact"].map((item) => (
+                  <Link key={item} href={`#${item.toLowerCase()}`} onClick={() => setMobileMenuOpen(false)}>
+                    {item}
+                  </Link>
+                ))}
               </div>
             </div>
           </motion.div>
@@ -343,321 +482,422 @@ export default function HomePage() {
 
       <main>
         {/* Hero Section */}
-        <section id="home" className="relative w-full min-h-screen flex items-center pt-24 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(180,32,37,0.03),transparent_50%)]" />
-          
-          <div className="container mx-auto px-6">
-            <div className="flex flex-col lg:flex-row gap-16 items-center">
-              <motion.div 
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="flex-1 text-center lg:text-left space-y-8 z-10"
-              >
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted border border-border/50 backdrop-blur-sm">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Now serving 15+ cities</span>
-                </div>
+        <section id="home" className="relative w-full min-h-[100vh] flex items-center pt-20 overflow-hidden bg-background text-foreground">
+          <div className="absolute inset-0 z-0">
+            {/* Parallax Background Image */}
+            <motion.div
+              className="relative w-full h-full"
+              initial={{ scale: 1.1 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 10, repeat: Infinity, repeatType: "reverse", ease: "linear" }}
+            >
+              <Image
+                src="/slideshow/security-guards.png"
+                alt="Background"
+                fill
+                className="object-cover opacity-20 dark:opacity-40"
+                priority
+              />
+            </motion.div>
+            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+          </div>
 
-                <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1]">
-                  Security Beyond <br />
-                  <span className="relative inline-block">
-                    <span className="relative z-10 text-brand-primary">Guardianship.</span>
-                    <span className="absolute bottom-2 left-0 right-0 h-3 bg-brand-primary/10 -rotate-1 z-0 rounded-full" />
+          <div className="container mx-auto px-6 relative z-10 mt-10">
+            <div className="max-w-4xl">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                <Badge variant="secondary" className="mb-6 bg-primary text-white border-none px-4 py-1 text-sm tracking-wide">
+                  Since {companyData.founded}
+                </Badge>
+                <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.1] mb-8">
+                  Empowering <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-red-500">
+                    Your Growth.
                   </span>
                 </h1>
-                
-                <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                  We provide comprehensive facility management and security solutions that empower businesses to operate without interruption.
+                <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed max-w-2xl mb-10">
+                  For over a decade, Tulsyan Group has been a trusted partner in Manpower and Outsourcing. We are now expanding into Smart Cities, Renewable Energy, and Civil Services to drive innovation.
                 </p>
-
-                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center pt-4">
-                  <Button size="lg" className="rounded-full h-14 px-8 text-base bg-brand-primary hover:bg-brand-primary-dark text-white shadow-xl hover:shadow-brand-primary/30 hover:-translate-y-1 transition-all duration-300" asChild>
-                    <Link href="#contact">
-                      Partner With Us
-                    </Link>
+                <div className="flex flex-col sm:flex-row gap-5">
+                  <Button size="lg" className="h-14 px-8 rounded-full text-base bg-primary hover:bg-primary/90 text-white border-none" asChild>
+                    <Link href="#contact">Partner With Us</Link>
                   </Button>
-                  <Button size="lg" variant="outline" className="rounded-full h-14 px-8 text-base border-2 hover:bg-muted hover:text-foreground transition-all duration-300" asChild>
-                    <Link href="#services" className="flex items-center gap-2">
-                       <div className="w-8 h-8 rounded-full bg-brand-primary/10 flex items-center justify-center">
-                          <Play className="h-3 w-3 fill-brand-primary text-brand-primary" />
-                       </div>
-                       <span>View Services</span>
-                    </Link>
+                  <Button size="lg" variant="outline" className="h-14 px-8 rounded-full text-base bg-background/50 border-border hover:bg-background hover:text-foreground backdrop-blur-sm" asChild>
+                    <Link href="#services">Explore Services</Link>
                   </Button>
-                </div>
-
-                <div className="pt-8 flex items-center justify-center lg:justify-start gap-8 text-sm text-muted-foreground">
-                  <div className="flex -space-x-3">
-                    {[1,2,3,4].map((i) => (
-                      <div key={i} className="w-10 h-10 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden">
-                         <Users className="h-5 w-5 opacity-50" />
-                  </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="font-bold text-foreground">2000+</div>
-                    <div>Professionals Deployed</div>
-                  </div>
                 </div>
               </motion.div>
+            </div>
+          </div>
 
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1, delay: 0.2 }}
-                className="flex-1 relative w-full max-w-[600px] lg:max-w-none"
-              >
-                <div className="relative aspect-square md:aspect-[4/3] rounded-[3rem] overflow-hidden shadow-2xl shadow-brand-primary/10 border border-white/10">
-                  <Image
-                    src="/security-guards/security-guards.png"
-                    alt="Security Team"
-                    fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    className="object-cover hover:scale-105 transition-transform duration-[1.5s]"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent pointer-events-none" />
-                  
-                  {/* Floating Cards */}
-                  <motion.div 
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.6 }}
-                    className="absolute bottom-8 left-8 bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl text-white max-w-[200px]"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Shield className="h-5 w-5 text-green-400" />
-                      <span className="font-bold text-sm">ISO 9001:2015</span>
+          {/* Floating Stats Bar */}
+          <div className="absolute bottom-0 w-full bg-background/80 backdrop-blur-md border-t border-border py-6 hidden md:block">
+            <div className="container mx-auto px-6">
+              <div className="flex justify-start gap-16 text-foreground">
+                {companyData.stats.map((stat, i) => (
+                  <div key={i} className="flex flex-col">
+                    <div className="text-3xl font-bold text-primary">
+                      <Counter value={stat.value} suffix={stat.suffix} />
                     </div>
-                    <p className="text-xs opacity-80">Certified for Quality Management Systems</p>
-                  </motion.div>
-                </div>
-                
-                {/* Decorative Blur */}
-                <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-brand-primary/20 blur-[100px] rounded-full opacity-50" />
-              </motion.div>
+                    <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Stats Banner */}
-        <section className="py-12 border-y border-border/50 bg-muted/20">
-           <div className="container mx-auto px-6">
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-                {companyData.stats.map((stat, i) => (
-                   <div key={i} className="text-center space-y-2">
-                      <div className="text-4xl md:text-5xl font-bold text-brand-primary tabular-nums">
-                         <Counter value={stat.value} suffix={stat.suffix} />
-            </div>
-                      <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{stat.label}</div>
+        {/* About / Why Us Section */}
+        <section id="about" className="py-32 bg-background">
+          <div className="container mx-auto px-6">
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              <div>
+                <h2 className="text-sm font-bold text-primary tracking-widest uppercase mb-4">About Tulsyan Group</h2>
+                <h3 className="text-4xl md:text-5xl font-bold mb-8 text-foreground">Diverse Portfolio.<br />Unified Excellence.</h3>
+                <div className="space-y-6 text-lg text-muted-foreground">
+                  <p>
+                    Our company has consistently grown in the Manpower and Outsourcing industry for over 10 years. We are now leveraging our expertise to drive innovation in emerging sectors like smart city projects, renewable energy, and civil service work.
+                  </p>
+                  <p>
+                    <span className="font-bold text-foreground">Group Firms:</span> Tulsyan Associates, Tulsyan Enterprises, Tulsyan Fashion House, Tulsyan Foundation, Mana Enterprises, Dream Big Outsourcing Pvt. Ltd.
+                  </p>
+                  <p>
+                    <span className="font-bold text-foreground">Key Sectors:</span> Wealth Management, Housekeeping Material Supply, Garment, Social Service, Graphic Designing, Recruitment Consultancy.
+                  </p>
+                </div>
+
+                <div className="mt-10 grid grid-cols-2 gap-6">
+                  {companyData.advantages.slice(0, 4).map((adv, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <CheckCircle className="h-6 w-6 text-primary flex-shrink-0" />
+                      <span className="font-medium">{adv}</span>
                     </div>
-              ))}
+                  ))}
+                </div>
+              </div>
+              <div className="relative">
+                <div className="relative aspect-square rounded-[3rem] overflow-hidden">
+                  <Image src="/training/training.png" alt="Training" fill className="object-cover" />
+                  <div className="absolute inset-0 bg-primary/10" />
+                </div>
+                <div className="absolute -bottom-10 -left-10 bg-card p-8 rounded-3xl shadow-2xl max-w-xs border border-border">
+                  <Quote className="h-10 w-10 text-primary mb-4" />
+                  <p className="font-medium text-lg italic">"Excellence isn't just a goal—it's an ongoing journey of creating lasting customer satisfaction."</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Services Section */}
-        <section id="services" className="py-32 relative">
-           <div className="container mx-auto px-6">
-             <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-                <div className="max-w-2xl space-y-4">
-                   <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Expertise in Action</h2>
-                   <p className="text-lg text-muted-foreground">
-                     We don't just offer services; we deliver peace of mind through our comprehensive range of facility solutions.
-                   </p>
-                </div>
-                <Button variant="ghost" className="group text-brand-primary hover:text-brand-primary-dark hover:bg-brand-primary/5" asChild>
-                  <Link href="#contact">
-                     View All Capabilities <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                </Button>
-              </div>
-
-             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {companyData.areasOfSpecialization.map((item, idx) => (
-                   <SpotlightCard key={idx} className="group h-full bg-muted/30 border-border/50">
-                      <div className="p-8 h-full flex flex-col">
-                         <div className="w-14 h-14 rounded-2xl bg-brand-primary/5 flex items-center justify-center mb-6 group-hover:bg-brand-primary group-hover:text-white transition-all duration-300">
-                            <item.icon className="h-7 w-7" />
-                         </div>
-                         <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
-                         <p className="text-muted-foreground leading-relaxed mb-8 flex-1">
-                            {item.description}
-                         </p>
-                         <div className="flex items-center text-sm font-semibold text-brand-primary">
-                            Learn More <ChevronRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                         </div>
-                      </div>
-                   </SpotlightCard>
-                ))}
+        <section id="services" className="py-32 bg-secondary/5">
+          <div className="container mx-auto px-6">
+            <div className="text-center max-w-3xl mx-auto mb-20">
+              <h2 className="text-sm font-bold text-primary tracking-widest uppercase mb-4">Our Expertise</h2>
+              <h3 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">Comprehensive Solutions</h3>
+              <p className="text-lg text-muted-foreground">We don't just offer services; we deliver peace of mind through our comprehensive range of facility solutions.</p>
             </div>
-          </div>
-        </section>
 
-        {/* About / Why Us */}
-        <section id="about" className="py-32 bg-foreground text-background relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-1/2 h-full bg-zinc-900/50 skew-x-12 translate-x-1/4 pointer-events-none" />
-           
-           <div className="container mx-auto px-6 relative z-10">
-              <div className="grid lg:grid-cols-2 gap-20 items-center">
-                 <div className="space-y-10">
-                    <Badge variant="outline" className="text-white border-white/20 py-1 px-4">About Us</Badge>
-                    <h2 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
-                       Founded on Trust. <br />
-                       <span className="text-zinc-500">Built for Reliability.</span>
-                </h2>
-                    <div className="space-y-6 text-lg text-zinc-400">
-                       <p>
-                          Since {companyData.founded}, {companyData.name} has been at the forefront of the outsourcing industry in Central India.
-                       </p>
-                       <p>
-                          What started as a security agency has evolved into a multi-faceted facility management partner for over 50+ major corporations.
-                       </p>
-                    </div>
-                    
-                    <div className="grid sm:grid-cols-2 gap-6 pt-4">
-                       {companyData.coreValues.slice(0,4).map((val, i) => (
-                          <div key={i} className="flex items-center gap-3 text-white">
-                             <CheckCircle className="h-5 w-5 text-brand-primary" />
-                             <span>{val}</span>
-                    </div>
-                  ))}
-                    </div>
-
-                    <div className="pt-8">
-                       <div className="flex items-center gap-4">
-                          <div className="flex -space-x-4">
-                             {companyData.leadership.map((leader, i) => (
-                                <div key={i} className="relative w-14 h-14 rounded-full border-2 border-black overflow-hidden">
-                                   <Image src={leader.image} alt={leader.name} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
-                      </div>
-                ))}
-              </div>
-                          <div>
-                             <div className="text-white font-medium">Lead by Industry Veterans</div>
-                             <div className="text-zinc-500 text-sm">The Tulsyan Brothers</div>
-            </div>
-          </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {companyData.specializations.map((service, i) => (
+                <div key={i} className="group bg-background rounded-3xl p-2 border border-border hover:border-primary/50 transition-colors hover:shadow-lg">
+                  <div className="relative aspect-video rounded-2xl overflow-hidden mb-6">
+                    <Image src={service.image} alt={service.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 flex items-center justify-center text-primary shadow-sm">
+                      <service.icon className="h-5 w-5" />
                     </div>
                   </div>
-                 
-                 <div className="relative h-[600px] w-full rounded-[2rem] overflow-hidden bg-zinc-800 border border-white/5">
-                    <Image
-                       src="/training/training.png" 
-                       alt="Training Session" 
-                       fill 
-                       sizes="(max-width: 768px) 100vw, 50vw"
-                       className="object-cover opacity-60 hover:opacity-80 transition-opacity duration-700"
-                    />
-                    <div className="absolute bottom-0 left-0 p-10 w-full bg-gradient-to-t from-black/90 to-transparent">
-                       <Quote className="h-12 w-12 text-brand-primary mb-6 opacity-50" />
-                       <p className="text-2xl font-medium text-white italic mb-4">
-                          "Our mission is to provide peace of mind. When you partner with us, you're not just hiring guards; you're securing your legacy."
-                       </p>
-                       <p className="text-zinc-400 font-semibold">- Kshitiz Tulsyan, Director</p>
-                    </div>
-                 </div>
+                  <div className="px-4 pb-6">
+                    <h4 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors">{service.title}</h4>
+                    <p className="text-muted-foreground">{service.description}</p>
+                  </div>
                 </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Case Study Spotlight */}
-        <section className="py-32">
-           <div className="container mx-auto px-6">
-              <div className="rounded-[3rem] overflow-hidden bg-muted relative">
-                 <div className="grid lg:grid-cols-2">
-                    <div className="p-12 lg:p-24 flex flex-col justify-center space-y-8">
-                       <Badge className="w-fit bg-brand-primary text-white hover:bg-brand-primary-dark">Success Story</Badge>
-                       <h3 className="text-4xl font-bold">{companyData.caseStudies[0].project}</h3>
-                       <p className="text-xl text-muted-foreground">
-                          {companyData.caseStudies[0].scope}
-                       </p>
-                       <div className="grid grid-cols-2 gap-8 py-8 border-y border-border/50">
-                          <div>
-                             <div className="text-3xl font-bold text-foreground">{companyData.caseStudies[0].tenure}</div>
-                             <div className="text-sm text-muted-foreground">Partnership Duration</div>
-                          </div>
-                          <div>
-                             <div className="text-3xl font-bold text-foreground">{companyData.caseStudies[0].manpower}</div>
-                             <div className="text-sm text-muted-foreground">Dedicated Staff</div>
-                          </div>
+        {/* Gallery Section (New & Creative) */}
+        <section id="gallery" className="py-32 bg-muted text-foreground overflow-hidden">
+          <div className="container mx-auto px-6 mb-16 flex flex-col md:flex-row justify-between items-end gap-8">
+            <div>
+              <h2 className="text-primary font-bold tracking-widest uppercase mb-2">Our Work</h2>
+              <h3 className="text-4xl md:text-5xl font-bold">Operational Excellence</h3>
+            </div>
+            <div className="text-right">
+              <p className="text-muted-foreground max-w-md">Witness our team in action across various sectors, delivering quality and reliability.</p>
+            </div>
+          </div>
+
+          <div className="container mx-auto px-6">
+            <BentoGallery onImageClick={setSelectedImage} />
+          </div>
+        </section>
+
+        {/* Clients Marquee */}
+        <section className="py-24 border-b border-border bg-background overflow-hidden">
+          <div className="container mx-auto px-6 text-center mb-12">
+            <h3 className="text-2xl font-bold text-muted-foreground">Trusted by Industry Leaders</h3>
+          </div>
+          <div className="w-full max-w-[100vw] overflow-hidden">
+            <Marquee speed={40} className="py-8">
+              {companyData.clients.map((client, i) => (
+                <div key={i} className="relative h-16 w-40 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300 flex-shrink-0">
+                  <Image src={client} alt="Client" fill className="object-contain" />
+                </div>
+              ))}
+            </Marquee>
+          </div>
+        </section>
+
+        {/* Certifications */}
+        <section className="py-32 bg-secondary/5">
+          <div className="container mx-auto px-6">
+            <div className="flex flex-col lg:flex-row gap-16 items-center">
+              <div className="lg:w-1/2">
+                <div className="relative aspect-[4/5] w-full max-w-md mx-auto rotate-3 hover:rotate-0 transition-transform duration-500">
+                  <div className="absolute inset-0 bg-primary/20 rounded-3xl transform translate-x-4 translate-y-4" />
+                  <div className="relative bg-white p-6 rounded-3xl shadow-xl h-full border border-border">
+                    <Image src="/certifications/certified-by-governments.png" alt="Certifications" fill className="object-contain p-6" />
+                  </div>
+                </div>
+              </div>
+              <div className="lg:w-1/2">
+                <h2 className="text-sm font-bold text-primary tracking-widest uppercase mb-4">Certifications</h2>
+                <h3 className="text-4xl font-bold mb-6">Certified for Quality & Safety</h3>
+                <p className="text-lg text-muted-foreground mb-10">
+                  We adhere to the highest international standards. Our certifications are a testament to our commitment to excellence.
+                </p>
+                <div className="grid gap-4">
+                  {companyData.certifications.map((cert, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 bg-background rounded-xl border border-border hover:border-primary/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                          <Award className="h-5 w-5" />
                         </div>
-                       <Button variant="outline" className="w-fit rounded-full px-8 border-foreground hover:bg-foreground hover:text-background transition-colors" asChild>
-                          <Link href="#contact">Request Similar Solution</Link>
-                       </Button>
+                        <div>
+                          <div className="font-bold">{cert.name}</div>
+                          <div className="text-sm text-muted-foreground">{cert.scope}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="relative min-h-[400px] lg:min-h-full">
-                  <Image
-                          src={companyData.caseStudies[0].image} 
-                          alt="Case Study" 
-                    fill
-                          sizes="(max-width: 768px) 100vw, 50vw"
-                          className="object-cover"
-                  />
+                  ))}
                 </div>
-            </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section id="contact" className="py-24 relative overflow-hidden">
-           <div className="absolute inset-0 bg-brand-primary/5 -z-10" />
-           <div className="container mx-auto px-6">
-              <div className="max-w-4xl mx-auto text-center space-y-8">
-                 <h2 className="text-5xl md:text-6xl font-bold tracking-tight">
-                    Ready to Upgrade Your Operations?
-                </h2>
-                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                    Join the league of satisfied clients who trust Tulsyan Security Services for their manpower needs.
-                 </p>
-                 
-                 <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-                    <Card className="flex-1 p-8 border-0 shadow-xl hover:-translate-y-2 transition-transform duration-300 bg-background">
-                       <Phone className="h-10 w-10 text-brand-primary mb-4 mx-auto" />
-                       <h3 className="font-bold text-lg mb-2">Call Us Directly</h3>
-                       <p className="text-muted-foreground mb-6">Immediate assistance for your queries</p>
-                       <Button className="w-full rounded-full bg-brand-primary text-white hover:bg-brand-primary-dark" asChild>
-                          <a href={`tel:${companyData.contactInfo.phone[0]}`}>
-                             Call {companyData.contactInfo.phone[0]}
-                          </a>
-                       </Button>
-                  </Card>
+        {/* CSR & Media Section */}
+        <section className="py-32 bg-background overflow-hidden">
+          <div className="container mx-auto px-6">
+            <div className="text-center max-w-3xl mx-auto mb-20">
+              <h2 className="text-sm font-bold text-primary tracking-widest uppercase mb-4">Social Responsibility</h2>
+              <h3 className="text-4xl font-bold mb-6">Impact Beyond Business</h3>
+              <p className="text-lg text-muted-foreground">
+                We believe in giving back. From environmental initiatives to social awareness campaigns, we are committed to making a difference.
+              </p>
+            </div>
 
-                    <Card className="flex-1 p-8 border-0 shadow-xl hover:-translate-y-2 transition-transform duration-300 bg-background">
-                       <Mail className="h-10 w-10 text-brand-primary mb-4 mx-auto" />
-                       <h3 className="font-bold text-lg mb-2">Email Us</h3>
-                       <p className="text-muted-foreground mb-6">Get a detailed quote within 24 hours</p>
-                       <Button variant="outline" className="w-full rounded-full border-2 border-muted-foreground/20 hover:border-brand-primary hover:bg-brand-primary hover:text-white transition-all duration-300" asChild>
-                          <a href={`mailto:${companyData.contactInfo.email}`}>
-                             Send an Email
-                          </a>
-                       </Button>
-                  </Card>
+            <div className="grid lg:grid-cols-2 gap-12">
+              {/* Movie Card */}
+              <div 
+                className="relative rounded-[2.5rem] overflow-hidden group h-[500px] cursor-pointer"
+                onClick={() => setSelectedImage({
+                  src: "/movie-on-social-issues/warning-call.png",
+                  alt: "Warning Call",
+                  category: "Social Film"
+                })}
+              >
+                <Image
+                  src="/movie-on-social-issues/warning-call.png"
+                  alt="Warning Call Movie"
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-90" />
+                <div className="absolute bottom-0 p-10 text-white">
+                  <Badge className="bg-red-600 text-white mb-4 border-none">Social Film</Badge>
+                  <h3 className="text-3xl font-bold mb-4">"Warning Call"</h3>
+                  <p className="text-zinc-200 text-lg mb-6 max-w-md">
+                    A produced film highlighting the environmental impact of traditional funeral practices, advocating for sustainable alternatives.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="border-white/20 rounded-full
+                      bg-transparent text-white hover:bg-white hover:text-black
+                      dark:text-white dark:border-white/20
+                      dark:hover:bg-white dark:hover:text-black
+                      text-black border-black/20 hover:bg-black hover:text-white
+                      dark:hover:bg-white dark:hover:text-black
+                    "
+                    style={{
+                      color: "var(--button-text-color, #fff)",
+                      borderColor: "var(--button-border-color, rgba(255,255,255,0.2))",
+                      backgroundColor: "var(--button-bg, transparent)"
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Add trailer logic here if needed, for now it just stops propagation so lightbox doesn't open
+                    }}
+                  >
+                    Watch Trailer <Play className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white">
+                      <Maximize2 className="h-5 w-5" />
+                   </div>
+                </div>
+              </div>
+
+              {/* Media Grid */}
+              <div className="flex flex-col justify-between gap-8">
+                <div>
+                  <h3 className="text-2xl font-bold mb-6">Media Coverage</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {companyData.media.slice(0, 4).map((img, i) => (
+                      <div 
+                        key={i} 
+                        className="relative aspect-video rounded-2xl overflow-hidden border border-border/50 group cursor-pointer"
+                        onClick={() => setSelectedImage({
+                          src: img,
+                          alt: "Media Coverage",
+                          category: "Media"
+                        })}
+                      >
+                        <Image
+                          src={img}
+                          alt="Media Coverage"
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <div className="bg-white/20 backdrop-blur-md p-1.5 rounded-full text-white">
+                              <Maximize2 className="h-3 w-3" />
+                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                 <div className="pt-16 pb-8 flex flex-wrap justify-center gap-4 text-sm text-muted-foreground border-t border-border/50 mt-16">
-                     <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        <span>{companyData.contactInfo.address}</span>
-                     </div>
+                <div 
+                  className="bg-primary/5 p-8 rounded-3xl border border-primary/10 flex flex-col gap-6 cursor-pointer group"
+                  onClick={() => setSelectedImage({
+                    src: "/awards/image.png",
+                    alt: "Awards & Recognition",
+                    category: "Awards"
+                  })}
+                >
+                  <div className="flex items-center gap-6">
+                    <div className="h-14 w-14 rounded-full bg-white shadow-sm flex items-center justify-center text-primary flex-shrink-0">
+                      <Trophy className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold mb-1">Award Winning Service</h4>
+                      <p className="text-muted-foreground">Recognized for excellence in Security & Facility Management.</p>
+                    </div>
+                  </div>
+                  <div className="relative h-24 w-full mt-2 grayscale hover:grayscale-0 transition-all opacity-80 hover:opacity-100 group-hover:scale-105 duration-500">
+                    <Image src="/awards/image.png" alt="Awards" fill className="object-contain" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Leadership */}
+        <section className="py-32 bg-background">
+          <div className="container mx-auto px-6">
+            <h2 className="text-4xl font-bold text-center mb-16">Visionary Leadership</h2>
+            <div className="grid md:grid-cols-2 gap-10 max-w-4xl mx-auto">
+              {companyData.leadership.map((leader, i) => (
+                <div key={i} className="group relative rounded-[2.5rem] overflow-hidden">
+                  <div className="aspect-[3/4] w-full relative grayscale group-hover:grayscale-0 transition-all duration-500">
+                    <Image src={leader.image} alt={leader.name} fill className="object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
+                    <div className="absolute bottom-0 left-0 w-full p-8 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                      <h4 className="text-3xl font-bold mb-1">{leader.name}</h4>
+                      <p className="text-primary font-medium mb-4">{leader.designation}</p>
+                      <p className="text-white/80 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">{leader.bio}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Contact Section */}
+        <section id="contact" className="py-32 bg-primary text-white relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute -top-[20%] -right-[10%] w-[800px] h-[800px] bg-white/10 rounded-full blur-3xl" />
+          </div>
+          <div className="container mx-auto px-6 relative z-10">
+            <div className="grid lg:grid-cols-2 gap-16">
+              <div className="space-y-10">
+                <h2 className="text-5xl font-bold leading-tight">Ready to Upgrade Your Operations?</h2>
+                <p className="text-xl text-white/80">Join the league of satisfied clients who trust Tulsyan Group for their outsourcing needs. Get a customized quote today.</p>
+
+                <div className="space-y-6 pt-4">
+                  <div className="flex items-center gap-6">
+                    <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center"><Phone className="h-6 w-6" /></div>
+                    <div>
+                      <div className="text-white/60 uppercase text-sm font-bold">Call Us</div>
+                      <div className="text-2xl font-bold">{companyData.contactInfo.phone[0]}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center"><Mail className="h-6 w-6" /></div>
+                    <div>
+                      <div className="text-white/60 uppercase text-sm font-bold">Email Us</div>
+                      <div className="text-2xl font-bold">{companyData.contactInfo.email}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white text-foreground p-10 rounded-[2.5rem] shadow-2xl">
+                <h3 className="text-2xl font-bold mb-6">Our Presence</h3>
+                <div className="flex flex-wrap gap-3 mb-8">
+                  {companyData.contactInfo.branches.map((branch, i) => (
+                    <Badge key={i} variant="secondary" className="px-4 py-2">{branch}</Badge>
+                  ))}
+                </div>
+                <div className="p-6 bg-muted rounded-2xl border border-border flex items-center gap-4">
+                  <MapPin className="h-8 w-8 text-primary" />
+                  <div>
+                    <div className="font-bold">Head Office</div>
+                    <div className="text-muted-foreground">{companyData.contactInfo.address}</div>
+                  </div>
+                </div>
+                <Button className="w-full mt-8 h-14 text-lg bg-primary hover:bg-primary-dark text-white">Contact Support</Button>
               </div>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="py-8 bg-background border-t border-border">
-         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} {companyData.name}. All rights reserved.</p>
-            <div className="flex gap-8">
-               <Link href="#" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-               <Link href="#" className="hover:text-foreground transition-colors">Terms of Service</Link>
-               <Link href="/login" className="hover:text-foreground transition-colors">Admin Login</Link>
+      <footer className="py-12 bg-background border-t border-border">
+        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 relative">
+              <Image src="/tss-logo.png" alt="Logo" fill className="object-contain" />
+            </div>
+            <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} {companyData.name}</p>
+          </div>
+          <div className="flex gap-8 text-sm font-medium text-muted-foreground">
+            <Link href="#" className="hover:text-primary">Privacy</Link>
+            <Link href="#" className="hover:text-primary">Terms</Link>
+            <Link href="#" className="hover:text-primary">Admin</Link>
+            <FooterThemeToggle />
           </div>
         </div>
       </footer>

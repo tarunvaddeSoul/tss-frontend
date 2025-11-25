@@ -28,6 +28,18 @@ const nextConfig = {
       'date-fns',
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/tsspl/login',
+        destination: '/login',
+      },
+      {
+        source: '/tsspl/signup',
+        destination: '/signup',
+      },
+    ]
+  },
   // Fix for stack overflow during build trace collection
   // Exclude platform-specific binaries and unnecessary files from tracing
   outputFileTracingExcludes: {

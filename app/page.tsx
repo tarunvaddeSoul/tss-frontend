@@ -896,7 +896,6 @@ export default function HomePage() {
           <div className="flex gap-8 text-sm font-medium text-muted-foreground">
             <Link href="#" className="hover:text-primary">Privacy</Link>
             <Link href="#" className="hover:text-primary">Terms</Link>
-            <Link href="#" className="hover:text-primary">Admin</Link>
             <FooterThemeToggle />
           </div>
         </div>

@@ -116,14 +116,14 @@ export default function LoginPage() {
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex flex-col space-y-4 border-t">
+      {/* <CardFooter className="flex flex-col space-y-4 border-t">
         <div className="text-sm text-center text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="text-primary hover:text-primary/80 transition-colors">
             Sign up
           </Link>
         </div>
-      </CardFooter>
+      </CardFooter> */}
     </Card>
   )
 }

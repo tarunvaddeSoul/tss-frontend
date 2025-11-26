@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Upload, User, Phone, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, DollarSign, Info } from "lucide-react"
+import { Upload, User, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, DollarSign, Info, Save } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { format } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
 import { Switch } from "@/components/ui/switch"
@@ -33,6 +34,215 @@ interface EmployeeFormProps {
   companies: { value: string; label: string }[]
   isLoading?: boolean
   onChange?: () => void
+  enableDrafts?: boolean
+  draftStorageKey?: string
+}
+
+export const EMPLOYEE_FORM_DRAFT_STORAGE_KEY = "employee-form-draft"
+
+const DATE_FIELDS = new Set([
+  "dateOfBirth",
+  "employeeOnboardingDate",
+  "policeVerificationDate",
+  "trainingCertificateDate",
+  "medicalCertificateDate",
+  "currentCompanyJoiningDate",
+] as (keyof EmployeeFormValues)[])
+
+const SECTION_FIELD_MAP = {
+  basic: [
+    "title",
+    "firstName",
+    "lastName",
+    "gender",
+    "dateOfBirth",
+    "mobileNumber",
+    "fatherName",
+    "motherName",
+    "husbandName",
+    "category",
+    "bloodGroup",
+    "permanentAddress",
+    "presentAddress",
+    "city",
+    "district",
+    "state",
+    "pincode",
+    "recruitedBy",
+    "employeeOnboardingDate",
+    "status",
+    "highestEducationQualification",
+    "aadhaarNumber",
+  ],
+  salary: [
+    "salaryCategory",
+    "salarySubCategory",
+    "salaryPerDay",
+    "monthlySalary",
+    "pfEnabled",
+    "esicEnabled",
+  ],
+  employment: [
+    "currentCompanyJoiningDate",
+    "currentCompanyDesignationId",
+    "currentCompanyDepartmentId",
+    "currentCompanyId",
+  ],
+  bank: [
+    "bankAccountNumber",
+    "ifscCode",
+    "bankName",
+    "bankCity",
+  ],
+  additional: [
+    "pfUanNumber",
+    "esicNumber",
+    "policeVerificationNumber",
+    "policeVerificationDate",
+    "trainingCertificateNumber",
+    "trainingCertificateDate",
+    "medicalCertificateNumber",
+    "medicalCertificateDate",
+  ],
+  reference: [
+    "referenceName",
+    "referenceAddress",
+    "referenceNumber",
+  ],
+  documents: ["otherDocumentRemarks"],
+} as const
+
+type SectionId = keyof typeof SECTION_FIELD_MAP
+
+type SectionDraftRecord = {
+  values: Partial<EmployeeFormValues>
+  updatedAt: number
+}
+
+type SectionSaveStatus = "idle" | "saving" | "saved" | "error"
+
+interface SectionStep {
+  id: SectionId
+  title: string
+  description: string
+  icon: LucideIcon
+  optional?: boolean
+  fields: (keyof EmployeeFormValues)[]
+}
+
+const steps: SectionStep[] = [
+  {
+    id: "basic",
+    title: "Basic Information",
+    icon: User,
+    description: "Enter personal details and contact information",
+    fields: SECTION_FIELD_MAP.basic,
+  },
+  {
+    id: "salary",
+    title: "Salary",
+    icon: DollarSign,
+    description: "Configure employee salary category and settings",
+    fields: SECTION_FIELD_MAP.salary,
+  },
+  {
+    id: "employment",
+    title: "Employment",
+    icon: Briefcase,
+    description: "Employment information can be added later if not available now",
+    optional: true,
+    fields: SECTION_FIELD_MAP.employment,
+  },
+  {
+    id: "bank",
+    title: "Bank Details",
+    icon: CreditCard,
+    description: "Enter banking information for salary processing",
+    fields: SECTION_FIELD_MAP.bank,
+  },
+  {
+    id: "additional",
+    title: "Additional Details",
+    icon: FileText,
+    description: "Provide PF, ESIC, and certificate information",
+    fields: SECTION_FIELD_MAP.additional,
+  },
+  {
+    id: "reference",
+    title: "Reference",
+    icon: Building2,
+    description: "Provide reference person information",
+    fields: SECTION_FIELD_MAP.reference,
+  },
+  {
+    id: "documents",
+    title: "Documents",
+    icon: FileText,
+    description: "Upload required documents and certificates",
+    optional: true,
+    fields: SECTION_FIELD_MAP.documents,
+  },
+]
+
+const FIELD_TO_SECTION_MAP: Record<string, SectionId> = Object.entries(SECTION_FIELD_MAP).reduce(
+  (acc, [sectionId, fields]) => {
+    fields.forEach((field) => {
+      acc[field] = sectionId as SectionId
+    })
+    return acc
+  },
+  {} as Record<string, SectionId>
+)
+
+const encodeDraftValue = (value: unknown) => {
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  return value
+}
+
+const decodeDraftValue = (field: string, value: unknown) => {
+  if (DATE_FIELDS.has(field as keyof EmployeeFormValues) && typeof value === "string" && value) {
+    return new Date(value)
+  }
+  return value
+}
+
+const readDraftStore = (storageKey: string) => {
+  if (typeof window === "undefined") {
+    return {} as Partial<Record<SectionId, SectionDraftRecord>>
+  }
+
+  const raw = window.localStorage.getItem(storageKey)
+  if (!raw) return {}
+
+  try {
+    return JSON.parse(raw)
+  } catch (error) {
+    console.error("Unable to parse employee form draft", error)
+    return {}
+  }
+}
+
+const writeDraftStore = (storageKey: string, payload: Partial<Record<SectionId, SectionDraftRecord>>) => {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(storageKey, JSON.stringify(payload))
+}
+
+export const clearEmployeeFormDraft = (storageKey = EMPLOYEE_FORM_DRAFT_STORAGE_KEY) => {
+  if (typeof window === "undefined") return
+  window.localStorage.removeItem(storageKey)
+}
+
+const mergeDraftValues = (store: Partial<Record<SectionId, SectionDraftRecord>>) => {
+  const merged: Partial<EmployeeFormValues> = {}
+  Object.values(store).forEach((sectionDraft) => {
+    if (!sectionDraft?.values) return
+    Object.entries(sectionDraft.values).forEach(([field, value]) => {
+      merged[field as keyof EmployeeFormValues] = decodeDraftValue(field, value)
+    })
+  })
+  return merged
 }
 
 // Create a schema for form validation - Employment Details are now optional
@@ -149,6 +359,8 @@ export function EmployeeForm({
   companies,
   isLoading = false,
   onChange,
+  enableDrafts = false,
+  draftStorageKey = EMPLOYEE_FORM_DRAFT_STORAGE_KEY,
 }: EmployeeFormProps) {
   const { toast } = useToast()
   const [gender, setGender] = useState(initialValues?.gender || "")
@@ -157,17 +369,20 @@ export function EmployeeForm({
   const [stepsWithErrors, setStepsWithErrors] = useState<Set<number>>(new Set())
   const [isExplicitSubmit, setIsExplicitSubmit] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
-
-  // Define form steps
-  const steps = [
-    { id: "basic", title: "Basic Information", icon: User, description: "Personal details and contact information" },
-    { id: "salary", title: "Salary", icon: DollarSign, description: "Salary configuration" },
-    { id: "employment", title: "Employment", icon: Briefcase, description: "Employment details (optional)", optional: true },
-    { id: "bank", title: "Bank Details", icon: CreditCard, description: "Banking information" },
-    { id: "additional", title: "Additional Details", icon: FileText, description: "PF, ESIC, and certificates" },
-    { id: "reference", title: "Reference", icon: Building2, description: "Reference information" },
-    { id: "documents", title: "Documents", icon: FileText, description: "Upload documents" },
-  ]
+  const [sectionSaveStatus, setSectionSaveStatus] = useState<Record<SectionId, SectionSaveStatus>>(() =>
+    steps.reduce((acc, step) => {
+      acc[step.id] = "idle"
+      return acc
+    }, {} as Record<SectionId, SectionSaveStatus>),
+  )
+  const [sectionLastSaved, setSectionLastSaved] = useState<Record<SectionId, number | null>>(() =>
+    steps.reduce((acc, step) => {
+      acc[step.id] = null
+      return acc
+    }, {} as Record<SectionId, number | null>),
+  )
+  const autosaveTimersRef = useRef<Record<SectionId, ReturnType<typeof setTimeout>>>({})
+  const skipAutosaveRef = useRef(false)
 
   // Initialize the form with default values
   const form = useForm<z.infer<typeof employeeFormSchema>>({
@@ -242,6 +457,113 @@ export function EmployeeForm({
     },
   })
 
+  const gatherSectionValues = (sectionId: SectionId) => {
+    const values: Partial<EmployeeFormValues> = {}
+    SECTION_FIELD_MAP[sectionId].forEach((field) => {
+      const value = form.getValues(field)
+      if (value !== undefined) {
+        values[field] = encodeDraftValue(value)
+      }
+    })
+    return values
+  }
+
+  const saveSectionDraft = async (sectionId: SectionId) => {
+    if (!enableDrafts) return
+
+    const sectionValues = gatherSectionValues(sectionId)
+    setSectionSaveStatus((prev) => ({ ...prev, [sectionId]: "saving" }))
+
+    try {
+      const currentStore = readDraftStore(draftStorageKey)
+      const updatedStore = { ...currentStore }
+
+      updatedStore[sectionId] = {
+        values: sectionValues,
+        updatedAt: Date.now(),
+      }
+
+      writeDraftStore(draftStorageKey, updatedStore)
+
+      setSectionSaveStatus((prev) => ({ ...prev, [sectionId]: "saved" }))
+      setSectionLastSaved((prev) => ({
+        ...prev,
+        [sectionId]: updatedStore[sectionId]?.updatedAt ?? prev[sectionId],
+      }))
+    } catch (error) {
+      console.error("Unable to save employee draft:", error)
+      setSectionSaveStatus((prev) => ({ ...prev, [sectionId]: "error" }))
+    }
+  }
+
+  const scheduleAutosave = (sectionId: SectionId, immediate = false) => {
+    if (!enableDrafts) return
+    const delay = immediate ? 0 : 1200
+    const currentTimer = autosaveTimersRef.current[sectionId]
+    if (currentTimer) {
+      clearTimeout(currentTimer)
+    }
+    autosaveTimersRef.current[sectionId] = setTimeout(() => {
+      saveSectionDraft(sectionId)
+      delete autosaveTimersRef.current[sectionId]
+    }, delay)
+  }
+
+  const getSectionStatusMessage = (sectionId: SectionId) => {
+    if (!enableDrafts) {
+      return "Draft saving disabled"
+    }
+
+    const status = sectionSaveStatus[sectionId]
+    if (status === "saving") {
+      return "Saving draft..."
+    }
+
+    if (status === "error") {
+      return "Draft save failed"
+    }
+
+    const lastSaved = sectionLastSaved[sectionId]
+    if (lastSaved) {
+      return `Saved ${formatDistanceToNow(new Date(lastSaved), { addSuffix: true })}`
+    }
+
+    return "Not saved yet"
+  }
+
+  const renderSectionHeaderActions = (sectionId: SectionId) => {
+    const statusText = getSectionStatusMessage(sectionId)
+    if (!enableDrafts) {
+      return <span className="text-xs text-muted-foreground">{statusText}</span>
+    }
+
+    const isSaving = sectionSaveStatus[sectionId] === "saving"
+
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col items-end text-[11px] text-muted-foreground">
+          <span>{statusText}</span>
+          {sectionId === "documents" && (
+            <span className="text-[10px] text-muted-foreground/80">
+              File uploads must be reattached after saving
+            </span>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isSaving}
+          onClick={() => saveSectionDraft(sectionId)}
+          className="flex items-center gap-1"
+        >
+          <Save className="h-4 w-4" />
+          Save Section
+        </Button>
+      </div>
+    )
+  }
+
   // State for active rate loading
   const [loadingActiveRate, setLoadingActiveRate] = useState(false)
   const [activeRate, setActiveRate] = useState<number | null>(null)
@@ -307,36 +629,63 @@ export function EmployeeForm({
     return () => subscription.unsubscribe()
   }, [form, onChange])
 
+  useEffect(() => {
+    if (!enableDrafts) return
+    const storedDraft = readDraftStore(draftStorageKey)
+    if (!Object.keys(storedDraft).length) return
+
+    skipAutosaveRef.current = true
+    const mergedValues = mergeDraftValues(storedDraft)
+    form.reset({
+      ...form.getValues(),
+      ...mergedValues,
+    })
+
+    const statusUpdates: Record<SectionId, SectionSaveStatus> = {} as Record<SectionId, SectionSaveStatus>
+    const lastSavedUpdates: Record<SectionId, number | null> = {} as Record<SectionId, number | null>
+    Object.entries(storedDraft).forEach(([sectionId, record]) => {
+      statusUpdates[sectionId as SectionId] = "saved"
+      lastSavedUpdates[sectionId as SectionId] = record?.updatedAt ?? null
+    })
+    setSectionSaveStatus((prev) => ({ ...prev, ...statusUpdates }))
+    setSectionLastSaved((prev) => ({ ...prev, ...lastSavedUpdates }))
+
+    setTimeout(() => {
+      skipAutosaveRef.current = false
+    }, 0)
+  }, [draftStorageKey, enableDrafts, form])
+
+  useEffect(() => {
+    if (!enableDrafts) return
+    const subscription = form.watch((_, meta) => {
+      if (skipAutosaveRef.current) return
+      if (!meta?.name) return
+      const sectionId = FIELD_TO_SECTION_MAP[meta.name]
+      if (!sectionId) return
+      scheduleAutosave(sectionId)
+    })
+    return () => subscription.unsubscribe()
+  }, [enableDrafts, form])
+
+  useEffect(() => {
+    return () => {
+      Object.values(autosaveTimersRef.current).forEach((timer) => clearTimeout(timer))
+    }
+  }, [])
+
   // Validate all steps and identify which steps have errors
   const validateAllSteps = () => {
     const errors = form.formState.errors
     const errorSteps = new Set<number>()
-    
-    // Define which fields belong to which step
-    const stepFields: Record<number, (keyof z.infer<typeof employeeFormSchema>)[]> = {
-      0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'], // Basic Information
-      1: ['salaryCategory', 'salarySubCategory', 'salaryPerDay', 'monthlySalary', 'pfEnabled', 'esicEnabled'], // Salary Configuration
-      2: [], // Employment (optional)
-      3: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'], // Bank Details
-      4: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'], // Additional Details
-      5: ['referenceName', 'referenceAddress', 'referenceNumber'], // Reference
-      6: [], // Documents (optional)
-    }
-    
-    // Check each step for errors
-    Object.keys(stepFields).forEach((stepIndex) => {
-      const stepNum = parseInt(stepIndex)
-      const fields = stepFields[stepNum]
-      
-      // Skip optional steps (employment, documents)
-      if (stepNum === 2 || stepNum === 6) return
-      
-      const hasError = fields.some((field) => errors[field])
+
+    steps.forEach((step, index) => {
+      if (step.optional) return
+      const hasError = step.fields.some((field) => errors[field])
       if (hasError) {
-        errorSteps.add(stepNum)
+        errorSteps.add(index)
       }
     })
-    
+
     setStepsWithErrors(errorSteps)
     return errorSteps.size === 0
   }
@@ -345,36 +694,26 @@ export function EmployeeForm({
   const scrollToFirstError = () => {
     const errors = form.formState.errors
     const fieldNames = Object.keys(errors) as (keyof typeof errors)[]
-    
+
     if (fieldNames.length > 0) {
       const firstErrorField = fieldNames[0]
-      
-      // Find which step contains this field
-      const stepFields: Record<number, string[]> = {
-        0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'],
-        1: ['salaryCategory', 'salarySubCategory', 'salaryPerDay', 'monthlySalary', 'pfEnabled', 'esicEnabled'],
-        3: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'],
-        4: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'],
-        5: ['referenceName', 'referenceAddress', 'referenceNumber'],
-      }
-      
-      let targetStep = 0
-      for (const [stepIndex, fields] of Object.entries(stepFields)) {
-        if (fields.includes(firstErrorField)) {
-          targetStep = parseInt(stepIndex)
-          break
-        }
-      }
-      
-      // Navigate to step with error
+
+      const fieldToStepIndex: Record<string, number> = {}
+      steps.forEach((step, index) => {
+        step.fields.forEach((field) => {
+          fieldToStepIndex[field] = index
+        })
+      })
+
+      const targetStep = fieldToStepIndex[firstErrorField as string] ?? 0
+
       setCurrentStep(targetStep)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      
-      // Try to scroll to the actual field
+      window.scrollTo({ top: 0, behavior: "smooth" })
+
       setTimeout(() => {
         const errorElement = document.querySelector(`[name="${firstErrorField}"]`)
         if (errorElement) {
-          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          errorElement.scrollIntoView({ behavior: "smooth", block: "center" })
           ;(errorElement as HTMLElement).focus()
         }
       }, 300)
@@ -846,12 +1185,19 @@ export function EmployeeForm({
         {currentStep === 0 && (
           /* Step 1: Basic Information (merged Basic + Contact) */
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
                 <CardTitle>Basic Information</CardTitle>
               </div>
-              <CardDescription>Enter personal details and contact information</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <CardDescription className="text-sm text-muted-foreground flex-1">
+                  Enter personal details and contact information
+                </CardDescription>
+                <div className="flex-shrink-0">
+                  {renderSectionHeaderActions("basic")}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Personal Details Section */}
@@ -1223,12 +1569,19 @@ export function EmployeeForm({
         {currentStep === 1 && (
           /* Step 2: Salary Configuration */
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-primary" />
                 <CardTitle>Salary Configuration</CardTitle>
               </div>
-              <CardDescription>Configure employee salary category and settings</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <CardDescription className="text-sm text-muted-foreground flex-1">
+                  Configure employee salary category and settings
+                </CardDescription>
+                <div className="flex-shrink-0">
+                  {renderSectionHeaderActions("salary")}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -1428,13 +1781,20 @@ export function EmployeeForm({
         {currentStep === 2 && (
           /* Step 3: Employment Details - Optional */
           <Card className="border-dashed">
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Briefcase className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Employment Details</CardTitle>
                   <Badge variant="outline" className="ml-2">Optional</Badge>
                 </div>
-                <CardDescription>Employment information can be added later if not available now</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Employment information can be added later if not available now
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("employment")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1504,12 +1864,19 @@ export function EmployeeForm({
         {currentStep === 3 && (
           /* Step 4: Bank Details */
           <Card>
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-primary" />
                   <CardTitle>Bank Details</CardTitle>
                 </div>
-                <CardDescription>Enter banking information for salary processing</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Enter banking information for salary processing
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("bank")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1573,12 +1940,19 @@ export function EmployeeForm({
         {currentStep === 4 && (
           /* Step 5: Additional Details */
           <Card>
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
                   <CardTitle>Additional Details</CardTitle>
                 </div>
-                <CardDescription>Provide PF, ESIC, and certificate information</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Provide PF, ESIC, and certificate information
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("additional")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1676,12 +2050,19 @@ export function EmployeeForm({
         {currentStep === 5 && (
           /* Step 5: Reference Details */
           <Card>
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-5 w-5 text-primary" />
                   <CardTitle>Reference Details</CardTitle>
                 </div>
-                <CardDescription>Provide reference person information</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Provide reference person information
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("reference")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1732,12 +2113,20 @@ export function EmployeeForm({
         {currentStep === 6 && (
           /* Step 7: Documents */
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" />
                 <CardTitle>Document Uploads</CardTitle>
+                <Badge variant="outline" className="ml-2">Optional</Badge>
               </div>
-              <CardDescription>Upload required documents and certificates</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <CardDescription className="text-sm text-muted-foreground flex-1">
+                  Upload required documents and certificates
+                </CardDescription>
+                <div className="flex-shrink-0">
+                  {renderSectionHeaderActions("documents")}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

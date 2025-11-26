@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
-import { EmployeeForm } from "@/components/employees/employee-form"
+import { EmployeeForm, EMPLOYEE_FORM_DRAFT_STORAGE_KEY, clearEmployeeFormDraft } from "@/components/employees/employee-form"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
@@ -75,6 +75,7 @@ export default function AddEmployeePage() {
         try {
             const createEmployeeResponse = await employeeService.createEmployee(values)
             console.log("(handleSubmit) Employee created successfully:", JSON.stringify(createEmployeeResponse, null, 2))
+            clearEmployeeFormDraft()
             
             // Show success toast with improved message
             toast({
@@ -121,6 +122,8 @@ export default function AddEmployeePage() {
                         employeeDepartments={departments}
                         companies={companies}
                         isLoading={isLoading}
+                        enableDrafts
+                        draftStorageKey={EMPLOYEE_FORM_DRAFT_STORAGE_KEY}
                     />
                 </ScrollArea>
             )}

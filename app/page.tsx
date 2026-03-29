@@ -124,7 +124,7 @@ const companyData = {
     {
       name: "Anubhav Tulsyan",
       designation: "Director",
-      image: "/directors/anubhav.png",
+      image: "/directors/anubhav.jpg",
       bio: "Driving operational excellence and innovation."
     },
   ],

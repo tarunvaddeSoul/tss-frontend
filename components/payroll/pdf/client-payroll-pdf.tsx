@@ -1,7 +1,8 @@
 import { Document, Text, View, StyleSheet, PDFDownloadLink, Image, Page } from "@react-pdf/renderer"
 import { FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { CompanyPayrollMonth, CompanyPayrollRecord } from "@/types/payroll"
+import type { ClientPayrollMonth, ClientPayrollRecord } from "@/types/payroll"
+import { formatDate } from "@/lib/labels"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
 
@@ -79,21 +80,27 @@ const styles = StyleSheet.create({
   },
 })
 
-interface CompanyPayrollPDFProps {
-  data: CompanyPayrollMonth[]
-  companyName: string
-  companyDetails?: {
+interface ClientPayrollPDFProps {
+  data: ClientPayrollMonth[]
+  clientName: string
+  clientDetails?: {
     address?: string
     contactPersonName?: string
     contactPersonNumber?: string
-    companyOnboardingDate?: string
+    clientOnboardingDate?: string
   }
 }
 
-// Helper function to convert CompanyPayrollRecord to SalarySlipData
-const convertToSalarySlipData = (
-  record: CompanyPayrollRecord,
-  companyName: string,
+export interface PayslipSourceRecord {
+  employeeId: string
+  salaryData: any
+  employee?: { title?: string | null; firstName: string; lastName: string; category?: string | null } | null
+}
+
+// Helper function to convert a payroll record to SalarySlipData
+export const clientRecordToSalarySlip = (
+  record: PayslipSourceRecord,
+  clientName: string,
   month: string
 ): SalarySlipData => {
   const salaryData = record.salaryData
@@ -133,13 +140,13 @@ const convertToSalarySlipData = (
   const grossDeduction = deductions?.totalDeductions ?? salaryData?.totalDeductions ?? (epfContribution + esicContribution + advance)
 
   return {
-    company: companyName,
+    client: clientName,
     month: formatMonth(month),
     pay_period: getPayPeriod(month),
     employee: {
       name: employee
         ? `${employee.title || ""} ${employee.firstName} ${employee.lastName}`.trim()
-        : record.employeeId,
+        : information?.employeeName ?? record.employeeId,
       employee_id: record.employeeId,
       category: employee?.category ?? salaryData?.category ?? salaryData?.salaryCategory ?? "N/A",
       department: information?.department ?? salaryData?.department ?? "N/A",
@@ -166,12 +173,12 @@ const convertToSalarySlipData = (
   }
 }
 
-const CompanyPayrollPDF = ({ data, companyName, companyDetails }: CompanyPayrollPDFProps) => {
+const ClientPayrollPDF = ({ data, clientName, clientDetails }: ClientPayrollPDFProps) => {
   const totalEmployees = data.reduce((sum, month) => sum + month.employeeCount, 0)
   const totalNetSalary = data.reduce((sum, month) => sum + month.totalNetSalary, 0)
 
   // Collect all employee records for salary slips
-  const allEmployeeRecords: Array<{ record: CompanyPayrollRecord; month: string }> = []
+  const allEmployeeRecords: Array<{ record: ClientPayrollRecord; month: string }> = []
   data.forEach((monthData) => {
     monthData.records.forEach((record) => {
       allEmployeeRecords.push({ record, month: monthData.month })
@@ -180,42 +187,42 @@ const CompanyPayrollPDF = ({ data, companyName, companyDetails }: CompanyPayroll
 
   return (
     <Document
-      title={`${companyName} - Payroll Report`}
+      title={`${clientName} - Payroll Report`}
       author={BRAND.name}
-      subject="Company Payroll Report"
-      keywords="Tulsyan Security Services, Payroll, Company"
+      subject="Client Payroll Report"
+      keywords="Tulsyan Security Services, Payroll, Client"
     >
-      {/* Page 1: Company Details */}
+      {/* Page 1: Client Details */}
       <BrandPage>
-        <PdfHeader title={`${companyName} - Payroll Report`} subtitle="Company Payroll Summary" />
+        <PdfHeader title={`${clientName} - Payroll Report`} subtitle="Client Payroll Summary" />
 
-        <Section title="Company Information">
+        <Section title="Client Information">
           <View style={brandStyles.row}>
-            <Text style={brandStyles.label}>Company Name:</Text>
-            <Text style={brandStyles.value}>{companyName}</Text>
+            <Text style={brandStyles.label}>Client Name:</Text>
+            <Text style={brandStyles.value}>{clientName}</Text>
           </View>
-          {companyDetails?.address && (
+          {clientDetails?.address && (
             <View style={brandStyles.row}>
               <Text style={brandStyles.label}>Address:</Text>
-              <Text style={brandStyles.value}>{companyDetails.address}</Text>
+              <Text style={brandStyles.value}>{clientDetails.address}</Text>
             </View>
           )}
-          {companyDetails?.contactPersonName && (
+          {clientDetails?.contactPersonName && (
             <View style={brandStyles.row}>
               <Text style={brandStyles.label}>Contact Person:</Text>
-              <Text style={brandStyles.value}>{companyDetails.contactPersonName}</Text>
+              <Text style={brandStyles.value}>{clientDetails.contactPersonName}</Text>
             </View>
           )}
-          {companyDetails?.contactPersonNumber && (
+          {clientDetails?.contactPersonNumber && (
             <View style={brandStyles.row}>
               <Text style={brandStyles.label}>Contact Number:</Text>
-              <Text style={brandStyles.value}>{companyDetails.contactPersonNumber}</Text>
+              <Text style={brandStyles.value}>{clientDetails.contactPersonNumber}</Text>
             </View>
           )}
-          {companyDetails?.companyOnboardingDate && (
+          {clientDetails?.clientOnboardingDate && (
             <View style={brandStyles.row}>
               <Text style={brandStyles.label}>Onboarding Date:</Text>
-              <Text style={brandStyles.value}>{companyDetails.companyOnboardingDate}</Text>
+              <Text style={brandStyles.value}>{formatDate(clientDetails.clientOnboardingDate)}</Text>
             </View>
           )}
         </Section>
@@ -240,38 +247,38 @@ const CompanyPayrollPDF = ({ data, companyName, companyDetails }: CompanyPayroll
 
       {/* Page 2+: Individual Salary Slips */}
       {allEmployeeRecords.map(({ record, month }) => {
-        const salarySlipData = convertToSalarySlipData(record, companyName, month)
+        const salarySlipData = clientRecordToSalarySlip(record, clientName, month)
         return <SalarySlipPDFPage key={record.id} data={salarySlipData} />
       })}
     </Document>
   )
 }
 
-interface CompanyPayrollPDFDownloadButtonProps {
-  data: CompanyPayrollMonth[]
-  companyName: string
-  companyDetails?: {
+interface ClientPayrollPDFDownloadButtonProps {
+  data: ClientPayrollMonth[]
+  clientName: string
+  clientDetails?: {
     address?: string
     contactPersonName?: string
     contactPersonNumber?: string
-    companyOnboardingDate?: string
+    clientOnboardingDate?: string
   }
   disabled?: boolean
   className?: string
 }
 
-export const CompanyPayrollPDFDownloadButton = ({
+export const ClientPayrollPDFDownloadButton = ({
   data,
-  companyName,
-  companyDetails,
+  clientName,
+  clientDetails,
   disabled = false,
   className,
-}: CompanyPayrollPDFDownloadButtonProps) => {
-  const fileName = `${companyName.replace(/\s+/g, "_")}_Payroll_${getCurrentDateTime()}.pdf`
+}: ClientPayrollPDFDownloadButtonProps) => {
+  const fileName = `${clientName.replace(/\s+/g, "_")}_Payroll_${getCurrentDateTime()}.pdf`
 
   return (
     <PDFDownloadLink
-      document={<CompanyPayrollPDF data={data} companyName={companyName} companyDetails={companyDetails} />}
+      document={<ClientPayrollPDF data={data} clientName={clientName} clientDetails={clientDetails} />}
       fileName={fileName}
     >
       {({ loading }) => (

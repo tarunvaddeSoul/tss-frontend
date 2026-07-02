@@ -11,25 +11,25 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, ChevronDown, ChevronUp, FileDown, FileText } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { payrollService } from "@/services/payrollService"
-import { companyService } from "@/services/companyService"
-import { useCompany } from "@/hooks/use-company"
-import { exportCompanyPayrollToExcel } from "@/utils/file-export"
-import { CompanyPayrollPDFDownloadButton } from "./pdf/company-payroll-pdf"
-import type { CompanyPayrollMonth } from "@/types/payroll"
+import { clientService } from "@/services/clientService"
+import { useClient } from "@/hooks/use-client"
+import { exportClientPayrollToExcel } from "@/utils/file-export"
+import { ClientPayrollPDFDownloadButton } from "./pdf/client-payroll-pdf"
+import type { ClientPayrollMonth } from "@/types/payroll"
 
-export function CompanyReports() {
+export function ClientReports() {
   const { toast } = useToast()
-  const { companies, isLoading: loadingCompanies } = useCompany()
+  const { clients, isLoading: loadingClients } = useClient()
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("")
-  const [companyName, setCompanyName] = useState<string>("")
-  const [companyDetails, setCompanyDetails] = useState<{
+  const [selectedClientId, setSelectedClientId] = useState<string>("")
+  const [clientName, setClientName] = useState<string>("")
+  const [clientDetails, setClientDetails] = useState<{
     address?: string
     contactPersonName?: string
     contactPersonNumber?: string
-    companyOnboardingDate?: string
+    clientOnboardingDate?: string
   } | null>(null)
-  const [payrollData, setPayrollData] = useState<CompanyPayrollMonth[]>([])
+  const [payrollData, setPayrollData] = useState<ClientPayrollMonth[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -37,28 +37,28 @@ export function CompanyReports() {
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null)
 
   const fetchPayrollData = async () => {
-    if (!selectedCompanyId) return
+    if (!selectedClientId) return
 
     setLoading(true)
     setError(null)
 
     try {
-      const [payrollResponse, companyResponse] = await Promise.all([
-        payrollService.getPastPayrolls(selectedCompanyId, page, 10),
-        companyService.getCompanyById(selectedCompanyId),
+      const [payrollResponse, clientResponse] = await Promise.all([
+        payrollService.getPastPayrolls(selectedClientId, page, 10),
+        clientService.getClientById(selectedClientId),
       ])
       
       setPayrollData(payrollResponse.data.records || [])
       setTotalPages(payrollResponse.data.totalPages || 1)
-      setCompanyName(payrollResponse.data.companyName || "")
+      setClientName(payrollResponse.data.clientName || "")
       
-      // Fetch company details for PDF
-      if (companyResponse.data) {
-        setCompanyDetails({
-          address: companyResponse.data.address,
-          contactPersonName: companyResponse.data.contactPersonName,
-          contactPersonNumber: companyResponse.data.contactPersonNumber,
-          companyOnboardingDate: companyResponse.data.companyOnboardingDate,
+      // Fetch client details for PDF
+      if (clientResponse.data) {
+        setClientDetails({
+          address: clientResponse.data.address,
+          contactPersonName: clientResponse.data.contactPersonName,
+          contactPersonNumber: clientResponse.data.contactPersonNumber,
+          clientOnboardingDate: clientResponse.data.clientOnboardingDate,
         })
       }
     } catch (err) {
@@ -74,13 +74,13 @@ export function CompanyReports() {
   }
 
   useEffect(() => {
-    if (selectedCompanyId) {
+    if (selectedClientId) {
       fetchPayrollData()
     }
-  }, [selectedCompanyId, page])
+  }, [selectedClientId, page])
 
-  const handleCompanyChange = (value: string) => {
-    setSelectedCompanyId(value)
+  const handleClientChange = (value: string) => {
+    setSelectedClientId(value)
     setPage(1)
   }
 
@@ -96,14 +96,14 @@ export function CompanyReports() {
     if (payrollData.length === 0) {
       toast({
         title: "No data to export",
-        description: "Please select a company with payroll data first",
+        description: "Please select a client with payroll data first",
         variant: "destructive",
       })
       return
     }
 
     try {
-      exportCompanyPayrollToExcel(payrollData, companyName)
+      exportClientPayrollToExcel(payrollData, clientName)
       toast({
         title: "Export successful",
         description: "Payroll data has been exported to Excel",
@@ -121,25 +121,25 @@ export function CompanyReports() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Company Payroll Reports</CardTitle>
-          <CardDescription className="text-sm">View and export payroll reports for companies</CardDescription>
+          <CardTitle className="text-lg sm:text-xl">Client Payroll Reports</CardTitle>
+          <CardDescription className="text-sm">View and export payroll reports for clients</CardDescription>
         </CardHeader>
         <CardContent>
           {/* Filter Section */}
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="min-w-0">
-                <label htmlFor="company-select" className="text-sm font-medium mb-2 block truncate">
-                  Select Company
+                <label htmlFor="client-select" className="text-sm font-medium mb-2 block truncate">
+                  Select Client
                 </label>
-                <Select value={selectedCompanyId} onValueChange={handleCompanyChange} disabled={loadingCompanies}>
-                  <SelectTrigger id="company-select" className="h-12 w-full">
-                    <SelectValue placeholder="Select a company" className="truncate" />
+                <Select value={selectedClientId} onValueChange={handleClientChange} disabled={loadingClients}>
+                  <SelectTrigger id="client-select" className="h-12 w-full">
+                    <SelectValue placeholder="Select a client" className="truncate" />
                   </SelectTrigger>
                   <SelectContent>
-                    {companies.map((company) => (
-                      <SelectItem key={company.id ?? ""} value={company.id ?? ""} className="truncate">
-                        <span className="truncate block">{company.name}</span>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id ?? ""} value={client.id ?? ""} className="truncate">
+                        <span className="truncate block">{client.name}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -156,10 +156,10 @@ export function CompanyReports() {
                   <span className="sm:hidden truncate">Excel</span>
                 </Button>
 
-                <CompanyPayrollPDFDownloadButton
+                <ClientPayrollPDFDownloadButton
                   data={payrollData}
-                  companyName={companyName}
-                  companyDetails={companyDetails || undefined}
+                  clientName={clientName}
+                  clientDetails={clientDetails || undefined}
                   disabled={loading || payrollData.length === 0}
                   className="flex-1 sm:flex-initial min-w-0"
                 />
@@ -184,9 +184,9 @@ export function CompanyReports() {
           <CardDescription className="text-sm">
             {payrollData.length > 0
               ? `Showing ${payrollData.length} month${payrollData.length !== 1 ? "s" : ""} of payroll data`
-              : selectedCompanyId
-              ? "No payroll data found for this company"
-              : "Select a company to view payroll data"}
+              : selectedClientId
+              ? "No payroll data found for this client"
+              : "Select a client to view payroll data"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -201,7 +201,7 @@ export function CompanyReports() {
           ) : payrollData.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">
-                {selectedCompanyId ? "No payroll data found for this company" : "Select a company to view payroll data"}
+                {selectedClientId ? "No payroll data found for this client" : "Select a client to view payroll data"}
               </p>
             </div>
           ) : (

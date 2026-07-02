@@ -1,5 +1,6 @@
 import { Document, Text, View } from "@react-pdf/renderer"
 import type { PayrollReportRecord } from "@/utils/payroll-export"
+import { label } from "@/lib/labels"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
 
@@ -12,11 +13,37 @@ interface PayrollReportPDFProps {
   employeeName?: string // Optional employee name for single employee reports
 }
 
+// Column widths for the multi-employee table (sum to 100%)
+const COL_W = {
+  empId: "9%",
+  client: "13%",
+  month: "6%",
+  category: "8%",
+  rate: "7%",
+  basic: "8%",
+  gross: "8%",
+  pf: "6%",
+  esic: "6%",
+  lwf: "5%",
+  bonus: "6%",
+  net: "8%",
+  deductions: "10%",
+}
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+// "2025-07" -> "Jul-25"
+const formatMonthShort = (monthStr: string): string => {
+  if (!monthStr || !monthStr.includes("-")) return monthStr || "-"
+  const [year, monthNum] = monthStr.split("-")
+  const name = MONTH_NAMES[parseInt(monthNum) - 1]
+  return name ? `${name}-${year.slice(-2)}` : monthStr
+}
+
 // Helper function to convert PayrollReportRecord to SalarySlipData
 const convertToSalarySlipData = (record: PayrollReportRecord, employeeName?: string): SalarySlipData => {
   const salaryData = record.salaryData as any
-  console.log("salaryData", salaryData)
-  
+
   // Access grouped salary data with fallbacks for backward compatibility
   const calculations = salaryData?.calculations || {}
   const deductions = salaryData?.deductions || {}
@@ -52,7 +79,7 @@ const convertToSalarySlipData = (record: PayrollReportRecord, employeeName?: str
   const grossDeduction = deductions?.totalDeductions ?? salaryData?.totalDeductions ?? (epfContribution + esicContribution + advance)
 
   return {
-    company: record.companyName || information?.companyName || "TULSYAN SECURITY SERVICES PVT. LTD.",
+    client: record.clientName || information?.clientName || "TULSYAN SECURITY SERVICES PVT. LTD.",
     month: formatMonth(record.month),
     pay_period: getPayPeriod(record.month),
     employee: {
@@ -188,21 +215,21 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
         {/* Report Data Table */}
         <Section title="Report Data">
           <View style={[brandStyles.table, { marginTop: 0 }]}>
-            {/* Header Row */}
-            <View style={[brandStyles.tableRow, brandStyles.tableHeader]}>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Employee ID</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "10%" }]}>Company</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "6%" }]}>Month</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "7%" }]}>Category</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "7%" }]}>Rate</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Basic Pay</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Gross</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "6%" }]}>PF</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "6%" }]}>ESIC</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "6%" }]}>LWF</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "6%" }]}>Bonus</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Net</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "8%" }]}>Deductions</Text>
+            {/* Header Row - repeats on every page */}
+            <View style={[brandStyles.tableRow, brandStyles.tableHeader]} fixed>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.empId }]}>Employee ID</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.client }]}>Client</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.month }]}>Month</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.category }]}>Category</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.rate, textAlign: "right" }]}>Rate</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.basic, textAlign: "right" }]}>Basic Pay</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.gross, textAlign: "right" }]}>Gross</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.pf, textAlign: "right" }]}>PF</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.esic, textAlign: "right" }]}>ESIC</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.lwf, textAlign: "right" }]}>LWF</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.bonus, textAlign: "right" }]}>Bonus</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.net, textAlign: "right" }]}>Net</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: COL_W.deductions, textAlign: "right" }]}>Deductions</Text>
             </View>
 
             {/* Data Rows */}
@@ -227,15 +254,15 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
               const salaryPerDay = salaryData?.salaryPerDay
               
               return (
-                <View key={record.id} style={brandStyles.tableRow}>
-                  <Text style={[brandStyles.tableCell, { width: "8%" }]}>{record.employeeId}</Text>
-                  <Text style={[brandStyles.tableCell, { width: "10%" }]}>{record.companyName || information?.companyName || "N/A"}</Text>
-                  <Text style={[brandStyles.tableCell, { width: "6%" }]}>{record.month}</Text>
-                  <Text style={[brandStyles.tableCell, { width: "7%" }]}>
-                    {salaryCategory || "N/A"}
-                    {salaryData?.salarySubCategory ? `\n${salaryData.salarySubCategory}` : ""}
+                <View key={record.id} style={brandStyles.tableRow} wrap={false}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.empId }]}>{record.employeeId}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.client }]}>{record.clientName || information?.clientName || "N/A"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.month }]}>{formatMonthShort(record.month)}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.category }]}>
+                    {salaryCategory ? label.salaryCategory(salaryCategory) : "N/A"}
+                    {salaryData?.salarySubCategory ? `\n${label.salarySubCategory(salaryData.salarySubCategory)}` : ""}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "7%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.rate, textAlign: "right" }]}>
                     {isSpecialized && monthlySalary
                       ? `₹${(monthlySalary || 0).toLocaleString("en-IN")}\n/mo`
                       : salaryPerDay
@@ -244,28 +271,28 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
                           ? `₹${(rate || 0).toLocaleString("en-IN")}\n/day`
                           : "N/A"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.basic, textAlign: "right" }]}>
                     ₹{(calculations?.basicPay ?? salaryData?.basicPay ?? 0).toLocaleString("en-IN")}
                 </Text>
-                  <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.gross, textAlign: "right" }]}>
                     ₹{(calculations?.grossSalary ?? salaryData?.grossSalary ?? 0).toLocaleString("en-IN")}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "6%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.pf, textAlign: "right" }]}>
                     {pfAmount > 0 ? `₹${pfAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "6%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.esic, textAlign: "right" }]}>
                     {esicAmount > 0 ? `₹${esicAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "6%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.lwf, textAlign: "right" }]}>
                     {lwfAmount > 0 ? `₹${lwfAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "6%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.bonus, textAlign: "right" }]}>
                     {bonusAmount > 0 ? `₹${bonusAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.net, textAlign: "right" }]}>
                     ₹{(calculations?.netSalary ?? salaryData?.netSalary ?? 0).toLocaleString("en-IN")}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: "8%", textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.deductions, textAlign: "right" }]}>
                     ₹{(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0).toLocaleString("en-IN")}
                   </Text>
                 </View>

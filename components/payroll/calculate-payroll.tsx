@@ -12,14 +12,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { MonthPicker } from "@/components/ui/month-picker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useCompany } from "@/hooks/use-company"
+import { useClient } from "@/hooks/use-client"
 import { usePayroll, usePayrollAdminInputs } from "@/hooks/use-payroll"
 import { Calendar, Users, Calculator, CheckCircle, AlertCircle, Building2, IndianRupee, Loader2, Info, Eye, FileText } from "lucide-react"
 import { format } from "date-fns"
 import type { PayrollStep, CalculatePayrollDto } from "@/types/payroll"
-import { companyService } from "@/services/companyService"
-import { CompanyEmployee } from "@/types/company"
+import { clientService } from "@/services/clientService"
+import { ClientEmployee } from "@/types/client"
 import { SalaryCategory } from "@/types/salary"
+import { label } from "@/lib/labels"
 import { payrollService } from "@/services/payrollService"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -27,8 +28,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 const PAYROLL_STEPS: PayrollStep[] = [
     {
         id: 1,
-        title: "Select Company & Month",
-        description: "Choose company and payroll period",
+        title: "Select Client & Month",
+        description: "Choose client and payroll period",
         completed: false,
         current: true,
     },
@@ -38,21 +39,14 @@ const PAYROLL_STEPS: PayrollStep[] = [
     { id: 5, title: "Finalize", description: "Review and finalize payroll", completed: false, current: false },
 ]
 
-// Mock employee data for testing
-const MOCK_EMPLOYEES = [
-    { id: "TSS1052", name: "John Doe" },
-    { id: "TSS1053", name: "Jane Smith" },
-    { id: "TSS1054", name: "Robert Johnson" },
-]
-
 export default function CalculatePayroll() {
     const router = useRouter()
     const [currentStep, setCurrentStep] = useState(1)
     const [steps, setSteps] = useState(PAYROLL_STEPS)
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string>("")
+    const [selectedClientId, setSelectedClientId] = useState<string>("")
     const [selectedMonth, setSelectedMonth] = useState<Date>(new Date())
     const [errors, setErrors] = useState<string[]>([])
-    const [employees, setEmployees] = useState<CompanyEmployee[]>([])
+    const [employees, setEmployees] = useState<ClientEmployee[]>([])
     const [isFinalized, setIsFinalized] = useState(false)
     const [existingPayroll, setExistingPayroll] = useState<{
         records: any[]
@@ -65,27 +59,20 @@ export default function CalculatePayroll() {
     const [showExistingPayrollDialog, setShowExistingPayrollDialog] = useState(false)
     const [showRecalculateDialog, setShowRecalculateDialog] = useState(false)
 
-    const { companies, isLoading: companiesLoading } = useCompany()
+    const { clients, isLoading: clientsLoading } = useClient()
     const {
         isCalculating,
         isFinalizing,
         calculationResult,
-        selectedCompany,
+        selectedClient,
         adminInputFields,
-        fetchCompanyDetails,
+        fetchClientDetails,
         calculatePayroll,
         finalizePayroll,
         resetCalculation,
     } = usePayroll()
 
     const { adminInputs, updateAdminInput, validateAdminInputs, resetInputs } = usePayrollAdminInputs()
-
-    // Debug logging
-    useEffect(() => {
-        console.log("Current step:", currentStep)
-        console.log("Admin input fields:", adminInputFields)
-        console.log(calculationResult)
-    }, [currentStep, adminInputFields])
 
     const updateStepStatus = (stepId: number, completed: boolean, current: boolean) => {
         setSteps((prev) =>
@@ -97,11 +84,11 @@ export default function CalculatePayroll() {
         )
     }
 
-    // Check for finalized payroll when company/month changes
+    // Check for finalized payroll when client/month changes
     // If getPayrollByMonth returns data, it means payroll is already finalized
     useEffect(() => {
         const checkFinalizedPayroll = async () => {
-            if (!selectedCompanyId || !selectedMonth) {
+            if (!selectedClientId || !selectedMonth) {
                 setExistingPayroll(null)
                 return
             }
@@ -109,7 +96,7 @@ export default function CalculatePayroll() {
             setCheckingPayroll(true)
             try {
                 const payrollMonth = format(selectedMonth, "yyyy-MM")
-                const payrollData = await payrollService.getPayrollByMonth(selectedCompanyId, payrollMonth)
+                const payrollData = await payrollService.getPayrollByMonth(selectedClientId, payrollMonth)
                 
                 // If payroll data exists, it means payroll is finalized
                 if (payrollData && payrollData.records && payrollData.records.length > 0) {
@@ -132,11 +119,11 @@ export default function CalculatePayroll() {
         }
 
         checkFinalizedPayroll()
-    }, [selectedCompanyId, selectedMonth])
+    }, [selectedClientId, selectedMonth])
 
-    const handleCompanyMonthSelect = async () => {
-        if (!selectedCompanyId) {
-            setErrors(["Please select a company"])
+    const handleClientMonthSelect = async () => {
+        if (!selectedClientId) {
+            setErrors(["Please select a client"])
             return
         }
 
@@ -149,15 +136,14 @@ export default function CalculatePayroll() {
         }
 
         try {
-            await fetchCompanyDetails(selectedCompanyId)
-            // Fetch employees for the selected company
-            const employeesResponse = await companyService.getCompanyEmployees(selectedCompanyId)
-            console.log(employeesResponse.data)
+            await fetchClientDetails(selectedClientId)
+            // Fetch employees for the selected client
+            const employeesResponse = await clientService.getClientEmployees(selectedClientId)
             setEmployees(employeesResponse.data)
             setCurrentStep(2)
             updateStepStatus(2, false, true)
         } catch (error) {
-            setErrors(["Failed to fetch company details. Please try again."])
+            setErrors(["Failed to fetch client details. Please try again."])
         }
     }
 
@@ -171,37 +157,36 @@ export default function CalculatePayroll() {
         setExistingPayroll(null) // Clear existing payroll state to proceed
 
         try {
-            await fetchCompanyDetails(selectedCompanyId)
-            const employeesResponse = await companyService.getCompanyEmployees(selectedCompanyId)
+            await fetchClientDetails(selectedClientId)
+            const employeesResponse = await clientService.getClientEmployees(selectedClientId)
             setEmployees(employeesResponse.data)
             setCurrentStep(2)
             updateStepStatus(2, false, true)
         } catch (error) {
-            setErrors(["Failed to fetch company details. Please try again."])
+            setErrors(["Failed to fetch client details. Please try again."])
         }
     }
 
     const handleViewExistingPayroll = () => {
         setShowExistingPayrollDialog(false)
-        router.push(`/payroll/reports?companyId=${selectedCompanyId}&startMonth=${format(selectedMonth, "yyyy-MM")}&endMonth=${format(selectedMonth, "yyyy-MM")}`)
+        router.push(`/payroll/reports?clientId=${selectedClientId}&startMonth=${format(selectedMonth, "yyyy-MM")}&endMonth=${format(selectedMonth, "yyyy-MM")}`)
     }
 
     const handleDataReview = () => {
         // Always go to admin input step if we have admin input fields
         if (adminInputFields.length > 0) {
-            console.log("Moving to admin input step")
             setCurrentStep(3)
             updateStepStatus(3, false, true)
         } else {
-            // Skip admin input if no fields require it
-            console.log("No admin input fields, skipping to calculate")
             handleCalculatePayroll()
         }
     }
 
     const handleCalculatePayroll = async () => {
         if (adminInputFields.length > 0) {
-            const employeeIds = employees.map((e) => e.id)
+            const employeeIds = employees
+                .filter((e) => e.status === "ACTIVE")
+                .map((e) => e.employeeId)
             const validationErrors = validateAdminInputs(employeeIds, adminInputFields)
             if (validationErrors.length > 0) {
                 setErrors(validationErrors)
@@ -214,7 +199,7 @@ export default function CalculatePayroll() {
         try {
             const payrollMonth = format(selectedMonth, "yyyy-MM")
             const request: CalculatePayrollDto = {
-                companyId: selectedCompanyId,
+                clientId: selectedClientId,
                 payrollMonth,
             }
 
@@ -238,7 +223,6 @@ export default function CalculatePayroll() {
                 request.adminInputs = processedAdminInputs
             }
 
-            console.log("Sending calculate payroll request:", request)
             const result = await calculatePayroll(request)
 
             setCurrentStep(4)
@@ -254,17 +238,25 @@ export default function CalculatePayroll() {
         if (!calculationResult) return
 
         try {
-            const payrollRecords = calculationResult.data.payrollResults
-                .filter((record) => record.salary && !record.error) // Only include records with valid salary and no errors
-                .map((record) => ({
-                    employeeId: record.employeeId,
-                    salary: record.salary || {},
-                }))
+            const processedAdminInputs: Record<string, Record<string, number>> = {}
+            if (adminInputFields.length > 0) {
+                employees
+                    .filter((employee) => employee.status === "ACTIVE")
+                    .forEach((employee) => {
+                        processedAdminInputs[employee.employeeId] = {}
+                        adminInputFields.forEach((field) => {
+                            const existingValue = adminInputs[employee.employeeId]?.[field.key]
+                            processedAdminInputs[employee.employeeId][field.key] =
+                                existingValue !== undefined ? existingValue : 0
+                        })
+                    })
+            }
 
             await finalizePayroll({
-                companyId: selectedCompanyId,
+                clientId: selectedClientId,
                 payrollMonth: format(selectedMonth, "yyyy-MM"),
-                payrollRecords,
+                adminInputs: adminInputFields.length > 0 ? processedAdminInputs : undefined,
+                force: !!existingPayroll,
             })
 
             setIsFinalized(true)
@@ -277,7 +269,7 @@ export default function CalculatePayroll() {
     const handleReset = () => {
         setCurrentStep(1)
         setSteps(PAYROLL_STEPS)
-        setSelectedCompanyId("")
+        setSelectedClientId("")
         setSelectedMonth(new Date())
         setErrors([])
         setIsFinalized(false)
@@ -288,7 +280,7 @@ export default function CalculatePayroll() {
         resetInputs()
     }
 
-    const selectedCompanyData = companies.find((c) => c.id === selectedCompanyId)
+    const selectedClientData = clients.find((c) => c.id === selectedClientId)
 
     return (
         <div className="space-y-6">
@@ -356,28 +348,28 @@ export default function CalculatePayroll() {
                 </Alert>
             )}
 
-            {/* Step 1: Company & Month Selection */}
+            {/* Step 1: Client & Month Selection */}
             {currentStep === 1 && (
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Building2 className="h-5 w-5" />
-                            Select Company & Month
+                            Select Client & Month
                         </CardTitle>
-                        <CardDescription>Choose the company and month for payroll processing</CardDescription>
+                        <CardDescription>Choose the client and month for payroll processing</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label htmlFor="company">Company</Label>
-                                <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                                <Label htmlFor="client">Client</Label>
+                                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a company" />
+                                        <SelectValue placeholder="Select a client" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {companies.map((company: any) => (
-                                            <SelectItem key={company.id} value={company.id}>
-                                                {company.name}
+                                        {clients.map((client: any) => (
+                                            <SelectItem key={client.id} value={client.id}>
+                                                {client.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -396,7 +388,7 @@ export default function CalculatePayroll() {
                                             Finalized
                                         </Badge>
                                     )}
-                                    {!checkingPayroll && !existingPayroll && selectedCompanyId && (
+                                    {!checkingPayroll && !existingPayroll && selectedClientId && (
                                         <Badge variant="outline" className="text-muted-foreground">
                                             Not Finalized
                                         </Badge>
@@ -446,8 +438,8 @@ export default function CalculatePayroll() {
                         )}
 
                         <Button
-                            onClick={handleCompanyMonthSelect}
-                            disabled={!selectedCompanyId || companiesLoading || checkingPayroll}
+                            onClick={handleClientMonthSelect}
+                            disabled={!selectedClientId || clientsLoading || checkingPayroll}
                             className="w-full"
                             type="button"
                         >
@@ -473,35 +465,35 @@ export default function CalculatePayroll() {
             )}
 
             {/* Step 2: Data Review */}
-            {currentStep === 2 && selectedCompany && (
+            {currentStep === 2 && selectedClient && (
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Users className="h-5 w-5" />
-                            Review Company Data
+                            Review Client Data
                         </CardTitle>
                         <CardDescription>
-                            Verify company information for {selectedCompany.name} - {format(selectedMonth, "MMMM yyyy")}
+                            Verify client information for {selectedClient.name} - {format(selectedMonth, "MMMM yyyy")}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-sm font-medium">Company Name</Label>
-                                <p className="text-sm">{selectedCompany.name}</p>
+                                <Label className="text-sm font-medium">Client Name</Label>
+                                <p className="text-sm">{selectedClient.name}</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Contact Person</Label>
-                                <p className="text-sm">{selectedCompany.contactPersonName}</p>
+                                <p className="text-sm">{selectedClient.contactPersonName}</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Contact Number</Label>
-                                <p className="text-sm">{selectedCompany.contactPersonNumber}</p>
+                                <p className="text-sm">{selectedClient.contactPersonNumber}</p>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Status</Label>
-                                <Badge variant={selectedCompany.status === "ACTIVE" ? "default" : "secondary"}>
-                                    {selectedCompany.status}
+                                <Badge variant={selectedClient.status === "ACTIVE" ? "default" : "secondary"}>
+                                    {label.status(selectedClient.status)}
                                 </Badge>
                             </div>
                         </div>
@@ -558,14 +550,14 @@ export default function CalculatePayroll() {
                                     <div className="flex items-center justify-between mb-4">
                                         <div>
                                             <h3 className="font-semibold">{employee.firstName} {employee.lastName}</h3>
-                                            <p className="text-sm text-muted-foreground">{employee.id}</p>
+                                            <p className="text-sm text-muted-foreground">{employee.employeeId}</p>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {adminInputFields.map((field) => (
                                             <div key={field.key} className="space-y-2">
-                                                <Label htmlFor={`${employee.id}-${field.key}`}>
+                                                <Label htmlFor={`${employee.employeeId}-${field.key}`}>
                                                     {field.label}
                                                     <Badge
                                                         variant={
@@ -644,9 +636,9 @@ export default function CalculatePayroll() {
                             </div>
                             <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                                 <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                                    {calculationResult.data.companyName}
+                                    {calculationResult.data.clientName}
                                 </p>
-                                <p className="text-sm text-muted-foreground">Company</p>
+                                <p className="text-sm text-muted-foreground">Client</p>
                             </div>
                             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
                                 <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
@@ -705,11 +697,11 @@ export default function CalculatePayroll() {
                                                     {salaryCategory ? (
                                                         <div className="flex flex-col gap-1">
                                                             <Badge variant="outline" className="text-xs">
-                                                                {salaryCategory}
+                                                                {label.salaryCategory(salaryCategory)}
                                                             </Badge>
                                                             {salarySubCategory && (
                                                                 <span className="text-xs text-muted-foreground">
-                                                                    {salarySubCategory}
+                                                                    {label.salarySubCategory(salarySubCategory)}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -855,7 +847,7 @@ export default function CalculatePayroll() {
                             Existing Payroll Found
                         </DialogTitle>
                         <DialogDescription>
-                            A payroll has already been finalized for {selectedCompanyData?.name || "this company"} - {format(selectedMonth, "MMMM yyyy")}
+                            A payroll has already been finalized for {selectedClientData?.name || "this client"} - {format(selectedMonth, "MMMM yyyy")}
                         </DialogDescription>
                     </DialogHeader>
                     
@@ -928,7 +920,7 @@ export default function CalculatePayroll() {
                         </AlertDialogTitle>
                         <AlertDialogDescription className="space-y-2">
                             <p>
-                                You are about to recalculate payroll for <strong>{selectedCompanyData?.name || "this company"}</strong> - <strong>{format(selectedMonth, "MMMM yyyy")}</strong>.
+                                You are about to recalculate payroll for <strong>{selectedClientData?.name || "this client"}</strong> - <strong>{format(selectedMonth, "MMMM yyyy")}</strong>.
                             </p>
                                 <p className="font-medium text-foreground">
                                     This will create a new payroll record. The existing finalized payroll will be replaced by the new one.

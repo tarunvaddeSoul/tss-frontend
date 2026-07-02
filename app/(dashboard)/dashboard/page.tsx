@@ -8,6 +8,9 @@ import { PageHeader } from "@/components/layout/page-header"
 import { AlertCircle, RefreshCw } from "lucide-react"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { StatCards } from "@/components/dashboard/stat-cards"
+import { MonthPulse } from "@/components/dashboard/month-pulse"
+import { RecentActivity } from "@/components/dashboard/recent-activity"
+import { Deployment } from "@/components/dashboard/deployment"
 import { GrowthCharts } from "@/components/dashboard/growth-charts"
 import { ClientTenure } from "@/components/dashboard/client-tenure"
 import { EmployeeDistribution } from "@/components/dashboard/employee-distribution"
@@ -15,7 +18,7 @@ import { SpecialDates } from "@/components/dashboard/special-dates"
 
 export default function DashboardPage() {
   const [daysAhead, setDaysAhead] = useState<number>(30)
-  const { data, clientEmployeeCounts, loading, error, refetch } = useDashboard(daysAhead)
+  const { data, clientEmployeeCounts, monthPayroll, currentMonth, loading, error, refetch } = useDashboard(daysAhead)
 
   const handleDaysChange = (value: string) => {
     setDaysAhead(parseInt(value, 10))
@@ -29,6 +32,8 @@ export default function DashboardPage() {
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-96" />
         </div>
+
+        <Skeleton className="h-40" />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -89,7 +94,7 @@ export default function DashboardPage() {
         no="01"
         eyebrow="Dashboard register"
         title="Dashboard Overview"
-        description="Welcome back! Here's what's happening with your organization today."
+        description="Money, coverage and changes at a glance."
         actions={
           <Button variant="outline" size="sm" onClick={() => refetch(daysAhead)}>
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -98,7 +103,17 @@ export default function DashboardPage() {
         }
       />
 
+      <MonthPulse
+        records={monthPayroll}
+        monthLabel={new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+        activeClients={data.summary.activeClients}
+      />
+
       <StatCards data={data} clientEmployeeCounts={clientEmployeeCounts} />
+
+      <RecentActivity data={data} />
+
+      <Deployment clientEmployeeCounts={clientEmployeeCounts} summary={data.summary} />
 
       <GrowthCharts data={data} />
 

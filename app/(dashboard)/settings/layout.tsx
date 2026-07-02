@@ -4,8 +4,10 @@ import type React from "react"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { User, Shield, ChevronRight, Building2, Briefcase, DollarSign } from "lucide-react"
+import { User, Shield, ChevronRight, Building2, Briefcase, DollarSign, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/use-auth"
+import { Role } from "@/types/auth"
 
 interface SettingsNavItem {
   title: string
@@ -36,8 +38,15 @@ const settingsGroups: SettingsGroup[] = [
   },
 ]
 
+const adminGroup: SettingsGroup = {
+  label: "Administration",
+  items: [{ title: "Users", href: "/settings/users", icon: <Users className="h-4 w-4" /> }],
+}
+
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const groups = user?.role === Role.ADMIN ? [...settingsGroups, adminGroup] : settingsGroups
 
   return (
     <div className="container py-8">
@@ -47,7 +56,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <div className="p-4">
               <h2 className="font-display text-lg font-bold tracking-[-0.02em] mb-4">Settings</h2>
               <nav className="space-y-5">
-                {settingsGroups.map((group) => (
+                {groups.map((group) => (
                   <div key={group.label} className="space-y-1">
                     <p className="px-3 pb-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                       {group.label}

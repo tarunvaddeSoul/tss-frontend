@@ -434,9 +434,6 @@ export default function HomePage(): ReactNode {
           </nav>
 
           <div className="flex items-center gap-2.5">
-            <Button asChild variant="outline" size="sm" className="hidden lg:inline-flex">
-              <Link href="/login">Staff Login</Link>
-            </Button>
             <Button asChild variant="brand" size="sm" className="hidden lg:inline-flex">
               <Link href="#contact">Get a Quote <ArrowUpRight className="ml-1 h-3 w-3" /></Link>
             </Button>
@@ -491,9 +488,7 @@ export default function HomePage(): ReactNode {
                 <Button asChild variant="brand" className="w-full h-11">
                   <Link href="#contact" onClick={() => setMobileMenuOpen(false)}>Get a Quote <ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
-                <Button asChild variant="outline" className="w-full h-11">
-                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Staff Login</Link>
-                </Button>
+
               </div>
             </div>
           </motion.div>

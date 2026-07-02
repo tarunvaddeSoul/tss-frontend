@@ -37,6 +37,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageHeader } from "@/components/layout/page-header"
 import { attendanceService } from "@/services/attendanceService"
 import { getErrorMessage } from "@/services/api"
 import type { AttendanceExcelRecord, AttendanceExcelListParams } from "@/types/attendance"
@@ -444,13 +445,12 @@ export default function AttendanceRecordsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance Records</h1>
-          <p className="text-muted-foreground">View and manage all uploaded attendance sheets</p>
-        </div>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Attendance Records"
+        description="View and manage all uploaded attendance sheets."
+      />
 
       {/* Search and Filters */}
       <Card>
@@ -667,6 +667,9 @@ export default function AttendanceRecordsPage() {
           ) : records.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+                No sheets on file
+              </p>
               <h3 className="text-lg font-semibold mb-2">No Attendance Sheets Found</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 {hasActiveFilters
@@ -739,11 +742,11 @@ export default function AttendanceRecordsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={isPDF ? "destructive" : "secondary"}>
+                            <Badge variant={isPDF ? "info" : "secondary"}>
                               {isPDF ? "PDF" : "Image"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="font-mono text-[13px] text-muted-foreground">
                             {formatDate(record.createdAt)}
                           </TableCell>
                           <TableCell className="text-right">
@@ -838,6 +841,9 @@ export default function AttendanceRecordsPage() {
               ) : excelRecords.length === 0 ? (
                 <div className="text-center py-12">
                   <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+                    No excel files on record
+                  </p>
                   <h3 className="text-lg font-semibold mb-2">No Excel Files Found</h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {hasActiveFilters
@@ -934,7 +940,7 @@ export default function AttendanceRecordsPage() {
                                   Excel
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-muted-foreground">
+                              <TableCell className="font-mono text-[13px] text-muted-foreground">
                                 {formatDate(record.createdAt)}
                               </TableCell>
                               <TableCell className="text-right">
@@ -1005,7 +1011,7 @@ export default function AttendanceRecordsPage() {
             <DialogDescription>Attendance sheet document preview</DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
-            <div className="border rounded-md overflow-hidden bg-white">
+            <div className="border rounded-md overflow-hidden bg-card">
               {previewType === "loading" ? (
                 <div className="flex items-center justify-center h-[70vh]">
                   <div className="text-center space-y-2">
@@ -1020,7 +1026,7 @@ export default function AttendanceRecordsPage() {
                   key={previewUrl}
                 />
               ) : previewType === "image" ? (
-                <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                   <img
                     src={previewUrl || ""}
                     alt="Attendance Sheet"

@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+import { PageHeader } from "@/components/layout/page-header"
 import { useClient } from "@/hooks/use-client"
 import { attendanceService } from "@/services/attendanceService"
 import { getErrorMessage } from "@/services/api"
@@ -413,13 +414,12 @@ export function AttendanceReportsComponent() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance Reports</h1>
-          <p className="text-muted-foreground">Generate and download comprehensive attendance reports</p>
-        </div>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Attendance Reports"
+        description="Generate and download comprehensive attendance reports."
+      />
 
       {/* Form */}
       <Card>
@@ -450,7 +450,7 @@ export function AttendanceReportsComponent() {
                           {clients.map((client) => (
                             <SelectItem key={client.id} value={client.id ?? ""}>
                               <div className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-gray-500" />
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
                                 {client.name}
                               </div>
                             </SelectItem>
@@ -459,7 +459,7 @@ export function AttendanceReportsComponent() {
                       </Select>
                       <FormMessage />
                       {clientsLoading && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Loading clients...
                         </div>
@@ -496,7 +496,7 @@ export function AttendanceReportsComponent() {
                           {availableMonths.map((month) => (
                             <SelectItem key={month} value={month}>
                               <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-gray-500" />
+                                <Calendar className="w-4 h-4 text-muted-foreground" />
                                 {format(parse(month, "yyyy-MM", new Date()), "MMMM yyyy")}
                               </div>
                             </SelectItem>
@@ -505,13 +505,13 @@ export function AttendanceReportsComponent() {
                       </Select>
                       <FormMessage />
                       {loadingMonths && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Loading available months...
                         </div>
                       )}
                       {form.watch("clientId") && !loadingMonths && availableMonths.length === 0 && (
-                        <p className="text-sm text-gray-500">No attendance data found for this client</p>
+                        <p className="text-sm text-muted-foreground">No attendance data found for this client</p>
                       )}
                     </FormItem>
                   )}
@@ -547,26 +547,26 @@ export function AttendanceReportsComponent() {
       {reportGenerated && reportData && (
         <div className="space-y-6">
           {/* Report Header with Sheet Info */}
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-success/30 bg-success/[0.04]">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-green-800">Report Generated Successfully</h3>
-                  <p className="text-green-700">
+                  <h3 className="text-lg font-semibold text-success">Report Generated Successfully</h3>
+                  <p className="text-foreground">
                     {reportData.client.name} - {getSelectedMonthDisplay()}
                   </p>
                   {reportData.client.address && (
-                    <p className="text-sm text-green-600 mt-1">{reportData.client.address}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{reportData.client.address}</p>
                   )}
                 </div>
-                <CheckCircle2 className="w-8 h-8 text-green-600" />
+                <CheckCircle2 className="w-8 h-8 text-success" />
               </div>
               <div className="mt-4 space-y-3">
                 {/* Attendance Sheet Section */}
                 <div className="flex items-center gap-2">
                   {reportData.attendanceSheet ? (
                     <>
-                      <Badge variant="outline" className="bg-white">
+                      <Badge variant="outline" className="bg-card">
                         <FileText className="h-3 w-3 mr-1" />
                         Sheet attached
                       </Badge>
@@ -596,7 +596,7 @@ export function AttendanceReportsComponent() {
                     </div>
                   ) : excelFile ? (
                     <>
-                      <Badge variant="outline" className="bg-white">
+                      <Badge variant="outline" className="bg-card">
                         <FileSpreadsheet className="h-3 w-3 mr-1" />
                         Excel attached
                       </Badge>
@@ -623,10 +623,10 @@ export function AttendanceReportsComponent() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Total Employees</p>
-                      <p className="text-2xl font-bold text-blue-600">{reportData.totals.totalEmployees}</p>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total Employees</p>
+                      <p className="font-display text-2xl font-bold tabular-nums text-brand">{reportData.totals.totalEmployees}</p>
                     </div>
-                    <Users className="w-8 h-8 text-blue-500" />
+                    <Users className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -635,10 +635,10 @@ export function AttendanceReportsComponent() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Minimum Present</p>
-                      <p className="text-2xl font-bold text-orange-600">{reportData.totals.minPresent}</p>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Minimum Present</p>
+                      <p className="font-display text-2xl font-bold tabular-nums">{reportData.totals.minPresent}</p>
                     </div>
-                    <Minus className="w-8 h-8 text-orange-500" />
+                    <Minus className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -647,10 +647,10 @@ export function AttendanceReportsComponent() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Maximum Present</p>
-                      <p className="text-2xl font-bold text-indigo-600">{reportData.totals.maxPresent}</p>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Maximum Present</p>
+                      <p className="font-display text-2xl font-bold tabular-nums">{reportData.totals.maxPresent}</p>
                     </div>
-                    <Maximize2 className="w-8 h-8 text-indigo-500" />
+                    <Maximize2 className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -780,7 +780,7 @@ export function AttendanceReportsComponent() {
             <DialogDescription>Attendance sheet document preview</DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
-            <div className="border rounded-md overflow-hidden bg-white">
+            <div className="border rounded-md overflow-hidden bg-card">
               {sheetPreviewType === "loading" ? (
                 <div className="flex items-center justify-center h-[70vh]">
                   <div className="text-center space-y-2">
@@ -795,7 +795,7 @@ export function AttendanceReportsComponent() {
                   key={sheetPreviewUrl}
                 />
               ) : sheetPreviewType === "image" ? (
-                <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                   <img
                     src={sheetPreviewUrl || ""}
                     alt="Attendance Sheet"

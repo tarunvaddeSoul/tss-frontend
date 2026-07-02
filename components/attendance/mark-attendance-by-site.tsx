@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -55,6 +54,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { PageHeader } from "@/components/layout/page-header"
 
 import { attendanceService } from "@/services/attendanceService"
 import { getErrorMessage } from "@/services/api"
@@ -112,7 +112,6 @@ interface StepStatus {
   title: string
   description: string
   status: "pending" | "current" | "completed" | "error"
-  icon: React.ReactNode
   validation?: string[]
 }
 
@@ -233,7 +232,6 @@ export function MarkAttendanceBySite() {
       title: "Select Client",
       description: "Choose the client/site",
       status: currentStep === 0 ? "current" : currentStep > 0 ? "completed" : "pending",
-      icon: <Building2 className="h-4 w-4" />,
       validation: ["clientId"],
     },
     {
@@ -241,7 +239,6 @@ export function MarkAttendanceBySite() {
       title: "Select Month",
       description: "Choose attendance month",
       status: currentStep === 1 ? "current" : currentStep > 1 ? "completed" : "pending",
-      icon: <Calendar className="h-4 w-4" />,
       validation: ["month"],
     },
     {
@@ -249,35 +246,30 @@ export function MarkAttendanceBySite() {
       title: "Upload Excel File",
       description: "Upload pre-finalized attendance Excel",
       status: currentStep === 2 ? "current" : currentStep > 2 ? "completed" : "pending",
-      icon: <FileText className="h-4 w-4" />,
     },
     {
       step: 3,
       title: "Mark Attendance",
       description: "Select employees and mark attendance",
       status: currentStep === 3 ? "current" : currentStep > 3 ? "completed" : "pending",
-      icon: <Users className="h-4 w-4" />,
     },
     {
       step: 4,
       title: "Upload File (Optional)",
       description: "Upload attendance sheet if available",
       status: currentStep === 4 ? "current" : currentStep > 4 ? "completed" : "pending",
-      icon: <Upload className="h-4 w-4" />,
     },
     {
       step: 5,
       title: "Review & Submit",
       description: "Review and submit attendance",
       status: currentStep === 5 ? "current" : currentStep > 5 ? "completed" : "pending",
-      icon: <CheckCircle2 className="h-4 w-4" />,
     },
     {
       step: 6,
       title: "Success",
       description: "Attendance submitted successfully",
       status: currentStep === 6 ? "current" : "pending",
-      icon: <Check className="h-4 w-4" />,
     },
   ]
 
@@ -1477,20 +1469,19 @@ export function MarkAttendanceBySite() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Mark Attendance by Site</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Mark attendance for employees at specific client locations with our streamlined process
-        </p>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Mark Attendance by Site"
+        description="Mark attendance for employees at a client site, step by step."
+      />
 
       {/* Submission Status Alert */}
       {isSubmitted && submissionResult && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-800">Attendance Successfully Submitted</AlertTitle>
-          <AlertDescription className="text-green-700">
+        <Alert variant="success">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertTitle>Attendance Successfully Submitted</AlertTitle>
+          <AlertDescription>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
@@ -1522,7 +1513,7 @@ export function MarkAttendanceBySite() {
                   <Button
                     variant="link"
                     size="sm"
-                    className="h-auto p-0 text-blue-600 ml-1"
+                    className="h-auto p-0 ml-1"
                     onClick={async () => {
                       if (!sheetUrl) return
                       setPreviewUrl(sheetUrl)
@@ -1587,7 +1578,7 @@ export function MarkAttendanceBySite() {
                 </span>
               ) : (
                 <span className="text-muted-foreground">
-                  No sheet attached for this month. <a href="/attendance/upload" className="text-blue-600">Upload now</a>
+                  No sheet attached for this month. <a href="/attendance/upload" className="text-info underline-offset-4 hover:underline">Upload now</a>
                 </span>
               )}
             </div>
@@ -1601,10 +1592,10 @@ export function MarkAttendanceBySite() {
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="text-lg md:text-xl font-semibold flex items-center gap-3">
-              <Clock className="h-5 w-5 text-primary" />
+              <Clock className="h-5 w-5 text-muted-foreground" />
               Progress Tracker
             </CardTitle>
-            <Badge variant="outline" className="text-sm px-3 py-1 w-fit">
+            <Badge variant="outline" className="w-fit">
               {Math.round(progress)}% Complete
             </Badge>
           </div>
@@ -1616,52 +1607,43 @@ export function MarkAttendanceBySite() {
       <Card>
         <CardContent className="pt-6">
           {/* Desktop Stepper */}
-          <div className="hidden lg:block">
-            <div className="flex items-center justify-between mb-6">
-              {steps.map((step, index) => (
-                <div key={step.step} className="flex items-center flex-1">
-                  <div
-                    className={cn(
-                      "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300",
-                      step.status === "completed"
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : step.status === "current"
-                          ? "border-primary text-primary bg-primary/10"
-                          : "border-muted-foreground/30 text-muted-foreground",
-                    )}
-                  >
-                    {step.status === "completed" ? <Check className="h-4 w-4" /> : step.icon}
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div
-                      className={cn(
-                        "flex-1 h-0.5 mx-4 transition-all duration-300",
-                        step.status === "completed" ? "bg-primary" : "bg-muted",
-                      )}
-                    />
+          <div className="hidden lg:grid grid-cols-7 gap-3">
+            {steps.map((step) => (
+              <div
+                key={step.step}
+                className={cn(
+                  "border-t-2 pt-3 text-center transition-colors duration-150",
+                  step.status === "completed"
+                    ? "border-t-success"
+                    : step.status === "current"
+                      ? "border-t-brand"
+                      : "border-t-border",
+                )}
+              >
+                <p
+                  className={cn(
+                    "mb-1 flex items-center justify-center gap-1 font-mono text-[11px] font-semibold tracking-[0.14em]",
+                    step.status === "completed"
+                      ? "text-success"
+                      : step.status === "current"
+                        ? "text-brand"
+                        : "text-muted-foreground",
                   )}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {steps.map((step) => (
-                <div key={step.step} className="text-center">
-                  <p
-                    className={cn(
-                      "text-xs font-medium mb-1",
-                      step.status === "current"
-                        ? "text-primary"
-                        : step.status === "completed"
-                          ? "text-primary"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    {step.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{step.description}</p>
-                </div>
-              ))}
-            </div>
+                >
+                  {step.status === "completed" && <Check className="h-3 w-3" />}
+                  {String(step.step + 1).padStart(2, "0")}
+                </p>
+                <p
+                  className={cn(
+                    "text-xs font-medium mb-1",
+                    step.status === "pending" ? "text-muted-foreground" : "text-foreground",
+                  )}
+                >
+                  {step.title}
+                </p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{step.description}</p>
+              </div>
+            ))}
           </div>
 
           {/* Mobile/Tablet Stepper */}
@@ -1672,21 +1654,21 @@ export function MarkAttendanceBySite() {
                   <div
                     key={step.step}
                     className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300",
+                      "flex h-8 w-8 items-center justify-center rounded-sm border font-mono text-[11px] font-semibold transition-colors duration-150",
                       step.status === "completed"
-                        ? "bg-primary text-primary-foreground"
+                        ? "border-success/40 bg-success/10 text-success"
                         : step.status === "current"
-                          ? "border-2 border-primary text-primary bg-primary/10"
-                          : "border border-muted-foreground/30 text-muted-foreground",
+                          ? "border-brand/40 bg-brand/10 text-brand"
+                          : "border-border text-muted-foreground",
                     )}
                   >
-                    {step.status === "completed" ? <Check className="h-3 w-3" /> : index + 1}
+                    {step.status === "completed" ? <Check className="h-3 w-3" /> : String(index + 1).padStart(2, "0")}
                   </div>
                 ))}
               </div>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-primary">{steps[currentStep]?.title}</p>
+              <p className="text-sm font-medium text-brand">{steps[currentStep]?.title}</p>
               <p className="text-xs text-muted-foreground">{steps[currentStep]?.description}</p>
             </div>
           </div>
@@ -1853,7 +1835,7 @@ export function MarkAttendanceBySite() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Template Download Section */}
-                <div className="border rounded-lg p-4 bg-muted/30">
+                <div className="border rounded-md p-4 bg-surface">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-1">
                       <h4 className="font-medium flex items-center gap-2">
@@ -1884,10 +1866,10 @@ export function MarkAttendanceBySite() {
                     <AlertTitle>Checking for existing Excel file...</AlertTitle>
                   </Alert>
                 ) : existingExcelFile ? (
-                  <Alert className="border-blue-200 bg-blue-50">
-                    <Info className="h-4 w-4 text-blue-600" />
-                    <AlertTitle className="text-blue-800">Excel File Already Uploaded</AlertTitle>
-                    <AlertDescription className="text-blue-700">
+                  <Alert variant="info">
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Excel File Already Uploaded</AlertTitle>
+                    <AlertDescription>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <span>
                           An Excel file has already been uploaded for this client and month. Uploading a new file will
@@ -1961,10 +1943,10 @@ export function MarkAttendanceBySite() {
                   )}
 
                   {excelValidationWarnings.length > 0 && (
-                    <Alert className="border-amber-200 bg-amber-50">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      <AlertTitle className="text-amber-800">Some rows were skipped</AlertTitle>
-                      <AlertDescription className="text-amber-700">
+                    <Alert variant="warning">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Some rows were skipped</AlertTitle>
+                      <AlertDescription>
                         <p className="text-sm">The matched employees were loaded. Please review these before continuing:</p>
                         <ul className="list-disc list-inside space-y-1 mt-2">
                           {excelValidationWarnings.map((warning, index) => (
@@ -1978,10 +1960,10 @@ export function MarkAttendanceBySite() {
                   )}
 
                   {excelParsed && excelFile && (
-                    <Alert className="border-green-200 bg-green-50">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      <AlertTitle className="text-green-800">Excel File Processed Successfully</AlertTitle>
-                      <AlertDescription className="text-green-700">
+                    <Alert variant="success">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertTitle>Excel File Processed Successfully</AlertTitle>
+                      <AlertDescription>
                         {excelUploading ? (
                           "Uploading Excel file to server..."
                         ) : existingExcelFile ? (
@@ -2048,17 +2030,17 @@ export function MarkAttendanceBySite() {
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-4">
-                      <Card className="border-blue-200 bg-blue-50/30">
+                      <Card>
                         <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-blue-900">
+                          <CardTitle className="text-sm font-medium">
                             Attendance Already Marked
                           </CardTitle>
-                          <CardDescription className="text-xs text-blue-700">
+                          <CardDescription className="text-xs">
                             The following employees already have attendance marked for this month. You can update their attendance below.
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <div className="border rounded-lg overflow-x-auto scrollbar-sleek">
+                          <div className="rounded-md border overflow-x-auto scrollbar-sleek">
                             <Table className="min-w-[500px]">
                               <TableHeader>
                                 <TableRow>
@@ -2071,17 +2053,17 @@ export function MarkAttendanceBySite() {
                               <TableBody>
                                 {existingAttendanceRecords.map((record) => {
                                   return (
-                                    <TableRow key={record.employeeId} className="bg-blue-50/50">
+                                    <TableRow key={record.employeeId} className="bg-info/5">
                                       <TableCell>
                                         <div>
                                           <p className="font-medium">{record.employeeName}</p>
-                                          <p className="text-xs text-muted-foreground">{record.employeeId}</p>
+                                          <p className="font-mono text-xs text-muted-foreground">{record.employeeId}</p>
                                         </div>
                                       </TableCell>
                                       <TableCell>{record.department || "N/A"}</TableCell>
                                       <TableCell>{record.designation || "N/A"}</TableCell>
                                       <TableCell className="text-center">
-                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                                        <Badge variant="info">
                                           {record.presentCount} day{record.presentCount !== 1 ? "s" : ""}
                                         </Badge>
                                       </TableCell>
@@ -2138,9 +2120,9 @@ export function MarkAttendanceBySite() {
                           <div
                             key={employee.id}
                             className={cn(
-                              "border rounded-lg p-4 space-y-3",
+                              "border rounded-md p-4 space-y-3",
                               employeeData?.selected && "bg-muted/50",
-                              hasExistingAttendance && "bg-blue-50/50 border-l-2 border-l-blue-500",
+                              hasExistingAttendance && "bg-info/5 border-l-2 border-l-info",
                             )}
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -2155,14 +2137,14 @@ export function MarkAttendanceBySite() {
                                   <p className="font-medium">
                                     {employee.firstName} {employee.lastName}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">{employee.id}</p>
+                                  <p className="font-mono text-xs text-muted-foreground">{employee.id}</p>
                                   <p className="text-xs text-muted-foreground mt-1">
                                     {displayInfo.designation} · {displayInfo.department}
                                   </p>
                                 </div>
                               </div>
                               {hasExistingAttendance && (
-                                <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                                <Badge variant="info">
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   Marked
                                 </Badge>
@@ -2186,7 +2168,7 @@ export function MarkAttendanceBySite() {
                                   }
                                 }}
                                 disabled={isSubmitted}
-                                className="w-24"
+                                className="w-24 font-mono text-[13px] tabular-nums"
                                 placeholder="0"
                               />
                             </div>
@@ -2196,7 +2178,7 @@ export function MarkAttendanceBySite() {
                     </div>
 
                     {/* Desktop: table */}
-                    <div className="hidden md:block border rounded-lg overflow-x-auto">
+                    <div className="hidden md:block rounded-md border overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2221,7 +2203,7 @@ export function MarkAttendanceBySite() {
                                 key={employee.id}
                                 className={cn(
                                   employeeData?.selected && "bg-muted/50",
-                                  hasExistingAttendance && "bg-blue-50/50 border-l-2 border-l-blue-500"
+                                  hasExistingAttendance && "bg-info/5 border-l-2 border-l-info"
                                 )}
                               >
                                 <TableCell>
@@ -2237,13 +2219,13 @@ export function MarkAttendanceBySite() {
                                       <p className="font-medium">
                                         {employee.firstName} {employee.lastName}
                                       </p>
-                                      <p className="text-sm text-muted-foreground">{employee.id}</p>
+                                      <p className="font-mono text-[13px] text-muted-foreground">{employee.id}</p>
                                     </div>
                                     {hasExistingAttendance && (
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger>
-                                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                                            <Badge variant="info">
                                               <CheckCircle2 className="h-3 w-3 mr-1" />
                                               Marked
                                             </Badge>
@@ -2276,7 +2258,7 @@ export function MarkAttendanceBySite() {
                                       }
                                     }}
                                     disabled={isSubmitted}
-                                    className="w-20"
+                                    className="w-20 font-mono text-[13px] tabular-nums"
                                     placeholder="0"
                                   />
                                 </TableCell>
@@ -2423,12 +2405,12 @@ export function MarkAttendanceBySite() {
 
                 <div className="space-y-4">
                   <h4 className="font-medium">Selected Employees Summary</h4>
-                  <div className="border rounded-lg overflow-x-auto">
+                  <div className="rounded-md border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Employee</TableHead>
-                          <TableHead>Present Days</TableHead>
+                          <TableHead className="text-right">Present Days</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2438,10 +2420,10 @@ export function MarkAttendanceBySite() {
                             const employee = employees.find((e) => e.id === emp.employeeId)
                             return (
                               <TableRow key={emp.employeeId}>
-                                <TableCell>
+                                <TableCell className="font-medium">
                                   {employee?.firstName} {employee?.lastName}
                                 </TableCell>
-                                <TableCell>{emp.presentCount}</TableCell>
+                                <TableCell className="text-right font-mono text-[13px]">{emp.presentCount}</TableCell>
                               </TableRow>
                             )
                           })}
@@ -2466,7 +2448,7 @@ export function MarkAttendanceBySite() {
           {currentStep < 6 && (
             <div className="sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t p-4 -mx-4">
               <Card>
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 pb-4">
                   <div className="flex flex-col sm:flex-row justify-between gap-4">
                     <Button
                       type="button"
@@ -2517,6 +2499,7 @@ export function MarkAttendanceBySite() {
                       ) : currentStep === 5 ? (
                         <Button
                           type="submit"
+                          variant="brand"
                           disabled={submitting || selectedEmployees.size === 0 || isSubmitted}
                           className="w-full sm:w-auto"
                         >
@@ -2537,25 +2520,25 @@ export function MarkAttendanceBySite() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-6">
-                  <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-                    <CheckCircle2 className="h-10 w-10 text-primary" />
+                  <div className="mx-auto w-20 h-20 bg-success/10 border border-success/40 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="h-10 w-10 text-success" />
                   </div>
                   <div className="space-y-3">
-                    <h3 className="text-2xl font-semibold">Attendance Marked Successfully!</h3>
+                    <h3 className="font-display text-2xl font-semibold tracking-[-0.02em]">Attendance Marked Successfully!</h3>
                     <p className="text-muted-foreground max-w-md mx-auto">
                       The attendance has been recorded for {selectedEmployees.size} employees at {selectedClient?.name}{" "}
                       for {selectedMonth && format(selectedMonth, "MMMM yyyy")}.
                     </p>
                     {submissionResult && (
-                      <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+                      <div className="bg-surface rounded-md border p-4 text-sm space-y-2">
                         <div className="font-medium">Submission Details:</div>
                         <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                          <CheckCircle2 className="h-4 w-4 text-success" />
                           {submissionResult.created} employees processed successfully
                         </div>
                         {submissionResult.fileUploaded && (
                           <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-primary" />
+                            <FileText className="h-4 w-4 text-success" />
                             Attendance file uploaded
                           </div>
                         )}
@@ -2592,10 +2575,10 @@ export function MarkAttendanceBySite() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="border rounded-lg p-4 bg-muted/30">
+            <div className="border rounded-md p-4 bg-surface">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <FileText className="h-8 w-8 text-blue-600" />
+                <div className="p-3 bg-card border rounded-md">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">Pre-finalized Attendance Excel File</p>
@@ -2736,7 +2719,7 @@ export function MarkAttendanceBySite() {
           <DialogDescription>Attendance sheet document preview</DialogDescription>
         </DialogHeader>
         <div className="px-6 pb-6">
-          <div className="border rounded-md overflow-hidden bg-white">
+          <div className="border rounded-md overflow-hidden bg-card">
             {previewType === "loading" ? (
               <div className="flex items-center justify-center h-[70vh]">
                 <div className="text-center space-y-2">
@@ -2755,7 +2738,7 @@ export function MarkAttendanceBySite() {
                 }}
               />
             ) : previewType === "image" ? (
-              <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+              <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                 <img
                   src={previewUrl || ""}
                   alt="Attendance Sheet"

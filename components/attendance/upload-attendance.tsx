@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 
+import { PageHeader } from "@/components/layout/page-header"
 import { useClient } from "@/hooks/use-client"
 import { attendanceSheetService } from "@/services/attendanceSheetService"
 import { attendanceService } from "@/services/attendanceService"
@@ -473,16 +474,16 @@ export function UploadAttendanceComponent() {
     const extension = file.name.split(".").pop()?.toLowerCase()
     switch (extension) {
       case "pdf":
-        return <FileText className="h-8 w-8 text-red-500" />
+        return <FileText className="h-8 w-8 text-muted-foreground" />
       case "jpg":
       case "jpeg":
       case "png":
       case "gif":
       case "webp":
-        return <ImageIcon className="h-8 w-8 text-blue-500" />
+        return <ImageIcon className="h-8 w-8 text-info" />
       case "xlsx":
       case "xls":
-        return <FileSpreadsheet className="h-8 w-8 text-green-500" />
+        return <FileSpreadsheet className="h-8 w-8 text-success" />
       default:
         return <FileText className="h-8 w-8 text-muted-foreground" />
     }
@@ -496,13 +497,12 @@ export function UploadAttendanceComponent() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Upload Attendance Files</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Upload attendance sheets (PDF/images) and Excel files (XLSX/XLS) for a client and month
-        </p>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Upload Attendance Files"
+        description="Upload attendance sheets (PDF/images) and Excel files (XLSX/XLS) for a client and month."
+      />
 
       <Form {...form}>
         <form className="space-y-6">
@@ -588,7 +588,7 @@ export function UploadAttendanceComponent() {
               </CardDescription>
                   </div>
                   {existingSheetUrl && (
-                    <Badge variant="secondary" className="text-sm">
+                    <Badge variant="success">
                       Sheet Available
                     </Badge>
                   )}
@@ -601,13 +601,13 @@ export function UploadAttendanceComponent() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : existingSheetUrl ? (
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-surface rounded-md border">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-background rounded-md">
+                      <div className="p-2 bg-card border rounded-md">
                         {previewIsPDF ? (
-                          <FileText className="h-5 w-5 text-red-500" />
+                          <FileText className="h-5 w-5 text-muted-foreground" />
                         ) : (
-                          <FileText className="h-5 w-5 text-blue-500" />
+                          <FileText className="h-5 w-5 text-info" />
                         )}
                       </div>
                       <div>
@@ -646,9 +646,9 @@ export function UploadAttendanceComponent() {
                 {/* Sheet Upload */}
                 <div
                   className={cn(
-                    "relative border-2 border-dashed rounded-lg transition-all duration-200",
+                    "relative border-2 border-dashed rounded-md transition-colors duration-200",
                     sheetDragActive
-                      ? "border-primary bg-primary/5 scale-[1.02]"
+                      ? "border-primary bg-primary/5"
                       : "border-muted-foreground/25 hover:border-primary/50",
                     selectedSheetFile && "border-primary bg-primary/5",
                   )}
@@ -782,7 +782,7 @@ export function UploadAttendanceComponent() {
                     </CardDescription>
                   </div>
                   {existingExcelUrl && (
-                    <Badge variant="secondary" className="text-sm">
+                    <Badge variant="success">
                       Excel Available
                     </Badge>
                   )}
@@ -795,10 +795,10 @@ export function UploadAttendanceComponent() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : existingExcelUrl ? (
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-surface rounded-md border">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-background rounded-md">
-                        <FileSpreadsheet className="h-5 w-5 text-green-500" />
+                      <div className="p-2 bg-card border rounded-md">
+                        <FileSpreadsheet className="h-5 w-5 text-success" />
                       </div>
                       <div>
                         <p className="font-medium">Attendance Excel File</p>
@@ -866,9 +866,9 @@ export function UploadAttendanceComponent() {
                 {/* Excel Upload */}
                 <div
                   className={cn(
-                    "relative border-2 border-dashed rounded-lg transition-all duration-200",
+                    "relative border-2 border-dashed rounded-md transition-colors duration-200",
                     excelDragActive
-                      ? "border-primary bg-primary/5 scale-[1.02]"
+                      ? "border-primary bg-primary/5"
                       : "border-muted-foreground/25 hover:border-primary/50",
                     selectedExcelFile && "border-primary bg-primary/5",
                   )}
@@ -985,14 +985,14 @@ export function UploadAttendanceComponent() {
                 </Alert>
 
                 {importResult && (
-                  <div className="rounded-lg border p-4 space-y-3">
+                  <div className="rounded-md border p-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <CheckCircle2 className="h-5 w-5 text-success" />
                       <p className="font-medium">Import summary</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary">Total rows: {importResult.totalRows}</Badge>
-                      <Badge className="bg-green-600 hover:bg-green-600">Saved: {importResult.imported}</Badge>
+                      <Badge variant="success">Saved: {importResult.imported}</Badge>
                       {importResult.skipped > 0 && (
                         <Badge variant="destructive">Skipped: {importResult.skipped}</Badge>
                       )}
@@ -1004,7 +1004,7 @@ export function UploadAttendanceComponent() {
                           {importResult.errors.map((e, i) => (
                             <div key={i} className="flex items-start gap-3 px-3 py-2 text-sm">
                               <span className="text-muted-foreground w-16 shrink-0">Row {e.row}</span>
-                              <span className="font-mono w-28 shrink-0">{e.employeeId || "-"}</span>
+                              <span className="font-mono text-[13px] w-28 shrink-0">{e.employeeId || "-"}</span>
                               <span className="text-muted-foreground">{e.reason}</span>
                             </div>
                           ))}
@@ -1083,7 +1083,7 @@ export function UploadAttendanceComponent() {
             <DialogDescription>Attendance sheet document preview</DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
-            <div className="border rounded-md overflow-hidden bg-white">
+            <div className="border rounded-md overflow-hidden bg-card">
               {previewType === "loading" ? (
                 <div className="flex items-center justify-center h-[70vh]">
                   <div className="text-center space-y-2">
@@ -1101,7 +1101,7 @@ export function UploadAttendanceComponent() {
                   }}
                 />
               ) : previewType === "image" ? (
-                <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                   <img
                     src={previewUrl || ""}
                     alt="Attendance Sheet"

@@ -117,6 +117,22 @@ api.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${response.data.tokens.accessToken}`
           }
           return axios(originalRequest)
+        } else {
+          // No refresh token: reset the flag and flush the queue, otherwise every
+          // subsequent request stays wedged behind isRefreshing forever.
+          isRefreshing = false
+          const noTokenError = new Error("Session expired. Please sign in again.")
+          flushQueue(noTokenError, null)
+          clearTokens()
+          toast({
+            title: "Authentication Failed",
+            description: noTokenError.message,
+            variant: "destructive",
+          })
+          setTimeout(() => {
+            window.location.href = "/login"
+          }, 1000)
+          return Promise.reject(noTokenError)
         }
       } catch (refreshError) {
         isRefreshing = false
@@ -152,14 +168,28 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
     
-    // Handle 401 errors (only if not an auth request)
+    // A 401 that reached here already went through the refresh path (originalRequest._retry)
+    // and still failed. Clear the session and send the user to login rather than rejecting silently.
     if (error.response?.status === 401 && !isAuthRequest && !isRefreshRequest) {
-      // Don't show toast or redirect for auth errors, just reject
+      clearTokens()
+      toast({
+        title: "Authentication Failed",
+        description: "Your session has ended. Please sign in again.",
+        variant: "destructive",
+      })
+      setTimeout(() => {
+        window.location.href = "/login"
+      }, 1000)
       return Promise.reject(error)
     }
     
+    // Callers that treat some statuses as expected (e.g. a 404 meaning "no payroll yet")
+    // set skipErrorToast on the request so the global handler stays quiet and they can
+    // handle it inline.
+    const skipErrorToast = (error.config as { skipErrorToast?: boolean } | undefined)?.skipErrorToast === true
+
     // Handle 400/422 validation errors
-    if (error.response?.status === 400 || error.response?.status === 422) {
+    if (!skipErrorToast && (error.response?.status === 400 || error.response?.status === 422)) {
       toast({
         title: "Could not save",
         description: getErrorMessage(error),
@@ -167,7 +197,7 @@ api.interceptors.response.use(
       })
     }
     // Handle 403 Forbidden errors (insufficient permissions)
-    if (error.response?.status === 403) {
+    if (!skipErrorToast && error.response?.status === 403) {
       toast({
         title: "Access Denied",
         description: getErrorMessage(error),
@@ -175,7 +205,7 @@ api.interceptors.response.use(
       })
     }
     // Handle 404 Not Found errors
-    if (error.response?.status === 404) {
+    if (!skipErrorToast && error.response?.status === 404) {
       toast({
         title: "Not Found",
         description: getErrorMessage(error),
@@ -183,7 +213,7 @@ api.interceptors.response.use(
       })
     }
     // Handle 500 Internal Server Error
-    if (error.response?.status === 500) {
+    if (!skipErrorToast && error.response?.status === 500) {
       toast({
         title: "Server Error",
         description: getErrorMessage(error),

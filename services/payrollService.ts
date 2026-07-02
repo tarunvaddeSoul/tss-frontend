@@ -52,7 +52,8 @@ export const payrollService = {
   async getPayrollByMonth(clientId: string, payrollMonth: string): Promise<PayrollByMonthData | null> {
     try {
       const response = await api.get<PayrollByMonthResponse>(
-        `${PAYROLL_ENDPOINT}/by-month/${clientId}/${payrollMonth}`
+        `${PAYROLL_ENDPOINT}/by-month/${clientId}/${payrollMonth}`,
+        { skipErrorToast: true } as Parameters<typeof api.get>[1],
       )
       return response.data.data
     } catch (error: any) {

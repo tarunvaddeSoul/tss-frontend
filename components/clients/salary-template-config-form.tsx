@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Plus, Save, Trash2, Edit, Info, AlertCircle, X, Check, ChevronDown } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -170,6 +170,34 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
   const [newOption, setNewOption] = useState("")
   const [validationError, setValidationError] = useState<Error | null>(null)
   const [mandatoryFieldErrors, setMandatoryFieldErrors] = useState<string[]>([])
+
+  // Keep the parent config in sync with every edit so changes are never lost if the
+  // client is saved without pressing "Apply to preview", and pull in external edits
+  // (e.g. the quick toggles above) without clobbering local work. JSON equality guards
+  // against a re-render ping-pong between the two effects.
+  const skipFirstEmit = useRef(true)
+  useEffect(() => {
+    if (skipFirstEmit.current) {
+      skipFirstEmit.current = false
+      return
+    }
+    onSave(config)
+    // onSave identity is stable enough for this controlled buffer; config drives the emit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config])
+
+  useEffect(() => {
+    if (!initialConfig) return
+    const incoming = {
+      mandatoryFields: Array.isArray(initialConfig.mandatoryFields) ? initialConfig.mandatoryFields : config.mandatoryFields,
+      optionalFields: Array.isArray(initialConfig.optionalFields) ? initialConfig.optionalFields : config.optionalFields,
+      customFields: Array.isArray(initialConfig.customFields) ? initialConfig.customFields : config.customFields,
+    }
+    if (JSON.stringify(incoming) !== JSON.stringify(config)) {
+      setConfig(incoming)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConfig])
 
   // Form for custom fields
   const customFieldForm = useForm<CustomFieldFormValues>({
@@ -1543,14 +1571,14 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
 
               onSave(config)
               toast({
-                title: "Applied",
-                description: "Salary template fields applied to the preview. Save the client to store them.",
+                title: "Fields valid",
+                description: "Salary template fields check out. They save with the client.",
               })
             }}
             disabled={isLoading}
           >
-            <Save className="mr-2 h-4 w-4" />
-            {isLoading ? "Applying..." : "Apply to preview"}
+            <Check className="mr-2 h-4 w-4" />
+            {isLoading ? "Checking..." : "Validate fields"}
           </Button>
         </CardFooter>
       </Card>

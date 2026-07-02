@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { AlertTriangle, XCircle, Loader2, Users } from "lucide-react"
 
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -43,6 +44,7 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [employeeCount, setEmployeeCount] = useState<number | null>(null)
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
+  const [countError, setCountError] = useState(false)
 
   // Fetch employee count when dialog opens
   useEffect(() => {
@@ -50,10 +52,13 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
       const fetchEmployeeCount = async () => {
         try {
           setIsLoadingEmployees(true)
+          setCountError(false)
           const response = await clientService.getClientEmployees(client.id!)
           setEmployeeCount(response.data?.length || 0)
         } catch (error) {
           console.error("Error fetching employees:", error)
+          setEmployeeCount(null)
+          setCountError(true)
         } finally {
           setIsLoadingEmployees(false)
         }
@@ -162,7 +167,9 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
                     <Users className="h-4 w-4" />
                     Employees
                   </span>
-                  <span className="font-mono text-[13px]">{employeeCount ?? "N/A"}</span>
+                  <span className={cn("font-mono text-[13px]", countError && "text-destructive")}>
+                    {countError ? "Couldn't load" : employeeCount ?? "N/A"}
+                  </span>
                 </div>
               )}
             </div>

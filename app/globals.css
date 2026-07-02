@@ -63,6 +63,48 @@
     --secondary-light: 240 2% 37%;
   }
 
+  /* Ledger: the portal's signature surface. Old ledger books are green;
+     this is that cloth as a UI ground. Light-family theme, AA-verified. */
+  .ledger {
+    --background: 94 16% 92%;
+    --foreground: 96 8% 12%;
+    --card: 90 25% 97%;
+    --card-foreground: 96 8% 12%;
+    --popover: 90 25% 97%;
+    --popover-foreground: 96 8% 12%;
+    --surface: 90 18% 87%;
+    --muted: 90 18% 87%;
+    --muted-foreground: 104 7% 32%;
+
+    --primary: 96 8% 12%;
+    --primary-foreground: 90 25% 97%;
+    --secondary: 88 18% 86%;
+    --secondary-foreground: 96 8% 12%;
+    --accent: 88 21% 88%;
+    --accent-foreground: 96 8% 12%;
+
+    --brand: 358 71% 39%;
+    --brand-foreground: 0 0% 100%;
+
+    --info: 209 44% 32%;
+    --info-foreground: 0 0% 100%;
+
+    --success: 149 64% 25%;
+    --success-foreground: 0 0% 100%;
+    --warning: 39 100% 25%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 358 71% 39%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 94 14% 80%;
+    --input: 101 7% 44%;
+    --ring: 358 71% 39%;
+
+    --primary-dark: 358 69% 33%;
+    --primary-light: 358 61% 57%;
+    --secondary-light: 240 2% 37%;
+  }
+
   .dark {
     /* Night watch */
     --background: 240 5% 8%;

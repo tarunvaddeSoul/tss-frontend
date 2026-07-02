@@ -26,6 +26,10 @@ Palette chosen from the business: the exact logo red (#B42025), ink and paper of
 
 bg `#141416`, card `#1B1B1E`, fg `#EDEDEB` (15.7:1), muted `#9C9CA3` (6.7:1), red accent text `#DD5A60` (5.0:1), red fill `#C0393E` (white 5.4:1), navy `#7FA6C9` (7.2:1), success `#4CAF6E`, warning `#D99A2B`, input border `#6A6A72` (3.4:1), hairline `#26262A`.
 
+### Ledger (the portal's signature surface)
+
+Inside the portal a third theme, **Ledger**, is the default: a soft green-gray ground (`#E9EDE6` bg, `#F7F9F5` cards, `#1D201B` ink, brand deepened to `#A81D22` for the tinted ground, all pairs AA-verified). The story is literal: ledger books are green, and this portal is the company's ledger. Red stamps read like wax seals on ledger cloth. The public landing stays paper (forced light); Paper and Night remain selectable. The theme picker is not a sun/moon toggle but three paper swatches (Paper, Ledger, Night), each showing its own ground with an ink drop, active one ringed in brand red.
+
 **Light is the primary expression** (paper is the brand's material; the portal is used in daylight offices; the landing sells trust to conservative buyers). Dark mode is complete and first-class, not an afterthought.
 
 Rules:

@@ -42,7 +42,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <body className={`font-sans ${publicSans.variable} ${archivo.variable} ${plexMono.variable}`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          themes={["light", "ledger", "dark"]}
+          defaultTheme="ledger"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
           {children}
           <Toaster />
           <SonnerToaster position="top-right" richColors closeButton />

@@ -31,9 +31,10 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-import { useCompany } from "@/hooks/use-company"
+import { useClient } from "@/hooks/use-client"
 import { attendanceService } from "@/services/attendanceService"
-import type { Company } from "@/types/company"
+import { getErrorMessage } from "@/services/api"
+import type { Client } from "@/types/client"
 import type { AttendanceReportResponse } from "@/types/attendance"
 import dynamic from "next/dynamic"
 import {
@@ -63,7 +64,7 @@ const DynamicPdfPreviewDialog = dynamic(
 
 // Form validation schema
 const reportsSchema = z.object({
-  companyId: z.string().min(1, "Please select a company"),
+  clientId: z.string().min(1, "Please select a client"),
   month: z.string().min(1, "Please select a month"),
 })
 
@@ -83,37 +84,37 @@ export function AttendanceReportsComponent() {
   const [loadingExcel, setLoadingExcel] = useState(false)
 
   const { toast } = useToast()
-  const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
+  const { data, isLoading: clientsLoading, fetchClients } = useClient()
 
   useEffect(() => {
-    fetchCompanies()
+    fetchClients()
   }, [])
 
   const form = useForm<ReportsFormValues>({
     resolver: zodResolver(reportsSchema),
     defaultValues: {
-      companyId: "",
+      clientId: "",
       month: "",
     },
   })
 
-  const companies: Company[] = data?.companies || []
+  const clients: Client[] = data?.clients || []
 
-  // Fetch available months when company is selected
-  const handleCompanyChange = async (companyId: string) => {
-    form.setValue("companyId", companyId)
+  // Fetch available months when client is selected
+  const handleClientChange = async (clientId: string) => {
+    form.setValue("clientId", clientId)
     form.setValue("month", "") // Reset month selection
     setReportGenerated(false)
     setReportData(null)
 
-    if (!companyId) {
+    if (!clientId) {
       setAvailableMonths([])
       return
     }
 
     try {
       setLoadingMonths(true)
-      const response = await attendanceService.getAttendanceByCompanyId(companyId)
+      const response = await attendanceService.getAttendanceByClientId(clientId)
       // Extract unique months from the response
       const months = response.data?.map((record) => record.month) || []
       const uniqueMonths = [...new Set(months)].sort().reverse() // Sort in descending order (newest first)
@@ -122,7 +123,7 @@ export function AttendanceReportsComponent() {
       console.error("Error fetching available months:", error)
       toast({
         title: "Error",
-        description: "Failed to fetch available months for this company.",
+        description: "Failed to fetch available months for this client.",
         variant: "destructive",
       })
       setAvailableMonths([])
@@ -134,46 +135,50 @@ export function AttendanceReportsComponent() {
   const onSubmit = async (data: ReportsFormValues) => {
     try {
       setLoading(true)
-      const response = await attendanceService.getAttendanceReport(data.companyId, data.month)
-      
-      if (response.statusCode === 200 && response.data) {
-        setReportData(response.data)
-        setReportGenerated(true)
-        
-        // Fetch Excel file for this company and month
-        try {
-          setLoadingExcel(true)
-          const excelResponse = await attendanceService.getAttendanceExcelFiles({
-            companyId: data.companyId,
-            month: data.month,
-          })
-          if (excelResponse.data && typeof excelResponse.data === "object" && "attendanceExcelUrl" in excelResponse.data) {
-            setExcelFile({
-              id: excelResponse.data.id,
-              attendanceExcelUrl: excelResponse.data.attendanceExcelUrl,
-            })
-          } else {
-            setExcelFile(null)
-          }
-        } catch (error) {
-          console.error("Error fetching Excel file:", error)
-          setExcelFile(null)
-        } finally {
-          setLoadingExcel(false)
-        }
-        
-        toast({
-          title: "Report Generated",
-          description: `Found ${response.data.records.length} attendance records for ${response.data.company.name} - ${format(parse(response.data.month, "yyyy-MM", new Date()), "MMMM yyyy")}.`,
-        })
-      } else {
-        throw new Error(response.message || "Failed to generate report")
+      const response = await attendanceService.getAttendanceReport(data.clientId, data.month)
+
+      if (!response.data) {
+        throw new Error("Failed to generate report")
       }
+
+      setReportData(response.data)
+      setReportGenerated(true)
+
+      // Fetch Excel file for this client and month
+      try {
+        setLoadingExcel(true)
+        const excelResponse = await attendanceService.getAttendanceExcelFiles({
+          clientId: data.clientId,
+          month: data.month,
+        })
+        if (
+          excelResponse.data &&
+          !Array.isArray(excelResponse.data) &&
+          "attendanceExcelUrl" in excelResponse.data
+        ) {
+          setExcelFile({
+            id: excelResponse.data.id,
+            attendanceExcelUrl: excelResponse.data.attendanceExcelUrl,
+          })
+        } else {
+          setExcelFile(null)
+        }
+      } catch (error) {
+        console.error("Error fetching Excel file:", error)
+        setExcelFile(null)
+      } finally {
+        setLoadingExcel(false)
+      }
+
+      toast({
+        title: "Report Generated",
+        description: `Found ${response.data.records.length} attendance records for ${response.data.client.name} - ${format(parse(response.data.month, "yyyy-MM", new Date()), "MMMM yyyy")}.`,
+      })
     } catch (error: any) {
       console.error("Error generating report:", error)
       toast({
         title: "Error",
-        description: error.message || "Failed to generate report. Please try again.",
+        description: getErrorMessage(error),
         variant: "destructive",
       })
       setReportData(null)
@@ -226,7 +231,7 @@ export function AttendanceReportsComponent() {
       const monthDisplay = reportData?.month
         ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
         : "report"
-      link.setAttribute("download", `attendance-report-${reportData?.company.name || "report"}-${monthDisplay}.csv`)
+      link.setAttribute("download", `attendance-report-${reportData?.client.name || "report"}-${monthDisplay}.csv`)
       link.style.visibility = "hidden"
       document.body.appendChild(link)
       link.click()
@@ -245,8 +250,8 @@ export function AttendanceReportsComponent() {
     setPdfOpen(true)
   }
 
-  const getSelectedCompanyName = () => {
-    return reportData?.company.name || ""
+  const getSelectedClientName = () => {
+    return reportData?.client.name || ""
   }
 
   const getSelectedMonthDisplay = () => {
@@ -347,7 +352,7 @@ export function AttendanceReportsComponent() {
       const monthDisplay = reportData.month
         ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
         : "sheet"
-      const filename = `attendance-sheet-${reportData.company.name}-${monthDisplay}${extension}`
+      const filename = `attendance-sheet-${reportData.client.name}-${monthDisplay}${extension}`
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -383,7 +388,7 @@ export function AttendanceReportsComponent() {
       const monthDisplay = reportData?.month
         ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
         : "excel"
-      const filename = `attendance-excel-${reportData?.company.name || "file"}-${monthDisplay}.xlsx`
+      const filename = `attendance-excel-${reportData?.client.name || "file"}-${monthDisplay}.xlsx`
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -423,7 +428,7 @@ export function AttendanceReportsComponent() {
             <BarChart3 className="w-5 h-5" />
             Generate Report
           </CardTitle>
-          <CardDescription>Select a company and month to generate attendance report</CardDescription>
+          <CardDescription>Select a client and month to generate attendance report</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -431,32 +436,32 @@ export function AttendanceReportsComponent() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="companyId"
+                  name="clientId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company *</FormLabel>
-                      <Select onValueChange={handleCompanyChange} value={field.value} disabled={companiesLoading}>
+                      <FormLabel>Client *</FormLabel>
+                      <Select onValueChange={handleClientChange} value={field.value} disabled={clientsLoading}>
                         <FormControl>
                           <SelectTrigger className="h-12">
-                            <SelectValue placeholder="Select a company" />
+                            <SelectValue placeholder="Select a client" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {companies.map((company) => (
-                            <SelectItem key={company.id} value={company.id ?? ""}>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id ?? ""}>
                               <div className="flex items-center gap-2">
                                 <Building2 className="w-4 h-4 text-gray-500" />
-                                {company.name}
+                                {client.name}
                               </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                      {companiesLoading && (
+                      {clientsLoading && (
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading companies...
+                          Loading clients...
                         </div>
                       )}
                     </FormItem>
@@ -472,14 +477,14 @@ export function AttendanceReportsComponent() {
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
-                        disabled={!form.watch("companyId") || loadingMonths}
+                        disabled={!form.watch("clientId") || loadingMonths}
                       >
                         <FormControl>
                           <SelectTrigger className="h-12">
                             <SelectValue
                               placeholder={
-                                !form.watch("companyId")
-                                  ? "Select company first"
+                                !form.watch("clientId")
+                                  ? "Select client first"
                                   : loadingMonths
                                     ? "Loading months..."
                                     : "Select month"
@@ -505,8 +510,8 @@ export function AttendanceReportsComponent() {
                           Loading available months...
                         </div>
                       )}
-                      {form.watch("companyId") && !loadingMonths && availableMonths.length === 0 && (
-                        <p className="text-sm text-gray-500">No attendance data found for this company</p>
+                      {form.watch("clientId") && !loadingMonths && availableMonths.length === 0 && (
+                        <p className="text-sm text-gray-500">No attendance data found for this client</p>
                       )}
                     </FormItem>
                   )}
@@ -516,7 +521,7 @@ export function AttendanceReportsComponent() {
               <div className="flex justify-center">
                 <Button
                   type="submit"
-                  disabled={loading || !form.watch("companyId") || !form.watch("month")}
+                  disabled={loading || !form.watch("clientId") || !form.watch("month")}
                   size="lg"
                   className="min-w-48"
                 >
@@ -548,10 +553,10 @@ export function AttendanceReportsComponent() {
                 <div>
                   <h3 className="text-lg font-semibold text-green-800">Report Generated Successfully</h3>
                   <p className="text-green-700">
-                    {reportData.company.name} - {getSelectedMonthDisplay()}
+                    {reportData.client.name} - {getSelectedMonthDisplay()}
                   </p>
-                  {reportData.company.address && (
-                    <p className="text-sm text-green-600 mt-1">{reportData.company.address}</p>
+                  {reportData.client.address && (
+                    <p className="text-sm text-green-600 mt-1">{reportData.client.address}</p>
                   )}
                 </div>
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
@@ -717,7 +722,7 @@ export function AttendanceReportsComponent() {
           {reportData.records.length === 0 && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>No attendance records found for the selected company and month.</AlertDescription>
+              <AlertDescription>No attendance records found for the selected client and month.</AlertDescription>
             </Alert>
           )}
         </div>
@@ -728,16 +733,16 @@ export function AttendanceReportsComponent() {
         <DynamicPdfPreviewDialog
           open={pdfOpen}
           onOpenChange={setPdfOpen}
-          title={`${reportData.company.name} - Attendance Report`}
+          title={`${reportData.client.name} - Attendance Report`}
           description={getSelectedMonthDisplay()}
-          fileName={`attendance-report-${reportData.company.name}-${reportData.month}`}
+          fileName={`attendance-report-${reportData.client.name}-${reportData.month}`}
           renderDocument={async () => {
             // Dynamically import the component to ensure it's loaded
             const { default: AttendanceReportPDF } = await import("@/components/pdf/attendance-report-pdf")
             const records = reportData.records.map((r) => ({
               employeeID: r.employeeID,
               employeeName: r.employeeName,
-              companyName: reportData.company.name,
+              clientName: reportData.client.name,
               designationName: r.designationName,
               departmentName: r.departmentName,
               presentCount: r.presentCount,
@@ -745,7 +750,7 @@ export function AttendanceReportsComponent() {
             }))
             return (
               <AttendanceReportPDF
-                title={`${reportData.company.name} Attendance`}
+                title={`${reportData.client.name} Attendance`}
                 month={getSelectedMonthDisplay()}
                 records={records}
               />
@@ -760,7 +765,7 @@ export function AttendanceReportsComponent() {
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle className="flex items-center justify-between">
               <span>
-                Attendance Sheet - {getSelectedCompanyName()} - {getSelectedMonthDisplay()}
+                Attendance Sheet - {getSelectedClientName()} - {getSelectedMonthDisplay()}
               </span>
               <div className="flex gap-2">
                 <Button

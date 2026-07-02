@@ -20,7 +20,8 @@ export const payrollService = {
     try {
       const response = await api.post<CalculatePayrollResponse>(`${PAYROLL_ENDPOINT}/calculate-payroll`, payload, {
         timeout: 120000,
-      })
+        skipErrorToast: true,
+      } as Parameters<typeof api.post>[2])
       return response.data
     } catch (error) {
       throw new Error(getErrorMessage(error))
@@ -31,7 +32,8 @@ export const payrollService = {
     try {
       const response = await api.post<FinalizePayrollResponse>(`${PAYROLL_ENDPOINT}/finalize`, payload, {
         timeout: 120000,
-      })
+        skipErrorToast: true,
+      } as Parameters<typeof api.post>[2])
       return response.data
     } catch (error) {
       throw new Error(getErrorMessage(error))

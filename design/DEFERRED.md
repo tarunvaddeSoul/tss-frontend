@@ -56,3 +56,27 @@
 - ClientReports and EmployeeReports components (payroll module) are dormant: no route imports them. They were restyled anyway; deciding their fate is a product call.
 - Login button label stays 'Login' to match the 'Login successful' toast wired in hooks/use-auth; renaming the flow end-to-end touches the shared auth hook.
 - Dead code flagged by inventory (components/error-boundary.tsx, components/mode-toggle.tsx, ui sidebar kit, lib/icons.ts, hooks/use-employee.ts, duplicate use-mobile, unused formatDate in lib/utils) left in place per surgical-change rule; a cleanup pass needs an explicit decision.
+
+## E2E functional pass (2026-07-03): fixed vs deferred
+
+### Fixed on this branch (frontend-only)
+- Wizard steps no longer turn green when skipped; each step is validated on leave (employee add/edit).
+- All forms carry `noValidate` so zod drives one consistent styled error message instead of native browser bubbles (previously a rate of ₹0 silently failed with no message).
+- PDF preview dialog now has a visible error state with a Try again button.
+- Advanced salary-template edits persist even if the client is saved without pressing the (now "Validate fields") button; quick toggles and the advanced panel stay in sync.
+- Payroll: calculate button guarded against double-submit; admin-input value of 0 renders instead of blanking; invalid finalized date guarded; calculate/finalize failures show one toast instead of two.
+- Advanced employee search: failures surface an inline error + toast + retry; changing page size no longer fetches with a stale limit.
+- Auth: a missing refresh token no longer wedges every later request; a retried 401 now clears the session and redirects instead of failing silently.
+- Attendance: CSV export escapes embedded quotes; invalid month strings no longer crash the records tables.
+- Expected 404 on the "any payroll this month?" check no longer fires a spurious "Not Found" toast (new `skipErrorToast` request flag).
+
+### Deferred, low severity (frontend, safe to batch later)
+- Add in-flight/disabled guards to a few more buttons: advanced-search Search/Clear, rate-schedule Delete/Deactivate, client Save (rapid double-click), department/designation delete rows.
+- Department/designation rows delete from an icon-only trash button with no confirm dialog and no aria-label; add a confirm + aria-label.
+- salary-slip-preview deduction calc keys "advance" but the default template field key is "advanceTaken", so a sample advance is not reflected in the preview total (preview-only; real payroll uses the backend calc).
+- employee-reports free-text search silently picks the first match when several employees match; show a chooser.
+- attendanceService.checkAttendanceExists returns false on network error, hiding failures.
+
+### Backend bugs found (out of scope, need ems-backend changes)
+- Salary rate schedule update can never clear `effectiveTo`: the service does `effectiveTo = effectiveTo || undefined`, so passing null is dropped by Prisma. Frontend cannot reopen a closed rate via edit; only delete + recreate works.
+- Login endpoint accepts a password the login FORM rejects: the form's zod schema enforces complexity (uppercase/lowercase/digit), so valid legacy credentials like the demo `admin123` fail client-side before any request. Sign-in should only check non-empty; complexity belongs on set/reset.

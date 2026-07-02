@@ -31,6 +31,7 @@ import { PayrollReportResponseData, ReportFilters, ReportType } from "@/types/pa
 import type { Employee } from "@/types/employee"
 import dynamic from "next/dynamic"
 import { format } from "date-fns"
+import { PageHeader } from "@/components/layout/page-header"
 
 // Dynamically import PDF preview dialog to prevent SSR issues
 const DynamicPdfPreviewDialog = dynamic(
@@ -465,13 +466,12 @@ export function PayrollReports() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Payroll Reports</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Generate and download comprehensive payroll reports</p>
-        </div>
-      </div>
+      <PageHeader
+        no="03"
+        eyebrow="Payroll register"
+        title="Payroll Reports"
+        description="Generate and download comprehensive payroll reports"
+      />
 
       {/* Report Type Selection */}
       <Card>
@@ -512,7 +512,7 @@ export function PayrollReports() {
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id ?? ""}>
                           <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-gray-500 shrink-0" />
+                            <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
                             <span className="truncate">{client.name}</span>
                           </div>
                         </SelectItem>
@@ -622,7 +622,7 @@ export function PayrollReports() {
                                       <div className="font-medium truncate">
                                         {employee.firstName} {employee.lastName}
                                       </div>
-                                      <div className="text-xs opacity-80 truncate">
+                                      <div className="font-mono text-xs opacity-80 truncate">
                                         {employee.employeeId || employee.id}
                                       </div>
                                     </div>
@@ -732,31 +732,31 @@ export function PayrollReports() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-6xl w-full">
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold">{summaryStats.totalRecords}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums">{summaryStats.totalRecords}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Records</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(summaryStats.totalGrossSalary)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatCurrency(summaryStats.totalGrossSalary)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Gross Salary</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(summaryStats.totalNetSalary)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate text-brand">{formatCurrency(summaryStats.totalNetSalary)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Net Salary</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(summaryStats.totalDeductions)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatCurrency(summaryStats.totalDeductions)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Deductions</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold">
+                <div className="font-display text-xl sm:text-2xl font-bold nums">
                   {reportType === "client" ? summaryStats.uniqueEmployees : summaryStats.uniqueClients}
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
@@ -907,7 +907,7 @@ export function PayrollReports() {
                         // Helper function to render cell content based on field key
                         const renderCell = (fieldKey: string) => {
                           const isRightAligned = ["basicPay", "grossSalary", "netSalary", "pf", "esic", "totalDeductions", "bonus", "advanceTaken", "lwf"].includes(fieldKey)
-                          const cellClassName = `${isRightAligned ? "text-right whitespace-nowrap" : ""} ${fieldKey === "employeeId" ? "font-medium" : ""} ${fieldKey === "createdAt" ? "text-muted-foreground whitespace-nowrap" : ""}`
+                          const cellClassName = `${isRightAligned ? "text-right whitespace-nowrap font-mono text-[13px]" : ""} ${fieldKey === "employeeId" ? "font-medium" : ""} ${fieldKey === "createdAt" ? "text-muted-foreground whitespace-nowrap font-mono text-[13px]" : ""}`
                           
                           switch (fieldKey) {
                             case "employeeId":
@@ -920,7 +920,7 @@ export function PayrollReports() {
                               )
                             case "client":
                               return (
-                                <TableCell key={fieldKey} className={cellClassName}>
+                                <TableCell key={fieldKey} className={`${cellClassName} font-medium`}>
                                   <span className="truncate max-w-[120px] inline-block">
                                     {record.clientName || information?.clientName || "N/A"}
                                   </span>
@@ -956,17 +956,17 @@ export function PayrollReports() {
                                 <TableCell key={fieldKey} className={cellClassName}>
                                   {isSpecialized && salaryData?.monthlySalary ? (
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
                                       <span className="text-xs text-muted-foreground">/month</span>
                                     </div>
                                   ) : salaryData?.salaryPerDay ? (
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
                                       <span className="text-xs text-muted-foreground">/day</span>
                                     </div>
                                   ) : calculations?.wagesPerDay ?? calculations?.rate ? (
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium">{formatCurrency(calculations?.wagesPerDay ?? calculations?.rate ?? 0)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(calculations?.wagesPerDay ?? calculations?.rate ?? 0)}</span>
                                       <span className="text-xs text-muted-foreground">/day</span>
                                     </div>
                                   ) : (
@@ -1118,8 +1118,8 @@ export function PayrollReports() {
             </>
           ) : (
             <div className="text-center py-12">
-              <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">
+              <p className="registry-eyebrow mb-3">No records on file</p>
+              <h3 className="font-display text-lg font-semibold mb-2">
                 {reportType === "client" && !filters.clientId && "Select a client to generate reports"}
                 {reportType === "employee" && !filters.employeeId && "Select an employee to generate reports"}
                 {((reportType === "client" && filters.clientId) || (reportType === "employee" && filters.employeeId)) &&

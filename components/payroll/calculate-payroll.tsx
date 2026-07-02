@@ -24,6 +24,7 @@ import { label } from "@/lib/labels"
 import { payrollService } from "@/services/payrollService"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { PageHeader } from "@/components/layout/page-header"
 
 const PAYROLL_STEPS: PayrollStep[] = [
     {
@@ -284,18 +285,19 @@ export default function CalculatePayroll() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Calculate Payroll</h1>
-                    <p className="text-muted-foreground">Process monthly payroll for your employees</p>
-                </div>
-                {currentStep > 1 && (
-                    <Button variant="outline" onClick={handleReset}>
-                        Start Over
-                    </Button>
-                )}
-            </div>
+            <PageHeader
+                no="03"
+                eyebrow="Payroll register"
+                title="Calculate Payroll"
+                description="Process monthly payroll for your employees"
+                actions={
+                    currentStep > 1 ? (
+                        <Button variant="outline" onClick={handleReset}>
+                            Start Over
+                        </Button>
+                    ) : undefined
+                }
+            />
 
             {/* Progress Steps */}
             <Card>
@@ -305,29 +307,28 @@ export default function CalculatePayroll() {
                             <div key={step.id} className="flex items-center">
                                 <div className="flex items-center">
                                     <div
-                                        className={`
-                    flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium
-                    ${step.completed
-                                                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                                        className={`flex h-8 w-8 items-center justify-center font-mono text-[13px] font-semibold ${
+                                            step.completed
+                                                ? "text-success"
                                                 : step.current
-                                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                                                    : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                                            }
-                  `}
+                                                    ? "border-b-2 border-brand text-brand"
+                                                    : "text-muted-foreground"
+                                        }`}
                                     >
-                                        {step.completed ? <CheckCircle className="h-4 w-4" /> : step.id}
+                                        {step.completed ? <CheckCircle className="h-4 w-4" /> : String(step.id).padStart(2, "0")}
                                     </div>
                                     <div className="ml-3">
                                         <p
-                                            className={`text-sm font-medium ${step.current ? "text-blue-700 dark:text-blue-300" : "text-gray-900 dark:text-gray-100"
-                                                }`}
+                                            className={`text-sm font-medium ${
+                                                step.current ? "text-brand" : step.completed ? "text-success" : "text-foreground"
+                                            }`}
                                         >
                                             {step.title}
                                         </p>
                                         <p className="text-xs text-muted-foreground">{step.description}</p>
                                     </div>
                                 </div>
-                                {index < steps.length - 1 && <div className="ml-6 h-px w-16 bg-gray-200 dark:bg-gray-700" />}
+                                {index < steps.length - 1 && <div className="ml-6 h-px w-16 bg-border" />}
                             </div>
                         ))}
                     </div>
@@ -383,8 +384,8 @@ export default function CalculatePayroll() {
                                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                                     )}
                                     {!checkingPayroll && existingPayroll && (
-                                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                        <Badge variant="success">
+                                            <CheckCircle className="h-3 w-3" />
                                             Finalized
                                         </Badge>
                                     )}
@@ -400,15 +401,15 @@ export default function CalculatePayroll() {
 
                         {/* Existing Payroll Alert Banner */}
                         {existingPayroll && !checkingPayroll && (
-                            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950">
-                                <AlertCircle className="h-4 w-4 text-amber-600" />
-                                <AlertDescription className="text-amber-800 dark:text-amber-300">
+                            <Alert variant="warning">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                         <div className="space-y-1">
                                             <p className="font-medium">Payroll already finalized for this month</p>
                                             <p className="text-sm">
-                                                Finalized on {format(new Date(existingPayroll.finalizedDate), "MMM dd, yyyy")} • 
-                                                {existingPayroll.totalEmployees} employees • 
+                                                Finalized on {format(new Date(existingPayroll.finalizedDate), "MMM dd, yyyy")} •
+                                                {existingPayroll.totalEmployees} employees •
                                                 Net Salary: ₹{existingPayroll.totalNetSalary.toLocaleString("en-IN")}
                                             </p>
                                         </div>
@@ -417,7 +418,6 @@ export default function CalculatePayroll() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={handleViewExistingPayroll}
-                                                className="border-amber-300 text-amber-700 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-colors"
                                             >
                                                 <Eye className="h-4 w-4 mr-2" />
                                                 View
@@ -426,7 +426,6 @@ export default function CalculatePayroll() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={handleRecalculateAnyway}
-                                                className="border-amber-300 text-amber-700 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-colors"
                                             >
                                                 <Calculator className="h-4 w-4 mr-2" />
                                                 Recalculate
@@ -492,7 +491,7 @@ export default function CalculatePayroll() {
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Status</Label>
-                                <Badge variant={selectedClient.status === "ACTIVE" ? "default" : "secondary"}>
+                                <Badge variant={selectedClient.status === "ACTIVE" ? "success" : "destructive"}>
                                     {label.status(selectedClient.status)}
                                 </Badge>
                             </div>
@@ -550,7 +549,7 @@ export default function CalculatePayroll() {
                                     <div className="flex items-center justify-between mb-4">
                                         <div>
                                             <h3 className="font-semibold">{employee.firstName} {employee.lastName}</h3>
-                                            <p className="text-sm text-muted-foreground">{employee.employeeId}</p>
+                                            <p className="font-mono text-[13px] text-muted-foreground">{employee.employeeId}</p>
                                         </div>
                                     </div>
 
@@ -594,7 +593,7 @@ export default function CalculatePayroll() {
                             <Button variant="outline" onClick={() => setCurrentStep(2)}>
                                 Back
                             </Button>
-                            <Button onClick={handleCalculatePayroll} disabled={isCalculating}>
+                            <Button variant="brand" onClick={handleCalculatePayroll} disabled={isCalculating}>
                                 {isCalculating ? "Calculating..." : "Calculate Payroll"}
                             </Button>
                         </div>
@@ -619,29 +618,29 @@ export default function CalculatePayroll() {
                     <CardContent className="space-y-6">
                         {/* Success Alert */}
                         {isFinalized && (
-                            <Alert className="border-green-200 bg-green-50 dark:bg-green-950">
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                <AlertDescription className="text-green-800 dark:text-green-300">
+                            <Alert variant="success">
+                                <CheckCircle className="h-4 w-4" />
+                                <AlertDescription>
                                     <strong>Payroll Finalized!</strong> The payroll records have been successfully saved. You can view them in the Payroll Reports section.
                                 </AlertDescription>
                             </Alert>
                         )}
                         {/* Summary */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                            <div className="text-center p-4 rounded-md border bg-surface">
+                                <p className="font-display text-2xl font-bold nums">
                                     {calculationResult.data.totalEmployees}
                                 </p>
                                 <p className="text-sm text-muted-foreground">Total Employees</p>
                             </div>
-                            <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                                <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                            <div className="text-center p-4 rounded-md border bg-surface">
+                                <p className="font-display text-2xl font-bold">
                                     {calculationResult.data.clientName}
                                 </p>
                                 <p className="text-sm text-muted-foreground">Client</p>
                             </div>
-                            <div className="text-center p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
-                                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                            <div className="text-center p-4 rounded-md border bg-surface">
+                                <p className="font-display text-2xl font-bold nums">
                                     {calculationResult.data.payrollMonth}
                                 </p>
                                 <p className="text-sm text-muted-foreground">Payroll Month</p>
@@ -657,14 +656,14 @@ export default function CalculatePayroll() {
                                     <TableRow>
                                         <TableHead>Employee</TableHead>
                                         <TableHead>Category</TableHead>
-                                        <TableHead>Present Days</TableHead>
-                                        <TableHead>Rate</TableHead>
-                                        <TableHead>Basic Pay</TableHead>
-                                        <TableHead>Gross Salary</TableHead>
-                                        <TableHead>PF</TableHead>
-                                        <TableHead>ESIC</TableHead>
-                                        <TableHead>Total Deductions</TableHead>
-                                        <TableHead>Net Salary</TableHead>
+                                        <TableHead className="text-right">Present Days</TableHead>
+                                        <TableHead className="text-right">Rate</TableHead>
+                                        <TableHead className="text-right">Basic Pay</TableHead>
+                                        <TableHead className="text-right">Gross Salary</TableHead>
+                                        <TableHead className="text-right">PF</TableHead>
+                                        <TableHead className="text-right">ESIC</TableHead>
+                                        <TableHead className="text-right">Total Deductions</TableHead>
+                                        <TableHead className="text-right">Net Salary</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -690,7 +689,7 @@ export default function CalculatePayroll() {
                                                 <TableCell>
                                                     <div>
                                                         <p className="font-medium">{record.employeeName}</p>
-                                                        <p className="text-xs text-muted-foreground">{record.employeeId}</p>
+                                                        <p className="font-mono text-xs text-muted-foreground">{record.employeeId}</p>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -709,13 +708,13 @@ export default function CalculatePayroll() {
                                                         <span className="text-xs text-muted-foreground">N/A</span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell>{record.presentDays}</TableCell>
-                                                <TableCell>
+                                                <TableCell className="text-right font-mono text-[13px]">{record.presentDays}</TableCell>
+                                                <TableCell className="text-right">
                                                     {rate !== undefined && rate !== null ? (
-                                                        <div className="flex flex-col">
+                                                        <div className="flex flex-col items-end">
                                                             <div className="flex items-center">
                                                                 <IndianRupee className="h-3 w-3 mr-1" />
-                                                                <span className="text-sm font-medium">
+                                                                <span className="font-mono text-[13px] font-medium">
                                                                     {rate.toLocaleString()}
                                                                 </span>
                                                             </div>
@@ -727,62 +726,62 @@ export default function CalculatePayroll() {
                                                         <span className="text-xs text-muted-foreground">N/A</span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center">
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end font-mono text-[13px]">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
                                                         {calculations?.basicPay ?? salary?.basicPay ? (calculations?.basicPay ?? salary?.basicPay).toLocaleString() : "N/A"}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center">
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end font-mono text-[13px]">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
                                                         {calculations?.grossSalary ?? salary?.grossSalary ? (calculations?.grossSalary ?? salary?.grossSalary).toLocaleString() : "N/A"}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="text-right">
                                                     {pfAmount > 0 ? (
-                                                        <div className="flex items-center">
+                                                        <div className="flex items-center justify-end font-mono text-[13px]">
                                                             <IndianRupee className="h-3 w-3 mr-1" />
                                                             <span>{pfAmount.toLocaleString()}</span>
                                                         </div>
                                                     ) : !pfEnabled ? (
-                                                        <div className="flex items-center gap-1" title="PF not enabled">
+                                                        <div className="flex items-center justify-end gap-1" title="PF not enabled">
                                                             <span className="text-xs text-muted-foreground">-</span>
                                                             <Info className="h-3 w-3 text-muted-foreground" />
                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-1" title="PF enabled but amount is 0 (Gross salary may exceed threshold)">
+                                                        <div className="flex items-center justify-end gap-1" title="PF enabled but amount is 0 (Gross salary may exceed threshold)">
                                                             <span className="text-xs text-muted-foreground">-</span>
                                                             <Info className="h-3 w-3 text-muted-foreground" />
                                                         </div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="text-right">
                                                     {esicAmount > 0 ? (
-                                                        <div className="flex items-center">
+                                                        <div className="flex items-center justify-end font-mono text-[13px]">
                                                             <IndianRupee className="h-3 w-3 mr-1" />
                                                             <span>{esicAmount.toLocaleString()}</span>
                                                         </div>
                                                     ) : !esicEnabled ? (
-                                                        <div className="flex items-center gap-1" title="ESIC not enabled">
+                                                        <div className="flex items-center justify-end gap-1" title="ESIC not enabled">
                                                             <span className="text-xs text-muted-foreground">-</span>
                                                             <Info className="h-3 w-3 text-muted-foreground" />
                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-1" title="ESIC enabled but amount is 0 (Gross salary may exceed threshold)">
+                                                        <div className="flex items-center justify-end gap-1" title="ESIC enabled but amount is 0 (Gross salary may exceed threshold)">
                                                             <span className="text-xs text-muted-foreground">-</span>
                                                             <Info className="h-3 w-3 text-muted-foreground" />
                                                         </div>
                                                     )}
                                                 </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center">
+                                                <TableCell className="text-right">
+                                                    <div className="flex items-center justify-end font-mono text-[13px]">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
                                                         {deductions?.totalDeductions ?? salary?.totalDeductions ? (deductions?.totalDeductions ?? salary?.totalDeductions).toLocaleString() : "N/A"}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="font-semibold">
-                                                    <div className="flex items-center">
+                                                <TableCell className="text-right font-semibold">
+                                                    <div className="flex items-center justify-end font-mono text-[13px]">
                                                         <IndianRupee className="h-3 w-3 mr-1" />
                                                         {calculations?.netSalary ?? salary?.netSalary ? (calculations?.netSalary ?? salary?.netSalary).toLocaleString() : "N/A"}
                                                     </div>
@@ -791,12 +790,12 @@ export default function CalculatePayroll() {
                                                     {record.error ? (
                                                         <Badge variant="destructive">Error</Badge>
                                                     ) : isFinalized ? (
-                                                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                                        <Badge variant="success">
+                                                            <CheckCircle className="h-3 w-3" />
                                                             Finalized
                                                         </Badge>
                                                     ) : (
-                                                        <Badge variant="default">Pending</Badge>
+                                                        <Badge variant="warning">Pending</Badge>
                                                     )}
                                                 </TableCell>
                                             </TableRow>
@@ -821,7 +820,7 @@ export default function CalculatePayroll() {
                                     <Button variant="outline" onClick={() => setCurrentStep(3)}>
                                         Back to Edit
                                     </Button>
-                                    <Button onClick={handleFinalizePayroll} disabled={isFinalizing}>
+                                    <Button variant="brand" onClick={handleFinalizePayroll} disabled={isFinalizing}>
                                         {isFinalizing ? (
                                             <>
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -854,27 +853,27 @@ export default function CalculatePayroll() {
                     {existingPayroll && (
                         <div className="space-y-4 py-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                                <div className="p-4 rounded-md border bg-surface">
                                     <p className="text-sm text-muted-foreground mb-1">Total Employees</p>
-                                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                                    <p className="font-display text-2xl font-bold nums">
                                         {existingPayroll.totalEmployees}
                                     </p>
                                 </div>
-                                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+                                <div className="p-4 rounded-md border bg-surface">
                                     <p className="text-sm text-muted-foreground mb-1">Net Salary</p>
-                                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                                    <p className="font-display text-2xl font-bold nums text-brand">
                                         ₹{existingPayroll.totalNetSalary.toLocaleString("en-IN")}
                                     </p>
                                 </div>
-                                <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                                <div className="p-4 rounded-md border bg-surface">
                                     <p className="text-sm text-muted-foreground mb-1">Gross Salary</p>
-                                    <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                                    <p className="font-display text-2xl font-bold nums">
                                         ₹{existingPayroll.totalGrossSalary.toLocaleString("en-IN")}
                                     </p>
                                 </div>
                             </div>
-                            
-                            <div className="p-4 bg-muted rounded-lg">
+
+                            <div className="p-4 rounded-md border bg-surface">
                                 <p className="text-sm text-muted-foreground mb-1">Finalized On</p>
                                 <p className="font-medium">
                                     {format(new Date(existingPayroll.finalizedDate), "EEEE, MMMM dd, yyyy 'at' hh:mm a")}
@@ -915,7 +914,7 @@ export default function CalculatePayroll() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5 text-amber-600" />
+                            <AlertCircle className="h-5 w-5 text-warning" />
                             Confirm Recalculation
                         </AlertDialogTitle>
                         <AlertDialogDescription className="space-y-2">
@@ -932,7 +931,7 @@ export default function CalculatePayroll() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmRecalculate} className="bg-amber-600 hover:bg-amber-700">
+                        <AlertDialogAction onClick={confirmRecalculate}>
                             Yes, Recalculate
                         </AlertDialogAction>
                     </AlertDialogFooter>

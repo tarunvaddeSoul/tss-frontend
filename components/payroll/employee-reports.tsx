@@ -289,19 +289,19 @@ export function EmployeeReports() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-xl sm:text-2xl font-bold truncate">₹{totalGrossSalary.toLocaleString()}</div>
+                            <div className="font-display text-xl sm:text-2xl font-bold nums truncate">₹{totalGrossSalary.toLocaleString()}</div>
                             <p className="text-xs sm:text-sm text-muted-foreground">Total Gross Salary</p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-xl sm:text-2xl font-bold truncate">₹{totalDeductions.toLocaleString()}</div>
+                            <div className="font-display text-xl sm:text-2xl font-bold nums truncate">₹{totalDeductions.toLocaleString()}</div>
                             <p className="text-xs sm:text-sm text-muted-foreground">Total Deductions</p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-xl sm:text-2xl font-bold truncate">₹{totalNetSalary.toLocaleString()}</div>
+                            <div className="font-display text-xl sm:text-2xl font-bold nums truncate text-brand">₹{totalNetSalary.toLocaleString()}</div>
                             <p className="text-xs sm:text-sm text-muted-foreground">Total Net Salary</p>
                         </CardContent>
                     </Card>
@@ -330,28 +330,29 @@ export function EmployeeReports() {
                             ))}
                         </div>
                     ) : payrollData.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p className="text-sm">
+                        <div className="text-center py-12">
+                            <p className="registry-eyebrow mb-3">No records on file</p>
+                            <p className="text-sm text-muted-foreground">
                                 {selectedEmployeeId
                                     ? "No payroll data found for this employee"
                                     : "Select an employee to view payroll data"}
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto scrollbar-sleek">
+                        <div className="rounded-md border overflow-x-auto scrollbar-sleek">
                               <Table className="min-w-[800px]">
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Month</TableHead>
-                                        <TableHead>Basic Pay</TableHead>
-                                        <TableHead>Gross Salary</TableHead>
-                                        <TableHead>Net Salary</TableHead>
-                                        <TableHead>PF</TableHead>
-                                        <TableHead>ESIC</TableHead>
-                                        <TableHead>LWF</TableHead>
-                                        <TableHead>Bonus</TableHead>
-                                        <TableHead>Advance</TableHead>
-                                        <TableHead>Total Deductions</TableHead>
+                                        <TableHead className="text-right">Basic Pay</TableHead>
+                                        <TableHead className="text-right">Gross Salary</TableHead>
+                                        <TableHead className="text-right">Net Salary</TableHead>
+                                        <TableHead className="text-right">PF</TableHead>
+                                        <TableHead className="text-right">ESIC</TableHead>
+                                        <TableHead className="text-right">LWF</TableHead>
+                                        <TableHead className="text-right">Bonus</TableHead>
+                                        <TableHead className="text-right">Advance</TableHead>
+                                        <TableHead className="text-right">Total Deductions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -369,16 +370,16 @@ export function EmployeeReports() {
                                       
                                       return (
                                         <TableRow key={record.id}>
-                                            <TableCell className="font-medium">{record.month}</TableCell>
-                                            <TableCell>₹{(calculations?.basicPay ?? salaryData?.basicPay ?? 0).toLocaleString()}</TableCell>
-                                            <TableCell>₹{(calculations?.grossSalary ?? salaryData?.grossSalary ?? 0).toLocaleString()}</TableCell>
-                                            <TableCell>₹{(calculations?.netSalary ?? salaryData?.netSalary ?? 0).toLocaleString()}</TableCell>
-                                            <TableCell>{pf > 0 ? `₹${pf.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{esic > 0 ? `₹${esic.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{lwf > 0 ? `₹${lwf.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{bonus > 0 ? `₹${bonus.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{advanceTaken > 0 ? `₹${advanceTaken.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>₹{(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="font-mono text-[13px] font-medium">{record.month}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">₹{(calculations?.basicPay ?? salaryData?.basicPay ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">₹{(calculations?.grossSalary ?? salaryData?.grossSalary ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px] font-semibold">₹{(calculations?.netSalary ?? salaryData?.netSalary ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{pf > 0 ? `₹${pf.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{esic > 0 ? `₹${esic.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{lwf > 0 ? `₹${lwf.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{bonus > 0 ? `₹${bonus.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{advanceTaken > 0 ? `₹${advanceTaken.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">₹{(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0).toLocaleString()}</TableCell>
                                         </TableRow>
                                       )
                                     })}

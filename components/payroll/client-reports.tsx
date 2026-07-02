@@ -199,20 +199,21 @@ export function ClientReports() {
               ))}
             </div>
           ) : payrollData.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="text-sm">
+            <div className="text-center py-12">
+              <p className="registry-eyebrow mb-3">No records on file</p>
+              <p className="text-sm text-muted-foreground">
                 {selectedClientId ? "No payroll data found for this client" : "Select a client to view payroll data"}
               </p>
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto scrollbar-sleek">
+              <div className="rounded-md border overflow-x-auto scrollbar-sleek">
                 <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Month</TableHead>
-                      <TableHead>Employee Count</TableHead>
-                      <TableHead>Total Net Salary</TableHead>
+                      <TableHead className="text-right">Employee Count</TableHead>
+                      <TableHead className="text-right">Total Net Salary</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -224,9 +225,9 @@ export function ClientReports() {
                         className="hover:bg-muted/50 cursor-pointer"
                         onClick={() => toggleExpandMonth(month.month)}
                       >
-                        <TableCell className="font-medium truncate max-w-[150px]">{month.month}</TableCell>
-                        <TableCell className="whitespace-nowrap">{month.employeeCount}</TableCell>
-                        <TableCell className="whitespace-nowrap">₹{month.totalNetSalary.toLocaleString()}</TableCell>
+                        <TableCell className="font-mono text-[13px] font-medium truncate max-w-[150px]">{month.month}</TableCell>
+                        <TableCell className="text-right font-mono text-[13px] whitespace-nowrap">{month.employeeCount}</TableCell>
+                        <TableCell className="text-right font-mono text-[13px] whitespace-nowrap">₹{month.totalNetSalary.toLocaleString()}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" className="shrink-0">
                             {expandedMonth === month.month ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -244,24 +245,24 @@ export function ClientReports() {
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead>Employee</TableHead>
-                                    <TableHead>Basic Pay</TableHead>
-                                    <TableHead>Gross Salary</TableHead>
-                                    <TableHead>Net Salary</TableHead>
-                                    <TableHead>Deductions</TableHead>
+                                    <TableHead className="text-right">Basic Pay</TableHead>
+                                    <TableHead className="text-right">Gross Salary</TableHead>
+                                    <TableHead className="text-right">Net Salary</TableHead>
+                                    <TableHead className="text-right">Deductions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {month.records.map((record) => (
                                     <TableRow key={record.employeeId}>
-                                      <TableCell className="truncate max-w-[200px]">
+                                      <TableCell className="font-medium truncate max-w-[200px]">
                                         {record.employee
                                           ? `${record.employee.firstName} ${record.employee.lastName}`
                                           : record.employeeId}
                                       </TableCell>
-                                      <TableCell className="whitespace-nowrap">₹{((record.salaryData?.calculations?.basicPay ?? record.salaryData?.basicPay) || 0).toLocaleString()}</TableCell>
-                                      <TableCell className="whitespace-nowrap">₹{((record.salaryData?.calculations?.grossSalary ?? record.salaryData?.grossSalary) || 0).toLocaleString()}</TableCell>
-                                      <TableCell className="whitespace-nowrap">₹{((record.salaryData?.calculations?.netSalary ?? record.salaryData?.netSalary) || 0).toLocaleString()}</TableCell>
-                                      <TableCell className="whitespace-nowrap">
+                                      <TableCell className="text-right font-mono text-[13px] whitespace-nowrap">₹{((record.salaryData?.calculations?.basicPay ?? record.salaryData?.basicPay) || 0).toLocaleString()}</TableCell>
+                                      <TableCell className="text-right font-mono text-[13px] whitespace-nowrap">₹{((record.salaryData?.calculations?.grossSalary ?? record.salaryData?.grossSalary) || 0).toLocaleString()}</TableCell>
+                                      <TableCell className="text-right font-mono text-[13px] font-semibold whitespace-nowrap">₹{((record.salaryData?.calculations?.netSalary ?? record.salaryData?.netSalary) || 0).toLocaleString()}</TableCell>
+                                      <TableCell className="text-right font-mono text-[13px] whitespace-nowrap">
                                         ₹{((record.salaryData?.deductions?.totalDeductions ?? record.salaryData?.totalDeductions) || 0).toLocaleString()}
                                       </TableCell>
                                     </TableRow>

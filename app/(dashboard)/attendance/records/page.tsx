@@ -5,7 +5,7 @@ import { Building2, Calendar as CalendarIcon, Eye, Loader2, Trash2, Download, Fi
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { format, parse } from "date-fns"
+import { format, parse, isValid } from "date-fns"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -738,7 +738,7 @@ export default function AttendanceRecordsPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {format(monthDate, "MMM yyyy")}
+                              {isValid(monthDate) ? format(monthDate, "MMM yyyy") : (record.month || "-")}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -931,7 +931,7 @@ export default function AttendanceRecordsPage() {
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline">
-                                  {format(monthDate, "MMM yyyy")}
+                                  {isValid(monthDate) ? format(monthDate, "MMM yyyy") : (record.month || "-")}
                                 </Badge>
                               </TableCell>
                               <TableCell>

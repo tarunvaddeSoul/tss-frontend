@@ -194,15 +194,16 @@ export function AttendanceReportsComponent() {
   const generateCSV = () => {
     if (!reportData?.records.length) return ""
 
+    const csvCell = (value: unknown): string => `"${String(value ?? "").replace(/"/g, '""')}"`
     const headers = ["Employee ID", "Employee Name", "Department", "Designation", "Present Days"]
     const csvContent = [
       headers.join(","),
       ...reportData.records.map((record) =>
         [
-          record.employeeID,
-          `"${record.employeeName}"`,
-          `"${record.departmentName}"`,
-          `"${record.designationName}"`,
+          csvCell(record.employeeID),
+          csvCell(record.employeeName),
+          csvCell(record.departmentName),
+          csvCell(record.designationName),
           record.presentCount,
         ].join(","),
       ),

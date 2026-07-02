@@ -162,7 +162,7 @@ export default function UsersSettingsPage() {
     setBusyUserId(target.id)
     try {
       await userAdminService.sendSetPasswordEmail(target.email)
-      toast.success(`Set-password link sent to ${target.email}.`)
+      toast.success(`Password reset link sent to ${target.email}.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not send the email.")
     } finally {
@@ -385,9 +385,15 @@ export default function UsersSettingsPage() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => (u.invitePending ? handleResendInvite(u) : handleSendSetPassword(u))}
-                          disabled={busyUserId === u.id}
-                          title={u.invitePending ? "Re-send the invite email" : "Email a set-password link"}
-                          aria-label={u.invitePending ? "Re-send invite" : "Send set-password link"}
+                          disabled={busyUserId === u.id || (!u.isActive && !u.invitePending)}
+                          title={
+                            u.invitePending
+                              ? "Re-send the invite email"
+                              : !u.isActive
+                                ? "Reactivate the account before sending a password link"
+                                : "Email a password reset link"
+                          }
+                          aria-label={u.invitePending ? "Re-send invite" : "Send password reset link"}
                         >
                           <Send className="h-4 w-4" />
                         </Button>

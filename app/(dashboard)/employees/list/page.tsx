@@ -198,6 +198,7 @@ export default function EmployeeListPage() {
       setActiveTab("pdf")
     } catch (error) {
       console.error("Error generating PDF:", error)
+      toast.error("Failed to generate PDF. Please try again.")
     } finally {
       setPdfLoading(false)
     }

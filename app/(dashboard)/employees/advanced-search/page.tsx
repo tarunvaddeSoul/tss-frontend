@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
-import { Search } from "lucide-react"
+import { AlertCircle, RefreshCw, Search } from "lucide-react"
 import { format } from "date-fns"
+import { toast } from "sonner"
 import { label } from "@/lib/labels"
 
 // UI Components
@@ -14,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker"
 import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -67,6 +69,7 @@ export default function AdvancedEmployeeSearch() {
   const [employeeDepartments, setEmployeeDepartments] = useState<Department[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
@@ -112,12 +115,13 @@ export default function AdvancedEmployeeSearch() {
     fetchEmployees(1)
   }, [])
 
-  const fetchEmployees = async (currentPage = 1) => {
+  const fetchEmployees = async (currentPage = 1, limitOverride?: number) => {
     setLoading(true)
+    setSearchError(null)
     try {
       const params = {
         page: currentPage,
-        limit: limit,
+        limit: limitOverride ?? limit,
         searchText: formValues.searchText || undefined,
         designationId: formValues.designationId && formValues.designationId !== "all" ? formValues.designationId : undefined,
         employeeDepartmentId: formValues.employeeDepartmentId && formValues.employeeDepartmentId !== "all" ? formValues.employeeDepartmentId : undefined,
@@ -152,6 +156,10 @@ export default function AdvancedEmployeeSearch() {
       setTotalPages(Math.ceil(totalCount / params.limit))
     } catch (error) {
       console.error("Error fetching employees:", error)
+      setEmployees([])
+      const message = error instanceof Error ? error.message : "Could not load employees. Please try again."
+      setSearchError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -599,9 +607,10 @@ export default function AdvancedEmployeeSearch() {
               <Select
                 value={String(limit)}
                 onValueChange={(value) => {
-                  setLimit(Number(value))
+                  const next = Number(value)
+                  setLimit(next)
                   setPage(1) // Reset to first page when changing limit
-                  fetchEmployees(1)
+                  fetchEmployees(1, next)
                 }}
               >
                 <SelectTrigger className="w-[80px]">
@@ -624,6 +633,18 @@ export default function AdvancedEmployeeSearch() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
+          ) : searchError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Search failed</AlertTitle>
+              <AlertDescription className="mt-2">
+                {searchError}
+                <Button variant="outline" size="sm" onClick={() => fetchEmployees(page)} className="ml-0 mt-3 block sm:ml-4 sm:mt-0 sm:inline-flex">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : employees.length > 0 ? (
             <>
               <div className="rounded-md border overflow-x-auto scrollbar-sleek">

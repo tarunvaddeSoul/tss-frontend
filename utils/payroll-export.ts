@@ -1,11 +1,12 @@
 import * as XLSX from "xlsx"
 import { saveAs } from "file-saver"
+import { formatDate as formatLabelDate, label } from "@/lib/labels"
 
 export interface PayrollReportRecord {
   id: string
   employeeId: string
-  companyName: string | null
-  companyId: string
+  clientName: string | null
+  clientId: string
   month: string
   salaryData: Record<string, any>
   createdAt: string
@@ -45,10 +46,10 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
       
       return {
         "Employee ID": record.employeeId,
-        Company: record.companyName || information?.companyName || "N/A",
+        Client: record.clientName || information?.clientName || "N/A",
         Month: record.month,
-        "Salary Category": salaryData?.salaryCategory || "N/A",
-        "Salary Sub-Category": salaryData?.salarySubCategory || "N/A",
+        "Salary Category": label.salaryCategory(salaryData?.salaryCategory),
+        "Salary Sub-Category": label.salarySubCategory(salaryData?.salarySubCategory),
         "Rate (Per Day/Month)": rate,
         "Basic Duty": basicDuty,
         "Duty Done": dutyDone,
@@ -64,7 +65,7 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
         "Total Deductions": totalDeductions,
         "Designation": information?.designation || salaryData?.designation || "N/A",
         "Employee Name": information?.employeeName || "N/A",
-        "Created At": new Date(record.createdAt).toLocaleDateString(),
+        "Created At": formatLabelDate(record.createdAt),
       }
     })
 
@@ -75,7 +76,7 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
     // Set column widths for better readability
     const columnWidths = [
       { wch: 15 }, // Employee ID
-      { wch: 20 }, // Company
+      { wch: 20 }, // Client
       { wch: 12 }, // Month
       { wch: 18 }, // Salary Category
       { wch: 20 }, // Salary Sub-Category

@@ -4,80 +4,76 @@
 
 @layer base {
   :root {
-    /* Tulsyan Security Services Brand Colors */
     /* Primary - Security Red */
-    --primary: 358 70% 42%; /* #B42025 */
-    --primary-foreground: 0 0% 100%; /* White on primary */
-    --primary-dark: 358 69% 33%; /* #8C1A1D */
-    --primary-light: 358 61% 57%; /* #D94B4F */
-    
+    --primary: 358 70% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 358 69% 33%;
+    --primary-light: 358 61% 57%;
+
     /* Secondary - Steel Charcoal */
-    --secondary: 240 3% 17%; /* #2B2B2D */
-    --secondary-foreground: 0 0% 100%; /* White on secondary */
-    --secondary-light: 240 2% 37%; /* #5C5C5F */
-    
-    /* Base Colors */
-    --background: 240 8% 98%; /* Slightly off-white for better contrast */
-    --foreground: 240 3% 17%; /* #2B2B2D */
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 240 3% 17%; /* #2B2B2D */
-    --popover: 0 0% 100%; /* #FFFFFF */
-    --popover-foreground: 240 3% 17%; /* #2B2B2D */
-    
-    /* Surface & Muted */
-    --surface: 240 4% 95%; /* Slightly darker for better visibility */
-    --muted: 240 4% 95%; /* Slightly darker for better visibility */
-    --muted-foreground: 240 2% 37%; /* #5C5C5F */
-    
+    --secondary: 240 3% 17%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 240 2% 37%;
+
+    /* Base */
+    --background: 0 0% 99%;
+    --foreground: 240 5% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 5% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 5% 12%;
+
+    /* Surface */
+    --surface: 240 6% 97%;
+    --muted: 240 6% 96%;
+    --muted-foreground: 240 3% 46%;
+
     /* Accent */
-    --accent: 358 70% 42%; /* Match primary */
-    --accent-foreground: 0 0% 100%;
-    
-    /* Status Colors */
-    --success: 139 63% 33%; /* #1F8A3E */
+    --accent: 240 6% 96%;
+    --accent-foreground: 240 5% 12%;
+
+    /* Status */
+    --success: 142 63% 33%;
     --success-foreground: 0 0% 100%;
-    --warning: 41 100% 45%; /* #E6A100 */
+    --warning: 41 100% 45%;
     --warning-foreground: 240 3% 17%;
-    --info: 218 83% 56%; /* #2F80ED */
+    --info: 218 83% 56%;
     --info-foreground: 0 0% 100%;
-    --destructive: 0 66% 47%; /* #C62828 */
+    --destructive: 0 66% 47%;
     --destructive-foreground: 0 0% 100%;
-    
-    /* Borders & Inputs */
-    --border: 240 5% 90%; /* More visible borders */
-    --input: 240 5% 90%; /* More visible inputs */
-    --ring: 358 70% 42%; /* Match primary */
-    
-    /* Border Radius */
+
+    /* Borders */
+    --border: 240 6% 92%;
+    --input: 240 6% 92%;
+    --ring: 358 70% 42%;
     --radius: 0.5rem;
   }
 
   .dark {
-    /* Dark Mode - Inverted for security theme */
     --primary: 358 60% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-dark: 358 70% 42%; /* Original primary */
+    --primary-dark: 358 70% 42%;
     --primary-light: 358 55% 65%;
-    
-    --secondary: 240 2% 37%; /* Lighter secondary */
+
+    --secondary: 240 2% 37%;
     --secondary-foreground: 0 0% 100%;
     --secondary-light: 240 3% 60%;
-    
-    --background: 240 3% 12%; /* Dark background */
-    --foreground: 0 0% 98%;
-    --card: 240 3% 16%; /* Dark card */
-    --card-foreground: 0 0% 98%;
-    --popover: 240 3% 12%;
-    --popover-foreground: 0 0% 98%;
-    
-    --surface: 240 3% 10%;
-    --muted: 240 3% 10%;
-    --muted-foreground: 240 2% 60%;
-    
-    --accent: 358 60% 50%;
-    --accent-foreground: 0 0% 100%;
-    
-    --success: 139 60% 45%;
+
+    --background: 240 6% 7%;
+    --foreground: 0 0% 95%;
+    --card: 240 5% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 5% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --surface: 240 5% 9%;
+    --muted: 240 5% 13%;
+    --muted-foreground: 240 3% 55%;
+
+    --accent: 240 5% 13%;
+    --accent-foreground: 0 0% 95%;
+
+    --success: 142 60% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 41 90% 55%;
     --warning-foreground: 240 3% 12%;
@@ -85,9 +81,9 @@
     --info-foreground: 0 0% 100%;
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
-    
-    --border: 240 3% 20%;
-    --input: 240 3% 20%;
+
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
     --ring: 358 60% 50%;
   }
 }
@@ -98,156 +94,219 @@
   }
 
   html {
-    font-size: 18px; /* Increased from 16px */
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-size: 18px; /* Increased from 16px */
     line-height: 1.6;
   }
-  
-  /* Larger heading sizes */
-  h1 { font-size: 2.75rem; font-weight: 700; } /* Increased from 2.5rem */
-  h2 { font-size: 2.25rem; font-weight: 600; } /* Increased from 2rem */
-  h3 { font-size: 2rem; font-weight: 600; } /* Increased from 1.75rem */
-  h4 { font-size: 1.75rem; font-weight: 600; } /* Increased from 1.5rem */
-  h5 { font-size: 1.5rem; font-weight: 500; } /* Increased from 1.25rem */
-  h6 { font-size: 1.25rem; font-weight: 500; } /* Increased from 1.125rem */
+
+  /* Responsive heading scale with display font */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  }
+
+  h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.035em; line-height: 1.1; }
+  h2 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
+  h3 { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+  h4 { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.01em; }
+  h5 { font-size: 1rem; font-weight: 600; }
+  h6 { font-size: 0.875rem; font-weight: 600; }
+
+  @media (min-width: 768px) {
+    h1 { font-size: 3rem; }
+    h2 { font-size: 2.25rem; }
+    h3 { font-size: 1.5rem; }
+  }
+
+  @media (min-width: 1024px) {
+    h1 { font-size: 3.75rem; }
+    h2 { font-size: 2.75rem; }
+    h3 { font-size: 1.75rem; }
+  }
+
+  ::selection {
+    background: hsl(358 70% 42% / 0.15);
+    color: hsl(358 70% 42%);
+  }
 }
 
 @layer utilities {
-  /* Glass Effect - Security theme */
-  .glass-effect {
-    @apply bg-background/95 backdrop-blur-md border border-border/50 shadow-sm;
+  /* ── Noise / Grain Texture ── */
+  .noise-overlay {
+    position: relative;
+  }
+  .noise-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+  .dark .noise-overlay::after {
+    opacity: 0.04;
   }
 
-  /* Brand Gradient Text */
+  /* ── Spotlight Card Effect ── */
+  .spotlight-card {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .spotlight-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: radial-gradient(
+      600px circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+      hsl(358 70% 42% / 0.06),
+      transparent 40%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+  .spotlight-card:hover::before {
+    opacity: 1;
+  }
+  .spotlight-card:hover {
+    border-color: hsl(var(--primary) / 0.2);
+    box-shadow: 0 8px 30px hsl(var(--primary) / 0.06), 0 0 0 1px hsl(var(--primary) / 0.08);
+  }
+
+  /* ── Glow Button ── */
+  .glow-btn {
+    position: relative;
+    overflow: hidden;
+  }
+  .glow-btn::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, hsl(358 70% 42% / 0.4), hsl(358 61% 57% / 0.2), transparent);
+    filter: blur(12px);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: -1;
+    border-radius: inherit;
+  }
+  .glow-btn:hover::after {
+    opacity: 1;
+  }
+
+  /* ── Gradient Mesh ── */
+  .gradient-mesh {
+    background:
+      radial-gradient(ellipse at 20% 50%, hsl(358 70% 42% / 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsl(358 61% 57% / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 40% 80%, hsl(218 83% 56% / 0.05) 0%, transparent 50%);
+  }
+  .dark .gradient-mesh {
+    background:
+      radial-gradient(ellipse at 20% 50%, hsl(358 70% 42% / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsl(358 61% 57% / 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 40% 80%, hsl(218 83% 56% / 0.03) 0%, transparent 50%);
+  }
+
+  /* ── Text Gradient ── */
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary-light to-primary;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(358 70% 42%), hsl(358 61% 57%), hsl(0 70% 55%));
   }
 
-  /* Security Red Gradient Border */
-  .gradient-border {
-    @apply relative;
-    &::before {
-      content: "";
-      @apply absolute inset-0 rounded-2xl p-[1px] bg-gradient-to-r from-primary via-primary-light to-primary -z-10;
-    }
+  /* ── Fade Mask for Marquee ── */
+  .fade-mask-x {
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   }
 
-    /* Subtle Brand Background */
-    .gradient-bg {
-      @apply bg-gradient-to-br from-surface via-background to-surface;
-    }
-
-  /* Security Card Effect */
-  .security-card {
-    @apply bg-card border-2 border-border/60 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:border-primary/30;
-    background-color: hsl(var(--card));
+  /* ── Glass ── */
+  .glass {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    background: hsl(var(--background) / 0.7);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+  .glass-strong {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    background: hsl(var(--background) / 0.85);
+    border: 1px solid hsl(var(--border) / 0.4);
   }
 
-  /* Oval Gradient Background */
-  .oval-gradient {
-    @apply relative overflow-hidden;
-    &::before {
-      content: "";
-      @apply absolute inset-0 bg-gradient-to-r from-primary/20 to-primary-light/20 rounded-[60%] blur-3xl -z-10;
-    }
+  /* ── Scrollbar ── */
+  .scrollbar-sleek {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+  }
+  .scrollbar-sleek::-webkit-scrollbar { height: 6px; width: 6px; }
+  .scrollbar-sleek::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-sleek::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 10px;
+  }
+  .scrollbar-sleek::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
   }
 
-  /* Status Badge Utilities */
-  .badge-success {
-    @apply text-success bg-success/10 border border-success/20;
-  }
-  
-  .badge-warning {
-    @apply text-warning bg-warning/10 border border-warning/20;
-  }
-  
-  .badge-info {
-    @apply text-info bg-info/10 border border-info/20;
-  }
-  
-  .badge-danger {
-    @apply text-destructive bg-destructive/10 border border-destructive/20;
-  }
+  /* ── Dashboard Lock ── */
+  body:has([data-dashboard-layout]) { height: 100vh; overflow: hidden; }
+  html:has([data-dashboard-layout]) { height: 100%; overflow: hidden; }
 
-  /* Legacy support */
-  .success {
-    color: hsl(var(--success));
-    background: hsl(var(--success) / 0.1);
-  }
-  .warning {
-    color: hsl(var(--warning));
-    background: hsl(var(--warning) / 0.1);
-  }
-  .info {
-    color: hsl(var(--info));
-    background: hsl(var(--info) / 0.1);
-  }
+  /* ── Badge Variants ── */
+  .badge-success { @apply text-success bg-success/10 border border-success/20; }
+  .badge-warning { @apply text-warning bg-warning/10 border border-warning/20; }
+  .badge-info { @apply text-info bg-info/10 border border-info/20; }
+  .badge-danger { @apply text-destructive bg-destructive/10 border border-destructive/20; }
 
-  /* Option 1: Purple/Violet Gradient - Elegant & Modern */
+  /* Legacy status utilities */
+  .success { color: hsl(var(--success)); background: hsl(var(--success) / 0.1); }
+  .warning { color: hsl(var(--warning)); background: hsl(var(--warning) / 0.1); }
+  .info { color: hsl(var(--info)); background: hsl(var(--info) / 0.1); }
+
+  /* Legacy craze-border utilities */
   .craze-border-container-fullscreen {
-    height: 100vh;
-    width: 100vw;
+    height: 100vh; width: 100vw;
     background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 25%, #c084fc 50%, #d8b4fe 75%, #8b5cf6 100%);
-    border-radius: 0;
-    padding: 8px;
-    margin: 0;
+    padding: 8px; margin: 0;
   }
-
-  /* Option 2: Teal/Emerald Gradient - Fresh & Professional */
   .craze-border-teal {
-    height: 100vh;
-    width: 100vw;
+    height: 100vh; width: 100vw;
     background: linear-gradient(135deg, #0d9488 0%, #14b8a6 25%, #2dd4bf 50%, #5eead4 75%, #0d9488 100%);
-    border-radius: 0;
-    padding: 8px;
-    margin: 0;
+    padding: 8px; margin: 0;
   }
-
-  /* Option 3: Slate/Gray Gradient - Sophisticated & Neutral */
   .craze-border-slate {
-    height: 100vh;
-    width: 100vw;
+    height: 100vh; width: 100vw;
     background: linear-gradient(135deg, #475569 0%, #64748b 25%, #94a3b8 50%, #cbd5e1 75%, #475569 100%);
-    border-radius: 0;
-    padding: 8px;
-    margin: 0;
+    padding: 8px; margin: 0;
   }
-
-  /* Option 4: Rose/Pink Gradient - Warm & Inviting */
   .craze-border-rose {
-    height: 100vh;
-    width: 100vw;
+    height: 100vh; width: 100vw;
     background: linear-gradient(135deg, #e11d48 0%, #f43f5e 25%, #fb7185 50%, #fda4af 75%, #e11d48 100%);
-    border-radius: 0;
-    padding: 8px;
-    margin: 0;
+    padding: 8px; margin: 0;
   }
-
-  /* Option 5: Orange/Amber Gradient - Energetic & Warm */
   .craze-border-orange {
-    height: 100vh;
-    width: 100vw;
+    height: 100vh; width: 100vw;
     background: linear-gradient(135deg, #ea580c 0%, #f97316 25%, #fb923c 50%, #fed7aa 75%, #ea580c 100%);
-    border-radius: 0;
-    padding: 8px;
-    margin: 0;
+    padding: 8px; margin: 0;
   }
-
-  /* Option 6: Indigo/Blue Gradient - Deep & Professional */
   .craze-border-indigo {
-    height: 100vh;
-    width: 100vw;
+    height: 100vh; width: 100vw;
     background: linear-gradient(135deg, #4338ca 0%, #6366f1 25%, #818cf8 50%, #c7d2fe 75%, #4338ca 100%);
-    border-radius: 0;
-    padding: 8px;
-    margin: 0;
+    padding: 8px; margin: 0;
   }
-
   .craze-border-container-fullscreen > div,
   .craze-border-teal > div,
   .craze-border-slate > div,
@@ -259,40 +318,24 @@
   }
 }
 
-/* Sleek scrollbar styles */
-@layer utilities {
-  .scrollbar-sleek {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
-  }
+/* ── Keyframe Animations ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
 
-  .scrollbar-sleek::-webkit-scrollbar {
-    height: 6px;
-  }
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(358 70% 42% / 0.3); }
+  50% { box-shadow: 0 0 20px 4px hsl(358 70% 42% / 0.15); }
+}
 
-  .scrollbar-sleek::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 10px;
-  }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
 
-  .scrollbar-sleek::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 10px;
-    transition: background 0.2s ease;
-  }
-
-  .scrollbar-sleek::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
-  }
-
-  /* Prevent overscroll in dashboard layout only */
-  body:has([data-dashboard-layout]) {
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  html:has([data-dashboard-layout]) {
-    height: 100%;
-    overflow: hidden;
-  }
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }

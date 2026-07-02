@@ -20,6 +20,7 @@ module.exports = {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         display: ["var(--font-display)", "var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -71,19 +72,10 @@ module.exports = {
           foreground: "hsl(var(--info-foreground))",
         },
         surface: "hsl(var(--surface))",
-        // Brand-specific color tokens
         brand: {
-          primary: "#B42025",
-          "primary-dark": "#8C1A1D",
-          "primary-light": "#D94B4F",
-          secondary: "#2B2B2D",
-          "secondary-light": "#5C5C5F",
-          surface: "#F4F4F6",
-          background: "#FFFFFF",
-          success: "#1F8A3E",
-          warning: "#E6A100",
-          danger: "#C62828",
-          info: "#2F80ED",
+          DEFAULT: "hsl(var(--brand))",
+          foreground: "hsl(var(--brand-foreground))",
+          fill: "hsl(var(--brand-fill, var(--brand)))",
         },
       },
       borderRadius: {

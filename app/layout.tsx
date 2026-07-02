@@ -1,20 +1,29 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter, Space_Grotesk } from "next/font/google"
+import { Archivo, IBM_Plex_Mono, Public_Sans } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 
-const inter = Inter({
+const publicSans = Public_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 })
 
-const spaceGrotesk = Space_Grotesk({
+const archivo = Archivo({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
+  axes: ["wdth"],
+  display: "swap",
+})
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-mono",
+  display: "swap",
 })
 
 export const metadata: Metadata = {
@@ -32,7 +41,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
-      <body className={`font-sans ${inter.variable} ${spaceGrotesk.variable}`}>
+      <body className={`font-sans ${publicSans.variable} ${archivo.variable} ${plexMono.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           {children}
           <Toaster />

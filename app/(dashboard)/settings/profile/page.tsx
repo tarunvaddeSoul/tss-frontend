@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/hooks/use-auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Role } from "@/types/auth"
 import { departmentService } from "@/services/departmentService"
 
 interface Department {
@@ -24,7 +23,6 @@ const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
   mobileNumber: z.string().length(10, { message: "Mobile number must be 10 digits" }),
-  role: z.nativeEnum(Role, { message: "Please select a role" }),
   departmentId: z.string({ required_error: "Please select a department" }),
 })
 
@@ -44,7 +42,6 @@ export default function ProfileSettingsPage() {
       name: user?.name || "",
       email: user?.email || "",
       mobileNumber: user?.mobileNumber || "",
-      role: user?.role || Role.USER,
       departmentId: user?.departmentId || "",
     },
   })
@@ -56,7 +53,6 @@ export default function ProfileSettingsPage() {
         name: user.name,
         email: user.email,
         mobileNumber: user.mobileNumber,
-        role: user.role,
         departmentId: user.departmentId,
       })
     }
@@ -92,25 +88,7 @@ export default function ProfileSettingsPage() {
         setSuccess(false)
       }, 3000)
     } catch (err: any) {
-      if (err.response) {
-        const statusCode = err.response.status
-        const responseData = err.response.data
-
-        if (statusCode === 400) {
-          setError(responseData.message || "Invalid data. Please check your information.")
-        } else if (statusCode === 409) {
-          setError("Email already in use by another account.")
-        } else if (responseData && responseData.message) {
-          setError(responseData.message)
-        } else {
-          setError("An error occurred. Please try again.")
-        }
-      } else if (err.request) {
-        setError("No response from server. Please check your internet connection.")
-      } else {
-        setError(err.message || "An unexpected error occurred. Please try again.")
-      }
-
+      setError(err?.message || "An unexpected error occurred. Please try again.")
       console.error("Update profile error:", err)
     } finally {
       setIsLoading(false)
@@ -152,7 +130,7 @@ export default function ProfileSettingsPage() {
                     <FormLabel className="text-gray-900 dark:text-white">Full Name</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tss-text/40 h-4 w-4" />
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40 h-4 w-4" />
                         <Input
                           placeholder="John Doe"
                           {...field}
@@ -174,7 +152,7 @@ export default function ProfileSettingsPage() {
                       <FormLabel className="text-gray-900 dark:text-white">Email</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tss-text/40 h-4 w-4" />
+                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40 h-4 w-4" />
                           <Input
                             placeholder="your.email@example.com"
                             {...field}
@@ -195,7 +173,7 @@ export default function ProfileSettingsPage() {
                       <FormLabel className="text-gray-900 dark:text-white">Mobile Number</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-tss-text/40 h-4 w-4" />
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground/40 h-4 w-4" />
                           <Input
                             placeholder="9876543210"
                             {...field}
@@ -210,30 +188,14 @@ export default function ProfileSettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-gray-900 dark:text-white">Role</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400">
-                            <SelectValue placeholder="Select a role" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="bg-tss-card border-white/10">
-                          {Object.values(Role).map((role) => (
-                            <SelectItem key={role} value={role} className="text-tss-text hover:bg-white/5">
-                              {role}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
+                <FormItem>
+                  <FormLabel className="text-gray-900 dark:text-white">Role</FormLabel>
+                  <Input
+                    value={user?.role || "-"}
+                    disabled
+                    className="bg-muted border-white/10 text-gray-900 dark:text-white"
+                  />
+                </FormItem>
 
                 <FormField
                   control={form.control}
@@ -247,17 +209,17 @@ export default function ProfileSettingsPage() {
                             <SelectValue placeholder={isLoadingDepartments ? "Loading..." : "Select a department"} />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-tss-card border-white/10">
+                        <SelectContent className="bg-card border-white/10">
                           {isLoadingDepartments ? (
                             <div className="flex items-center justify-center p-2">
-                              <Loader2 className="h-4 w-4 animate-spin text-tss-text/40" />
+                              <Loader2 className="h-4 w-4 animate-spin text-foreground/40" />
                             </div>
                           ) : (
                             departments.map((department) => (
                               <SelectItem
                                 key={department.id}
                                 value={department.id}
-                                className="text-tss-text hover:bg-white/5"
+                                className="text-foreground hover:bg-white/5"
                               >
                                 {department.name}
                               </SelectItem>

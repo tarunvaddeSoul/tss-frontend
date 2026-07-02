@@ -125,7 +125,7 @@ export default function SecuritySettingsPage() {
                           type={showOldPassword ? "text" : "password"}
                           placeholder="••••••••"
                           {...field}
-                          className="pl-10 pr-10 bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-black placeholder:text-gray-500"
+                          className="pl-10 pr-10 bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-gray-900 dark:text-white placeholder:text-gray-500"
                         />
                         <button
                           type="button"
@@ -154,7 +154,7 @@ export default function SecuritySettingsPage() {
                           type={showNewPassword ? "text" : "password"}
                           placeholder="••••••••"
                           {...field}
-                          className="pl-10 pr-10 bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-black placeholder:text-gray-500"
+                          className="pl-10 pr-10 bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-gray-900 dark:text-white placeholder:text-gray-500"
                         />
                         <button
                           type="button"
@@ -183,7 +183,7 @@ export default function SecuritySettingsPage() {
                           type={showConfirmPassword ? "text" : "password"}
                           placeholder="••••••••"
                           {...field}
-                          className="pl-10 pr-10 bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-black placeholder:text-gray-500"
+                          className="pl-10 pr-10 bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-gray-900 dark:text-white placeholder:text-gray-500"
                         />
                         <button
                           type="button"

@@ -39,6 +39,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { InlineLoader, ButtonLoader } from "@/components/ui/loader"
 import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
+import { label } from "@/lib/labels"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import type { SalaryRateSchedule, CreateSalaryRateScheduleDto, UpdateSalaryRateScheduleDto } from "@/types/salary"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -125,24 +126,13 @@ export default function SalaryRateSchedulePage() {
       }
 
       const response = await salaryRateScheduleService.getAll(params)
-      // Response structure: { statusCode, message, data: { data: [...], total, page, limit, hasNextPage, hasPrevPage } }
-      if (response && response.data) {
-        const responseData = response.data
-        // Backend returns records in data.data (nested) instead of data.records
-        const records = Array.isArray(responseData?.data) ? responseData?.data : []
-        setRateSchedules(records)
-        
-        // Calculate totalPages from limit and total
-        const limit = responseData?.limit || 10
-        const total = responseData?.total || 0
-        setTotalPages(Math.ceil(total / limit))
-        setTotal(total)
-      } else {
-        // Handle empty or unexpected response
-        setRateSchedules([])
-        setTotalPages(0)
-        setTotal(0)
-      }
+      const records = Array.isArray(response?.data) ? response.data : []
+      setRateSchedules(records)
+
+      const limit = response?.meta?.limit || 10
+      const total = response?.meta?.total || 0
+      setTotalPages(Math.ceil(total / limit))
+      setTotal(total)
     } catch (err: any) {
       setError(err.message || "Failed to fetch rate schedules")
       toast.error("Failed to fetch rate schedules")
@@ -169,21 +159,7 @@ export default function SalaryRateSchedulePage() {
       setIsAddingRateSchedule(false)
       fetchRateSchedules()
     } catch (err: any) {
-      // Extract error message from response
-      let errorMessage = "Failed to add rate schedule"
-      
-      if (err.response?.data) {
-        // Handle API error response
-        const responseData = err.response.data
-        if (responseData.message) {
-          errorMessage = responseData.message
-        } else if (responseData.error) {
-          errorMessage = responseData.error
-        }
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
+      const errorMessage = err.message || "Failed to add rate schedule"
       setDialogError(errorMessage)
       toast.error(errorMessage, {
         duration: 5000,
@@ -212,21 +188,7 @@ export default function SalaryRateSchedulePage() {
       setRateScheduleToEdit(null)
       fetchRateSchedules()
     } catch (err: any) {
-      // Extract error message from response
-      let errorMessage = "Failed to update rate schedule"
-      
-      if (err.response?.data) {
-        // Handle API error response
-        const responseData = err.response.data
-        if (responseData.message) {
-          errorMessage = responseData.message
-        } else if (responseData.error) {
-          errorMessage = responseData.error
-        }
-      } else if (err.message) {
-        errorMessage = err.message
-      }
-      
+      const errorMessage = err.message || "Failed to update rate schedule"
       setDialogError(errorMessage)
       toast.error(errorMessage, {
         duration: 5000,
@@ -240,12 +202,17 @@ export default function SalaryRateSchedulePage() {
     if (!rateScheduleToDelete) return
 
     try {
-      await salaryRateScheduleService.delete(rateScheduleToDelete.id)
-      toast.success("Rate schedule deleted successfully")
+      if (rateScheduleToDelete.isActive) {
+        await salaryRateScheduleService.update(rateScheduleToDelete.id, { isActive: false })
+        toast.success("Rate schedule deactivated successfully")
+      } else {
+        await salaryRateScheduleService.delete(rateScheduleToDelete.id)
+        toast.success("Rate schedule deleted successfully")
+      }
       setRateScheduleToDelete(null)
       fetchRateSchedules()
     } catch (err: any) {
-      toast.error("Failed to delete rate schedule")
+      toast.error(rateScheduleToDelete.isActive ? "Failed to deactivate rate schedule" : "Failed to delete rate schedule")
     }
   }
 
@@ -325,8 +292,8 @@ export default function SalaryRateSchedulePage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value={SalaryCategory.CENTRAL}>CENTRAL</SelectItem>
-                              <SelectItem value={SalaryCategory.STATE}>STATE</SelectItem>
+                              <SelectItem value={SalaryCategory.CENTRAL}>{label.salaryCategory(SalaryCategory.CENTRAL)}</SelectItem>
+                              <SelectItem value={SalaryCategory.STATE}>{label.salaryCategory(SalaryCategory.STATE)}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -350,10 +317,10 @@ export default function SalaryRateSchedulePage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value={SalarySubCategory.SKILLED}>SKILLED</SelectItem>
-                              <SelectItem value={SalarySubCategory.UNSKILLED}>UNSKILLED</SelectItem>
-                              <SelectItem value={SalarySubCategory.HIGHSKILLED}>HIGHSKILLED</SelectItem>
-                              <SelectItem value={SalarySubCategory.SEMISKILLED}>SEMISKILLED</SelectItem>
+                              <SelectItem value={SalarySubCategory.SKILLED}>{label.salarySubCategory(SalarySubCategory.SKILLED)}</SelectItem>
+                              <SelectItem value={SalarySubCategory.UNSKILLED}>{label.salarySubCategory(SalarySubCategory.UNSKILLED)}</SelectItem>
+                              <SelectItem value={SalarySubCategory.HIGHSKILLED}>{label.salarySubCategory(SalarySubCategory.HIGHSKILLED)}</SelectItem>
+                              <SelectItem value={SalarySubCategory.SEMISKILLED}>{label.salarySubCategory(SalarySubCategory.SEMISKILLED)}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -424,8 +391,8 @@ export default function SalaryRateSchedulePage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All categories</SelectItem>
-                    <SelectItem value={SalaryCategory.CENTRAL}>CENTRAL</SelectItem>
-                    <SelectItem value={SalaryCategory.STATE}>STATE</SelectItem>
+                    <SelectItem value={SalaryCategory.CENTRAL}>{label.salaryCategory(SalaryCategory.CENTRAL)}</SelectItem>
+                    <SelectItem value={SalaryCategory.STATE}>{label.salaryCategory(SalaryCategory.STATE)}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -438,10 +405,10 @@ export default function SalaryRateSchedulePage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All subcategories</SelectItem>
-                    <SelectItem value={SalarySubCategory.SKILLED}>SKILLED</SelectItem>
-                    <SelectItem value={SalarySubCategory.UNSKILLED}>UNSKILLED</SelectItem>
-                    <SelectItem value={SalarySubCategory.HIGHSKILLED}>HIGHSKILLED</SelectItem>
-                    <SelectItem value={SalarySubCategory.SEMISKILLED}>SEMISKILLED</SelectItem>
+                    <SelectItem value={SalarySubCategory.SKILLED}>{label.salarySubCategory(SalarySubCategory.SKILLED)}</SelectItem>
+                    <SelectItem value={SalarySubCategory.UNSKILLED}>{label.salarySubCategory(SalarySubCategory.UNSKILLED)}</SelectItem>
+                    <SelectItem value={SalarySubCategory.HIGHSKILLED}>{label.salarySubCategory(SalarySubCategory.HIGHSKILLED)}</SelectItem>
+                    <SelectItem value={SalarySubCategory.SEMISKILLED}>{label.salarySubCategory(SalarySubCategory.SEMISKILLED)}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -508,11 +475,11 @@ export default function SalaryRateSchedulePage() {
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 min-w-0">
                           <div className="min-w-0">
                             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Category</p>
-                            <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{schedule.category}</p>
+                            <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{label.salaryCategory(schedule.category)}</p>
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Subcategory</p>
-                            <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{schedule.subCategory}</p>
+                            <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{label.salarySubCategory(schedule.subCategory)}</p>
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Rate Per Day</p>
@@ -611,13 +578,13 @@ export default function SalaryRateSchedulePage() {
               )}
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Input value={rateScheduleToEdit?.category} disabled className="bg-gray-100" />
+                <Input value={label.salaryCategory(rateScheduleToEdit?.category)} disabled className="bg-muted" />
                 <p className="text-xs text-gray-500">Category cannot be changed</p>
               </div>
 
               <div className="space-y-2">
                 <Label>Subcategory</Label>
-                <Input value={rateScheduleToEdit?.subCategory} disabled className="bg-gray-100" />
+                <Input value={label.salarySubCategory(rateScheduleToEdit?.subCategory)} disabled className="bg-muted" />
                 <p className="text-xs text-gray-500">Subcategory cannot be changed</p>
               </div>
 
@@ -682,22 +649,31 @@ export default function SalaryRateSchedulePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the rate schedule for {rateScheduleToDelete?.category} -{" "}
-              {rateScheduleToDelete?.subCategory} (₹{rateScheduleToDelete?.ratePerDay.toLocaleString()}/day). This
-              action cannot be undone.
-              {rateScheduleToDelete?.isActive && (
-                <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
-                  <p className="text-yellow-600 dark:text-yellow-400 text-sm">
-                    ⚠️ This rate schedule is currently active. Deleting it may affect employees using this rate.
-                  </p>
-                </div>
+              {rateScheduleToDelete?.isActive ? (
+                <>
+                  This will deactivate the rate schedule for {label.salaryCategory(rateScheduleToDelete?.category)},{" "}
+                  {label.salarySubCategory(rateScheduleToDelete?.subCategory)} (₹
+                  {rateScheduleToDelete?.ratePerDay.toLocaleString()}/day). It stays on record for past payroll but stops
+                  applying to new payroll.
+                  <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
+                    <p className="text-yellow-600 dark:text-yellow-400 text-sm">
+                      This rate schedule is currently active. Deactivating it may affect employees using this rate.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  This will permanently delete the rate schedule for {label.salaryCategory(rateScheduleToDelete?.category)},{" "}
+                  {label.salarySubCategory(rateScheduleToDelete?.subCategory)} (₹
+                  {rateScheduleToDelete?.ratePerDay.toLocaleString()}/day). This action cannot be undone.
+                </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteRateSchedule} className="bg-red-500 hover:bg-red-600">
-              Delete
+              {rateScheduleToDelete?.isActive ? "Deactivate" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

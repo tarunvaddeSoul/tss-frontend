@@ -1,5 +1,6 @@
 import { Document, StyleSheet, Text, View } from "@react-pdf/renderer"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
+import { label, formatDate } from "@/lib/labels"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
 
@@ -19,17 +20,17 @@ const styles = StyleSheet.create({
   },
 })
 
-interface CompanyViewPDFProps {
-  company: Company
+interface ClientViewPDFProps {
+  client: Client
 }
 
-const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
+const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
   const currentDate = new Date().toLocaleDateString()
 
   // Get enabled salary template fields for display
   const getEnabledFields = () => {
     // salaryTemplates is an array, so get the first template
-    const template = Array.isArray(company.salaryTemplates) ? company.salaryTemplates[0] : company.salaryTemplates
+    const template = Array.isArray(client.salaryTemplates) ? client.salaryTemplates[0] : client.salaryTemplates
     if (!template) return []
 
     return [
@@ -43,45 +44,45 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
 
   return (
     <Document
-      title={`${company.name} - Company Profile`}
+      title={`${client.name} - Client Profile`}
       author={BRAND.name}
-      subject="Company Profile"
-      keywords="Tulsyan Security Services, Company, Profile"
+      subject="Client Profile"
+      keywords="Tulsyan Security Services, Client, Profile"
     >
       <BrandPage>
-        <PdfHeader title={company.name} subtitle="Company Profile" tag={company.status || "ACTIVE"} logoSrc="/tss-logo.png" />
+        <PdfHeader title={client.name} subtitle="Client Profile" tag={label.status(client.status)} logoSrc="/tss-logo.png" />
 
         <Section title="Basic Information">
           <View style={brandStyles.row}>
-            <Text style={brandStyles.label}>Company Name:</Text>
-            <Text style={brandStyles.value}>{company.name}</Text>
+            <Text style={brandStyles.label}>Client Name:</Text>
+            <Text style={brandStyles.value}>{client.name}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Address:</Text>
-            <Text style={brandStyles.value}>{company.address}</Text>
+            <Text style={[brandStyles.value, { textAlign: "left" }]}>{client.address || "-"}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Status:</Text>
-            <Text style={brandStyles.value}>{company.status || "ACTIVE"}</Text>
+            <Text style={brandStyles.value}>{label.status(client.status)}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Onboarding Date:</Text>
-            <Text style={brandStyles.value}>{company.companyOnboardingDate || "Not specified"}</Text>
+            <Text style={brandStyles.value}>{formatDate(client.clientOnboardingDate)}</Text>
           </View>
           <View style={brandStyles.row}>
-            <Text style={brandStyles.label}>Company ID:</Text>
-            <Text style={brandStyles.value}>{company.id}</Text>
+            <Text style={brandStyles.label}>Client ID:</Text>
+            <Text style={[brandStyles.value, { textAlign: "left" }]}>{client.id}</Text>
           </View>
         </Section>
 
         <Section title="Contact Information">
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Contact Person:</Text>
-            <Text style={brandStyles.value}>{company.contactPersonName}</Text>
+            <Text style={[brandStyles.value, { textAlign: "left" }]}>{client.contactPersonName || "-"}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Contact Number:</Text>
-            <Text style={brandStyles.value}>{company.contactPersonNumber}</Text>
+            <Text style={brandStyles.value}>{client.contactPersonNumber || "-"}</Text>
           </View>
         </Section>
 
@@ -127,13 +128,13 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
         const payPeriod = `01-${monthNum}-${currentDate.getFullYear()} to ${String(lastDay).padStart(2, "0")}-${monthNum}-${currentDate.getFullYear()}`
 
         const sampleSalarySlipData: SalarySlipData = {
-          company: company.name,
+          client: client.name,
           month,
           pay_period: payPeriod,
           employee: {
-            name: "Sample Employee",
-            employee_id: "E-SAMPLE",
-            category: "CENTRAL",
+            name: "SAMPLE (template preview only)",
+            employee_id: "SAMPLE",
+            category: "Sample",
             department: "Sample Department",
             location: "Sample Location",
             working_days: 27,
@@ -163,4 +164,4 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
   )
 }
 
-export default CompanyViewPDF
+export default ClientViewPDF

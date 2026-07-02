@@ -3,7 +3,7 @@ import { BRAND, BrandPage, PdfFooter, PdfHeader, brandStyles } from "@/component
 
 // Salary slip data structure based on the provided JSON
 export interface SalarySlipData {
-  company: string
+  client: string
   month: string
   pay_period: string
   employee: {
@@ -100,25 +100,59 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   netPaySection: {
-    marginTop: 15,
-    padding: 15,
-    backgroundColor: "#fff7ed",
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: BRAND.colors.softBg,
     borderRadius: 4,
-    borderWidth: 2,
-    borderColor: BRAND.colors.primary,
+    borderWidth: 1,
+    borderColor: BRAND.colors.border,
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
   netPayLabel: {
-    fontSize: 11,
-    color: BRAND.colors.muted,
-    marginBottom: 5,
+    fontSize: 10,
+    fontWeight: "bold",
+    color: BRAND.colors.text,
   },
   netPayValue: {
-    fontSize: 20,
+    fontSize: 13,
     fontWeight: "bold",
     color: BRAND.colors.primary,
   },
+  lineItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginBottom: 6,
+  },
+  lineLabel: {
+    fontSize: 9,
+    color: BRAND.colors.muted,
+    flexShrink: 1,
+    paddingRight: 8,
+  },
+  lineValue: {
+    fontSize: 10,
+    color: BRAND.colors.text,
+    textAlign: "right",
+  },
+  lineBold: {
+    fontWeight: "bold",
+    color: BRAND.colors.text,
+  },
 })
+
+const rupees = (value: number): string =>
+  `₹${(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+
+const LineItem = ({ label, value, bold = false }: { label: string; value: number; bold?: boolean }) => (
+  <View style={styles.lineItem}>
+    <Text style={[styles.lineLabel, ...(bold ? [styles.lineBold] : [])]}>{label}</Text>
+    <Text style={[styles.lineValue, ...(bold ? [styles.lineBold] : [])]}>{rupees(value)}</Text>
+  </View>
+)
 
 interface SalarySlipPDFProps {
   data: SalarySlipData
@@ -126,6 +160,20 @@ interface SalarySlipPDFProps {
 
 // Core component that renders just the page (for embedding in other documents)
 export const SalarySlipPDFPage = ({ data }: SalarySlipPDFProps) => {
+  const earningItems: { label: string; value: number }[] = [
+    { label: "Basic", value: data.earnings?.basic || 0 },
+    { label: "Allowance", value: data.earnings?.allowance || 0 },
+    ...((data.earnings?.other_allowance || 0) > 0
+      ? [{ label: "Other Allowance", value: data.earnings.other_allowance }]
+      : []),
+    ...((data.earnings?.other || 0) > 0 ? [{ label: "Other", value: data.earnings.other }] : []),
+  ]
+  const deductionItems: { label: string; value: number }[] = [
+    { label: "EPF Contribution (12%)", value: data.deductions?.epf_contribution_12_percent || 0 },
+    { label: "ESIC (0.75%)", value: data.deductions?.esic_0_75_percent || 0 },
+    ...((data.deductions?.advance || 0) > 0 ? [{ label: "Advance", value: data.deductions.advance }] : []),
+  ]
+
   return (
     <BrandPage>
       {/* Brand Header */}
@@ -149,14 +197,6 @@ export const SalarySlipPDFPage = ({ data }: SalarySlipPDFProps) => {
           <Text style={styles.employeeDetailsLabel}>Category:</Text>
           <Text style={styles.employeeDetailsValue}>{data.employee?.category || "N/A"}</Text>
         </View>
-        {/* <View style={styles.employeeDetailsRow}>
-          <Text style={styles.employeeDetailsLabel}>Department:</Text>
-          <Text style={styles.employeeDetailsValue}>{data.employee?.department || "N/A"}</Text>
-        </View>
-        <View style={styles.employeeDetailsRow}>
-          <Text style={styles.employeeDetailsLabel}>Location:</Text>
-          <Text style={styles.employeeDetailsValue}>{data.employee?.location || "N/A"}</Text>
-        </View> */}
         <View style={styles.employeeDetailsRow}>
           <Text style={styles.employeeDetailsLabel}>Working Days:</Text>
           <Text style={styles.employeeDetailsValue}>{String(data.employee?.working_days ?? 0)}</Text>
@@ -193,100 +233,34 @@ export const SalarySlipPDFPage = ({ data }: SalarySlipPDFProps) => {
           </View>
         </View>
 
-        {/* Content Rows */}
+        {/* Line items: each column is its own aligned list (label left, amount right) */}
         <View style={styles.salaryTableRow}>
           <View style={styles.earningsColumn}>
-            <Text style={styles.tableCellLabel}>Basic</Text>
-            <Text style={styles.tableCellValue}>
-              ₹{((data.earnings?.basic || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Text>
+            {earningItems.map((item, i) => (
+              <LineItem key={i} label={item.label} value={item.value} />
+            ))}
           </View>
           <View style={styles.deductionsColumn}>
-            <Text style={styles.tableCellLabel}>EPF Contribution (12%)</Text>
-            <Text style={styles.tableCellValue}>
-              ₹{((data.deductions?.epf_contribution_12_percent || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Text>
+            {deductionItems.map((item, i) => (
+              <LineItem key={i} label={item.label} value={item.value} />
+            ))}
           </View>
         </View>
-
-        <View style={styles.salaryTableRow}>
-          <View style={styles.earningsColumn}>
-            <Text style={styles.tableCellLabel}>Allowance</Text>
-            <Text style={styles.tableCellValue}>
-              ₹{((data.earnings?.allowance || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Text>
-          </View>
-          <View style={styles.deductionsColumn}>
-            <Text style={styles.tableCellLabel}>ESIC (0.75%)</Text>
-            <Text style={styles.tableCellValue}>
-              ₹{((data.deductions?.esic_0_75_percent || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Text>
-          </View>
-        </View>
-
-        {((data.earnings?.other_allowance || 0) > 0 || (data.deductions?.advance || 0) > 0) && (
-          <View style={styles.salaryTableRow}>
-            <View style={styles.earningsColumn}>
-              {(data.earnings?.other_allowance || 0) > 0 ? (
-                <View>
-                  <Text style={styles.tableCellLabel}>Other Allowance</Text>
-                  <Text style={styles.tableCellValue}>
-                    ₹{((data.earnings?.other_allowance || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.tableCellValue}>-</Text>
-              )}
-            </View>
-            <View style={styles.deductionsColumn}>
-              {(data.deductions?.advance || 0) > 0 ? (
-                <View>
-                  <Text style={styles.tableCellLabel}>Advance</Text>
-                  <Text style={styles.tableCellValue}>
-                    ₹{((data.deductions?.advance || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.tableCellValue}>-</Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        {(data.earnings?.other || 0) > 0 && (
-          <View style={styles.salaryTableRow}>
-            <View style={styles.earningsColumn}>
-              <Text style={styles.tableCellLabel}>Other</Text>
-              <Text style={styles.tableCellValue}>
-                ₹{((data.earnings?.other || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-              </Text>
-            </View>
-            <View style={styles.deductionsColumn}>
-              <Text style={styles.tableCellValue}>-</Text>
-            </View>
-          </View>
-        )}
 
         {/* Totals Row */}
         <View style={[styles.salaryTableRow, { backgroundColor: BRAND.colors.tableHeaderBg }]}>
           <View style={styles.earningsColumn}>
-            <Text style={[styles.tableCellLabel, { fontWeight: "bold" }]}>Gross Earning</Text>
-            <Text style={[styles.tableCellValue, { fontWeight: "bold" }]}>
-              ₹{((data.earnings?.gross_earning || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Text>
+            <LineItem label="Gross Earning" value={data.earnings?.gross_earning || 0} bold />
           </View>
           <View style={styles.deductionsColumn}>
-            <Text style={[styles.tableCellLabel, { fontWeight: "bold" }]}>Gross Deduction</Text>
-            <Text style={[styles.tableCellValue, { fontWeight: "bold" }]}>
-              ₹{((data.deductions?.gross_deduction || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </Text>
+            <LineItem label="Gross Deduction" value={data.deductions?.gross_deduction || 0} bold />
           </View>
         </View>
       </View>
 
       {/* Net Pay Section */}
       <View style={styles.netPaySection}>
-        <Text style={styles.netPayLabel}>TAKE HOME PAY</Text>
+        <Text style={styles.netPayLabel}>Net Pay (Take Home)</Text>
         <Text style={styles.netPayValue}>
           ₹{((data.net_pay || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </Text>

@@ -30,6 +30,7 @@ export const BRAND = {
 export const brandStyles = StyleSheet.create({
   page: {
     padding: 30,
+    paddingBottom: 52,
     backgroundColor: "#ffffff",
     fontFamily: "Roboto",
   },

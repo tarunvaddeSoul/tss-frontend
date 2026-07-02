@@ -1,32 +1,14 @@
-import { Document, StyleSheet, Text, View } from "@react-pdf/renderer"
+import { Document, Text, View } from "@react-pdf/renderer"
 import type { Client } from "@/types/client"
 import { label, formatDate } from "@/lib/labels"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
-
-// Local styles (use brandStyles for most)
-const styles = StyleSheet.create({
-  badge: {
-    fontSize: 10,
-    color: "#ffffff",
-    backgroundColor: "#22c55e",
-    padding: 4,
-    borderRadius: 4,
-    textAlign: "center",
-    width: 60,
-  },
-  inactiveBadge: {
-    backgroundColor: "#6b7280",
-  },
-})
 
 interface ClientViewPDFProps {
   client: Client
 }
 
 const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
-  const currentDate = new Date().toLocaleDateString()
-
   // Get enabled salary template fields for display
   const getEnabledFields = () => {
     // salaryTemplates is an array, so get the first template
@@ -71,7 +53,7 @@ const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Client ID:</Text>
-            <Text style={[brandStyles.value, { textAlign: "left" }]}>{client.id}</Text>
+            <Text style={[brandStyles.value, { textAlign: "left", fontFamily: "IBMPlexMono", fontSize: 8.5 }]}>{client.id}</Text>
           </View>
         </Section>
 
@@ -82,7 +64,7 @@ const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Contact Number:</Text>
-            <Text style={brandStyles.value}>{client.contactPersonNumber || "-"}</Text>
+            <Text style={[brandStyles.value, { fontFamily: "IBMPlexMono", fontSize: 9 }]}>{client.contactPersonNumber || "-"}</Text>
           </View>
         </Section>
 

@@ -46,12 +46,12 @@ const AttendanceReportPDF = ({ title, month, records }: AttendanceReportPDFProps
             ) : (
               records.map((rec) => (
                 <View key={`${rec.employeeID}-${rec.clientName}`} style={brandStyles.tableRow} wrap={false}>
-                  <Text style={[brandStyles.tableCell, { width: "12%" }]}>{rec.employeeID || "-"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "12%", fontFamily: "IBMPlexMono", fontSize: 8 }]}>{rec.employeeID || "-"}</Text>
                   <Text style={[brandStyles.tableCell, { width: "22%" }]}>{rec.employeeName || "-"}</Text>
                   <Text style={[brandStyles.tableCell, { width: "22%" }]}>{rec.clientName || "-"}</Text>
                   <Text style={[brandStyles.tableCell, { width: "16%" }]}>{rec.designationName || "-"}</Text>
                   <Text style={[brandStyles.tableCell, { width: "16%" }]}>{rec.departmentName || "-"}</Text>
-                  <Text style={[brandStyles.tableCell, { width: "12%", textAlign: "right" }]}>{rec.presentCount}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "12%", textAlign: "right", fontFamily: "IBMPlexMono", fontSize: 8.5 }]}>{rec.presentCount}</Text>
                 </View>
               ))
             )}

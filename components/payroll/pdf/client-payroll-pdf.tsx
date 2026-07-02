@@ -1,4 +1,4 @@
-import { Document, Text, View, StyleSheet, PDFDownloadLink, Image, Page } from "@react-pdf/renderer"
+import { Document, Text, View, PDFDownloadLink } from "@react-pdf/renderer"
 import { FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { ClientPayrollMonth, ClientPayrollRecord } from "@/types/payroll"
@@ -10,75 +10,6 @@ function getCurrentDateTime(): string {
   const now = new Date()
   return now.toISOString().replace(/[:.]/g, "-").slice(0, 19)
 }
-
-const styles = StyleSheet.create({
-  page: {
-    flexDirection: "column",
-    backgroundColor: "#ffffff",
-    padding: 30,
-    fontSize: 10,
-  },
-  header: {
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#666666",
-    marginBottom: 10,
-  },
-  metadata: {
-    fontSize: 9,
-    color: "#888888",
-  },
-  monthSection: {
-    marginBottom: 20,
-    padding: 10,
-    backgroundColor: "#fafafa",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderStyle: "solid",
-  },
-  monthHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-    paddingBottom: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  monthTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  monthStats: {
-    fontSize: 9,
-    color: "#6b7280",
-  },
-  table: brandStyles.table,
-  tableRow: { ...brandStyles.tableRow, minHeight: 22, alignItems: "center" },
-  tableHeader: brandStyles.tableHeader,
-  tableCell: { ...brandStyles.tableCell, fontSize: 9 },
-  col1: { width: "25%" }, // Employee
-  col2: { width: "15%" }, // Basic Pay
-  col3: { width: "15%" }, // Gross
-  col4: { width: "15%" }, // Net
-  col5: { width: "30%" }, // Deductions
-  footer: {
-    position: "absolute",
-    bottom: 30,
-    left: 30,
-    right: 30,
-    textAlign: "center",
-    fontSize: 8,
-    color: "#666666",
-  },
-})
 
 interface ClientPayrollPDFProps {
   data: ClientPayrollMonth[]
@@ -216,7 +147,7 @@ const ClientPayrollPDF = ({ data, clientName, clientDetails }: ClientPayrollPDFP
           {clientDetails?.contactPersonNumber && (
             <View style={brandStyles.row}>
               <Text style={brandStyles.label}>Contact Number:</Text>
-              <Text style={brandStyles.value}>{clientDetails.contactPersonNumber}</Text>
+              <Text style={[brandStyles.value, { fontFamily: "IBMPlexMono", fontSize: 9 }]}>{clientDetails.contactPersonNumber}</Text>
             </View>
           )}
           {clientDetails?.clientOnboardingDate && (
@@ -238,7 +169,7 @@ const ClientPayrollPDF = ({ data, clientName, clientDetails }: ClientPayrollPDFP
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Net Salary:</Text>
-            <Text style={brandStyles.value}>₹{totalNetSalary.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+            <Text style={[brandStyles.value, { fontFamily: "IBMPlexMono", fontSize: 9 }]}>₹{totalNetSalary.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
           </View>
         </Section>
 

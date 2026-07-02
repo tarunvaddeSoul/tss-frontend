@@ -36,24 +36,32 @@ export interface SalarySlipData {
 const styles = StyleSheet.create({
   employeeDetails: {
     marginBottom: 20,
-    padding: 12,
-    backgroundColor: BRAND.colors.softBg,
-    borderRadius: 4,
-    borderWidth: 1,
+    paddingVertical: 4,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: BRAND.colors.border,
   },
   employeeDetailsRow: {
     flexDirection: "row",
-    marginBottom: 6,
+    alignItems: "baseline",
+    paddingVertical: 3.5,
   },
   employeeDetailsLabel: {
     width: "40%",
-    fontSize: 9,
-    fontWeight: "bold",
+    fontFamily: "IBMPlexMono",
+    fontSize: 7.5,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     color: BRAND.colors.muted,
   },
   employeeDetailsValue: {
     width: "60%",
+    fontSize: 9.5,
+    color: BRAND.colors.text,
+  },
+  employeeDetailsValueMono: {
+    width: "60%",
+    fontFamily: "IBMPlexMono",
     fontSize: 9,
     color: BRAND.colors.text,
   },
@@ -94,30 +102,36 @@ const styles = StyleSheet.create({
     fontWeight: "normal",
   },
   tableHeaderText: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: BRAND.colors.text,
+    fontFamily: "IBMPlexMono",
+    fontSize: 8.5,
+    fontWeight: 600,
+    letterSpacing: 1.2,
+    color: BRAND.colors.muted,
     textAlign: "center",
   },
   netPaySection: {
     marginTop: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: BRAND.colors.softBg,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: BRAND.colors.border,
+    borderTopWidth: 2,
+    borderTopColor: BRAND.colors.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: BRAND.colors.border,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   netPayLabel: {
-    fontSize: 10,
-    fontWeight: "bold",
+    fontFamily: "IBMPlexMono",
+    fontSize: 8.5,
+    fontWeight: 600,
+    letterSpacing: 1,
+    textTransform: "uppercase",
     color: BRAND.colors.text,
   },
   netPayValue: {
-    fontSize: 13,
+    fontFamily: "Archivo",
+    fontSize: 15,
     fontWeight: "bold",
     color: BRAND.colors.primary,
   },
@@ -134,12 +148,13 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   lineValue: {
-    fontSize: 10,
+    fontFamily: "IBMPlexMono",
+    fontSize: 9,
     color: BRAND.colors.text,
     textAlign: "right",
   },
   lineBold: {
-    fontWeight: "bold",
+    fontWeight: 600,
     color: BRAND.colors.text,
   },
 })
@@ -191,7 +206,7 @@ export const SalarySlipPDFPage = ({ data }: SalarySlipPDFProps) => {
         </View>
         <View style={styles.employeeDetailsRow}>
           <Text style={styles.employeeDetailsLabel}>Employee ID:</Text>
-          <Text style={styles.employeeDetailsValue}>{data.employee?.employee_id || "N/A"}</Text>
+          <Text style={styles.employeeDetailsValueMono}>{data.employee?.employee_id || "N/A"}</Text>
         </View>
         <View style={styles.employeeDetailsRow}>
           <Text style={styles.employeeDetailsLabel}>Category:</Text>
@@ -204,19 +219,19 @@ export const SalarySlipPDFPage = ({ data }: SalarySlipPDFProps) => {
         {data.employee.account_no && data.employee.account_no.trim() !== "" && (
           <View style={styles.employeeDetailsRow}>
             <Text style={styles.employeeDetailsLabel}>Account No:</Text>
-            <Text style={styles.employeeDetailsValue}>{data.employee.account_no}</Text>
+            <Text style={styles.employeeDetailsValueMono}>{data.employee.account_no}</Text>
           </View>
         )}
         {data.employee.esic_no && data.employee.esic_no.trim() !== "" && (
           <View style={styles.employeeDetailsRow}>
             <Text style={styles.employeeDetailsLabel}>ESIC No:</Text>
-            <Text style={styles.employeeDetailsValue}>{data.employee.esic_no}</Text>
+            <Text style={styles.employeeDetailsValueMono}>{data.employee.esic_no}</Text>
           </View>
         )}
         {data.employee.uan_no && data.employee.uan_no.trim() !== "" && (
           <View style={styles.employeeDetailsRow}>
             <Text style={styles.employeeDetailsLabel}>UAN No:</Text>
-            <Text style={styles.employeeDetailsValue}>{data.employee.uan_no}</Text>
+            <Text style={styles.employeeDetailsValueMono}>{data.employee.uan_no}</Text>
           </View>
         )}
       </View>

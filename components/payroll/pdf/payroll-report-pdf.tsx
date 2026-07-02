@@ -32,6 +32,8 @@ const COL_W = {
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
+const NUM = { fontFamily: "IBMPlexMono", fontSize: 8 } as const
+
 // "2025-07" -> "Jul-25"
 const formatMonthShort = (monthStr: string): string => {
   if (!monthStr || !monthStr.includes("-")) return monthStr || "-"
@@ -182,32 +184,32 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
         <Section title="Summary">
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Gross Salary:</Text>
-            <Text style={brandStyles.value}>₹{totalGrossSalary.toLocaleString("en-IN")}</Text>
+            <Text style={[brandStyles.value, NUM, { fontSize: 9 }]}>₹{totalGrossSalary.toLocaleString("en-IN")}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Net Salary:</Text>
-            <Text style={brandStyles.value}>₹{totalNetSalary.toLocaleString("en-IN")}</Text>
+            <Text style={[brandStyles.value, NUM, { fontSize: 9 }]}>₹{totalNetSalary.toLocaleString("en-IN")}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Deductions:</Text>
-            <Text style={brandStyles.value}>₹{totalDeductions.toLocaleString("en-IN")}</Text>
+            <Text style={[brandStyles.value, NUM, { fontSize: 9 }]}>₹{totalDeductions.toLocaleString("en-IN")}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total Basic Pay:</Text>
-            <Text style={brandStyles.value}>₹{totalBasicPay.toLocaleString("en-IN")}</Text>
+            <Text style={[brandStyles.value, NUM, { fontSize: 9 }]}>₹{totalBasicPay.toLocaleString("en-IN")}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total PF:</Text>
-            <Text style={brandStyles.value}>₹{totalPF.toLocaleString("en-IN")}</Text>
+            <Text style={[brandStyles.value, NUM, { fontSize: 9 }]}>₹{totalPF.toLocaleString("en-IN")}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Total ESIC:</Text>
-            <Text style={brandStyles.value}>₹{totalESIC.toLocaleString("en-IN")}</Text>
+            <Text style={[brandStyles.value, NUM, { fontSize: 9 }]}>₹{totalESIC.toLocaleString("en-IN")}</Text>
           </View>
           {totalBonus > 0 && (
             <View style={brandStyles.row}>
               <Text style={brandStyles.label}>Total Bonus:</Text>
-              <Text style={brandStyles.value}>₹{totalBonus.toLocaleString("en-IN")}</Text>
+              <Text style={[brandStyles.value, NUM, { fontSize: 9 }]}>₹{totalBonus.toLocaleString("en-IN")}</Text>
             </View>
           )}
         </Section>
@@ -255,14 +257,14 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
               
               return (
                 <View key={record.id} style={brandStyles.tableRow} wrap={false}>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.empId }]}>{record.employeeId}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.empId }, NUM]}>{record.employeeId}</Text>
                   <Text style={[brandStyles.tableCell, { width: COL_W.client }]}>{record.clientName || information?.clientName || "N/A"}</Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.month }]}>{formatMonthShort(record.month)}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.month }, NUM]}>{formatMonthShort(record.month)}</Text>
                   <Text style={[brandStyles.tableCell, { width: COL_W.category }]}>
                     {salaryCategory ? label.salaryCategory(salaryCategory) : "N/A"}
                     {salaryData?.salarySubCategory ? `\n${label.salarySubCategory(salaryData.salarySubCategory)}` : ""}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.rate, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.rate, textAlign: "right" }, NUM]}>
                     {isSpecialized && monthlySalary
                       ? `₹${(monthlySalary || 0).toLocaleString("en-IN")}\n/mo`
                       : salaryPerDay
@@ -271,28 +273,28 @@ const PayrollReportPDF = ({ data, title, totalRecords, startMonth, endMonth, emp
                           ? `₹${(rate || 0).toLocaleString("en-IN")}\n/day`
                           : "N/A"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.basic, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.basic, textAlign: "right" }, NUM]}>
                     ₹{(calculations?.basicPay ?? salaryData?.basicPay ?? 0).toLocaleString("en-IN")}
                 </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.gross, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.gross, textAlign: "right" }, NUM]}>
                     ₹{(calculations?.grossSalary ?? salaryData?.grossSalary ?? 0).toLocaleString("en-IN")}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.pf, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.pf, textAlign: "right" }, NUM]}>
                     {pfAmount > 0 ? `₹${pfAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.esic, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.esic, textAlign: "right" }, NUM]}>
                     {esicAmount > 0 ? `₹${esicAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.lwf, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.lwf, textAlign: "right" }, NUM]}>
                     {lwfAmount > 0 ? `₹${lwfAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.bonus, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.bonus, textAlign: "right" }, NUM]}>
                     {bonusAmount > 0 ? `₹${bonusAmount.toLocaleString("en-IN")}` : "-"}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.net, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.net, textAlign: "right" }, NUM]}>
                     ₹{(calculations?.netSalary ?? salaryData?.netSalary ?? 0).toLocaleString("en-IN")}
                   </Text>
-                  <Text style={[brandStyles.tableCell, { width: COL_W.deductions, textAlign: "right" }]}>
+                  <Text style={[brandStyles.tableCell, { width: COL_W.deductions, textAlign: "right" }, NUM]}>
                     ₹{(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0).toLocaleString("en-IN")}
                   </Text>
                 </View>

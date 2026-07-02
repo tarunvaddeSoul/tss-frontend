@@ -49,7 +49,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const groups = user?.role === Role.ADMIN ? [...settingsGroups, adminGroup] : settingsGroups
 
   return (
-    <div className="container py-8">
+    <div className="mx-auto w-full max-w-[1400px] py-8">
       <div className="flex flex-col md:flex-row gap-8">
         <aside className="w-full md:w-64 shrink-0">
           <div className="rounded-md border bg-card">

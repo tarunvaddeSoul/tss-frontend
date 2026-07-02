@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { AlertCircle, MailPlus, RefreshCw, Send, UserPlus } from "lucide-react"
+import { AlertCircle, MailPlus, RefreshCw, Send, UserCheck, UserPlus, UserX } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { formatDate } from "@/lib/labels"
 import { Role } from "@/types/auth"
@@ -93,14 +94,12 @@ export default function UsersSettingsPage() {
   async function onInvite(values: InviteFormValues) {
     setIsInviting(true)
     try {
-      const { emailSent } = await userAdminService.inviteUser(values)
-      if (emailSent) {
-        toast.success(`Invite sent. ${values.email} will receive a link to set their password.`)
-      } else {
-        toast.warning(
-          `Account created, but the invite email failed. Use "Send set-password link" on the user's row to retry.`,
-        )
-      }
+      const { resent } = await userAdminService.inviteUser(values)
+      toast.success(
+        resent
+          ? `Invite re-sent to ${values.email}.`
+          : `Invite sent. ${values.email} will receive a link to set their password.`,
+      )
       setInviteOpen(false)
       form.reset()
       await fetchAll()
@@ -136,6 +135,24 @@ export default function UsersSettingsPage() {
       await fetchAll()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update the account.")
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  async function handleResendInvite(target: AdminUser) {
+    setBusyUserId(target.id)
+    try {
+      await userAdminService.inviteUser({
+        name: target.name,
+        email: target.email,
+        mobileNumber: target.mobileNumber,
+        role: target.role,
+        departmentId: target.departmentId,
+      })
+      toast.success(`Invite re-sent to ${target.email}.`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not re-send the invite.")
     } finally {
       setBusyUserId(null)
     }
@@ -316,16 +333,14 @@ export default function UsersSettingsPage() {
           </div>
         ) : (
           <div className="rounded-md border overflow-x-auto scrollbar-sleek">
-            <Table className="min-w-[860px]">
+            <Table className="w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Mobile</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -336,8 +351,7 @@ export default function UsersSettingsPage() {
                       {u.name}
                       {isSelf(u) && <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">You</span>}
                     </TableCell>
-                    <TableCell className="font-mono text-[13px]">{u.email}</TableCell>
-                    <TableCell className="font-mono text-[13px]">{u.mobileNumber}</TableCell>
+                    <TableCell className="max-w-[200px] truncate font-mono text-[13px]" title={`${u.email} · ${u.mobileNumber} · joined ${formatDate(u.createdAt)}`}>{u.email}</TableCell>
                     <TableCell className="text-muted-foreground">{u.department?.name || "-"}</TableCell>
                     <TableCell>
                       <Select
@@ -345,7 +359,7 @@ export default function UsersSettingsPage() {
                         onValueChange={(value) => handleRoleChange(u, value as Role)}
                         disabled={isSelf(u) || busyUserId === u.id}
                       >
-                        <SelectTrigger className="h-8 w-[150px]">
+                        <SelectTrigger className="h-8 w-[132px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -358,32 +372,35 @@ export default function UsersSettingsPage() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={u.isActive ? "success" : "destructive"}>
-                        {u.isActive ? "Active" : "Deactivated"}
+                      <Badge
+                        variant={u.invitePending ? "warning" : u.isActive ? "success" : "destructive"}
+                      >
+                        {u.invitePending ? "Invited" : u.isActive ? "Active" : "Deactivated"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-[13px] text-muted-foreground">
-                      {formatDate(u.createdAt)}
-                    </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleSendSetPassword(u)}
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => (u.invitePending ? handleResendInvite(u) : handleSendSetPassword(u))}
                           disabled={busyUserId === u.id}
-                          title="Email a set-password link"
+                          title={u.invitePending ? "Re-send the invite email" : "Email a set-password link"}
+                          aria-label={u.invitePending ? "Re-send invite" : "Send set-password link"}
                         >
-                          <Send className="mr-1.5 h-3.5 w-3.5" />
-                          Reset link
+                          <Send className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant={u.isActive ? "outline" : "default"}
-                          size="sm"
+                          variant="ghost"
+                          size="icon"
+                          className={cn("h-8 w-8", u.isActive ? "text-destructive hover:text-destructive" : "text-success hover:text-success")}
                           onClick={() => handleToggleActive(u)}
                           disabled={isSelf(u) || busyUserId === u.id}
+                          title={u.isActive ? "Deactivate account" : "Reactivate account"}
+                          aria-label={u.isActive ? "Deactivate account" : "Reactivate account"}
                         >
-                          {u.isActive ? "Deactivate" : "Reactivate"}
+                          {u.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                         </Button>
                       </div>
                     </TableCell>

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PasswordRules } from "@/components/ui/password-rules"
 import { useAuth } from "@/hooks/use-auth"
+import { clearTokens } from "@/services/token"
 import { AxiosError } from "axios"
 import { toast } from "@/components/ui/use-toast"
 
@@ -48,6 +49,7 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const token = searchParams.get("token")
+  const isInvite = searchParams.get("invite") === "1"
 
   const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -81,6 +83,7 @@ export default function ResetPasswordPage() {
         resetToken: token,
         newPassword: data.newPassword,
       })
+      clearTokens()
       setSuccess(true)
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string; statusCode?: number }>
@@ -153,10 +156,14 @@ export default function ResetPasswordPage() {
     <Card className="w-full">
         <CardHeader className="space-y-1.5">
           <div className="registry-line mb-2">
-            <span className="registry-eyebrow"><strong>N° 03</strong> · Reset password</span>
+            <span className="registry-eyebrow"><strong>N° 03</strong> · {isInvite ? "Account activation" : "Reset password"}</span>
           </div>
-          <CardTitle className="text-xl">Reset password</CardTitle>
-          <CardDescription>Enter your new password</CardDescription>
+          <CardTitle className="text-xl">{isInvite ? "Set your password" : "Reset password"}</CardTitle>
+          <CardDescription>
+            {isInvite
+              ? "Welcome to the TSS Ops Portal. Choose a password to activate your account."
+              : "Enter your new password"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
@@ -164,10 +171,11 @@ export default function ResetPasswordPage() {
               <Alert variant="success" className="text-left">
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Password reset successful.</strong>
+                  <strong>{isInvite ? "Your account is active." : "Password reset successful."}</strong>
                   <p className="mt-1 text-sm">
-                    Your password has been reset successfully. You will be redirected to the login page in a few
-                    seconds.
+                    {isInvite
+                      ? "Your password is set. Sign in with it on the login page, where you will be taken in a few seconds."
+                      : "Your password has been reset successfully. You will be redirected to the login page in a few seconds."}
                   </p>
                 </AlertDescription>
               </Alert>
@@ -231,7 +239,7 @@ export default function ResetPasswordPage() {
                       Resetting...
                     </>
                   ) : (
-                    "Reset Password"
+                    isInvite ? "Set password" : "Reset Password"
                   )}
                 </Button>
               </form>

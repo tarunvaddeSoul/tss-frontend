@@ -8,6 +8,7 @@ export interface AdminUser {
   mobileNumber: string
   role: Role
   isActive: boolean
+  invitePending?: boolean
   createdAt: string
   updatedAt: string
   departmentId: string
@@ -25,15 +26,6 @@ export interface InviteUserInput {
   mobileNumber: string
   role: Role
   departmentId: string
-}
-
-// Invited users never receive this password; they set their own through the
-// emailed reset link. It only has to satisfy the register endpoint's rules.
-function generateThrowawayPassword(): string {
-  const bytes = new Uint8Array(12)
-  crypto.getRandomValues(bytes)
-  const body = Array.from(bytes, (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("")
-  return `Xt7${body}`.slice(0, 18)
 }
 
 export const userAdminService = {
@@ -56,29 +48,17 @@ export const userAdminService = {
   },
 
   /**
-   * Invite = create the account with a throwaway password, then trigger the
-   * reset-password email so the person sets their own password. Returns whether
-   * the invite email went out (the account exists either way).
+   * Invite (or re-invite) a user. The backend creates a pending account and
+   * emails a set-password link that expires in 72 hours; nobody picks a
+   * password for anyone else. Returns resent=true when the account already
+   * existed as a pending invite.
    */
-  async inviteUser(input: InviteUserInput): Promise<{ emailSent: boolean }> {
+  async inviteUser(input: InviteUserInput): Promise<{ resent: boolean }> {
     try {
-      await api.post("/users/register", {
-        ...input,
-        password: generateThrowawayPassword(),
-      })
+      const response = await api.post<{ data: { resent?: boolean } }>("/users/invite", input)
+      return { resent: response.data.data?.resent === true }
     } catch (error) {
       throw new Error(getErrorMessage(error))
-    }
-
-    try {
-      await api.post(
-        "/users/forgot-password",
-        { email: input.email },
-        { skipErrorToast: true } as Parameters<typeof api.post>[2],
-      )
-      return { emailSent: true }
-    } catch {
-      return { emailSent: false }
     }
   },
 

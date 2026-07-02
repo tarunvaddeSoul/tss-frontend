@@ -30,7 +30,12 @@ This keeps the landing page honest for the public (Staff Login is a quiet footer
 - Login schema relaxed to "password required" only; complexity rules stay on the set-password and reset-password forms where they belong.
 - Landing page: Staff Login removed from the header and mobile menu; it remains a footer link.
 
-## Deferred (needs backend, noted for later)
-- A dedicated invite endpoint would be cleaner than register + forgot-password (one request, no throwaway password, an "invited/pending" status until first login). Current approach works with existing endpoints.
-- No hard-delete endpoint for users exists; deactivation is the intended "remove". Add `DELETE /users/:id` (ADMIN) if hard delete is ever needed.
+## Production invite flow (implemented)
+- Dedicated `POST /users/invite` (ADMIN): creates a **pending** account (`invitePending=true`) and emails a proper invite ("Set your password", 72h expiry) that is visually distinct from a password reset. Re-inviting a pending user re-issues the link; inviting an email that already belongs to an active account returns 409.
+- Users list shows an **Invited** status (amber) until the person sets their password; setting it via the link flips `invitePending=false` and the row becomes Active. Row action is "Resend invite" while pending, "Reset link" once active.
+- The set-password page reads `?invite=1` and switches copy to "Account activation / Set your password / Welcome to the TSS Ops Portal", and **clears any existing browser session on success** so the person always lands on a clean login instead of bouncing into whatever account the browser was already in.
+- Deactivated accounts are refused at login with a clear message.
+
+## Still deferred
+- No hard-delete endpoint for users; deactivation is the intended "remove". Add `DELETE /users/:id` (ADMIN) only if hard delete is ever required (I used a one-off Prisma script to clean test rows).
 - First-ever admin is created by the seed script; document that as the bootstrap step for a fresh deployment.

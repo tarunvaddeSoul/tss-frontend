@@ -15,32 +15,32 @@ interface ClientTenureProps {
 const tenureChartConfig = {
   "0-6 months": {
     label: "0-6 months",
-    color: "hsl(var(--destructive))",
+    color: "hsl(var(--brand))",
   },
   "6-12 months": {
     label: "6-12 months",
-    color: "hsl(var(--warning))",
+    color: "hsl(var(--info))",
   },
   "1-2 years": {
     label: "1-2 years",
-    color: "hsl(var(--info))",
+    color: "hsl(var(--muted-foreground))",
   },
   "2-5 years": {
     label: "2-5 years",
-    color: "hsl(var(--success))",
+    color: "hsl(var(--warning))",
   },
   "5+ years": {
     label: "5+ years",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--success))",
   },
 } satisfies ChartConfig
 
 const COLORS = [
-  "hsl(var(--destructive))",
-  "hsl(var(--warning))",
+  "hsl(var(--brand))",
   "hsl(var(--info))",
+  "hsl(var(--muted-foreground))",
+  "hsl(var(--warning))",
   "hsl(var(--success))",
-  "hsl(var(--primary))",
 ]
 
 export function ClientTenure({ data }: ClientTenureProps) {
@@ -68,7 +68,7 @@ export function ClientTenure({ data }: ClientTenureProps) {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="rounded-lg border bg-card p-2 shadow-sm">
+        <div className="rounded-md border bg-card p-2 shadow-sm">
           <div className="grid gap-2">
             <div className="flex flex-col">
               <span className="text-[0.70rem] uppercase text-muted-foreground">{payload[0].name}</span>
@@ -85,55 +85,55 @@ export function ClientTenure({ data }: ClientTenureProps) {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="security-card">
+        <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Average Tenure</p>
+                <p className="registry-eyebrow">Average Tenure</p>
                 <div className="flex items-baseline gap-2 mt-2">
-                  <p className="text-3xl font-bold">{averageTenureYears.toFixed(1)}</p>
+                  <p className="font-display font-expanded text-3xl font-bold tabular-nums">{averageTenureYears.toFixed(1)}</p>
                   <p className="text-sm text-muted-foreground">years</p>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {averageTenureMonths.toFixed(1)} months
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-primary/10">
-                <Calendar className="h-6 w-6 text-primary" />
+              <div className="p-3 rounded-md bg-surface text-muted-foreground">
+                <Calendar className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="security-card">
+        <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Clients</p>
-                <p className="text-3xl font-bold mt-2">{clients.length}</p>
+                <p className="registry-eyebrow">Total Clients</p>
+                <p className="font-display font-expanded text-3xl font-bold tabular-nums mt-2">{clients.length}</p>
                 <p className="text-xs text-muted-foreground mt-1">with tenure data</p>
               </div>
-              <div className="p-3 rounded-full bg-info/10">
-                <Building2 className="h-6 w-6 text-info" />
+              <div className="p-3 rounded-md bg-surface text-muted-foreground">
+                <Building2 className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="security-card">
+        <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Longest Tenure</p>
-                <p className="text-3xl font-bold mt-2">
+                <p className="registry-eyebrow">Longest Tenure</p>
+                <p className="font-display font-expanded text-3xl font-bold tabular-nums mt-2">
                   {clients.length > 0
                     ? Math.max(...clients.map((c) => c.yearsWithUs)).toFixed(1)
                     : "0"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">years</p>
               </div>
-              <div className="p-3 rounded-full bg-success/10">
-                <TrendingUp className="h-6 w-6 text-success" />
+              <div className="p-3 rounded-md bg-surface text-muted-foreground">
+                <TrendingUp className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
@@ -143,10 +143,10 @@ export function ClientTenure({ data }: ClientTenureProps) {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Tenure Distribution Pie Chart */}
-        <Card className="security-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
+              <Building2 className="h-5 w-5 text-muted-foreground" />
               Tenure Distribution
             </CardTitle>
             <CardDescription>Distribution of clients by tenure period</CardDescription>
@@ -162,7 +162,7 @@ export function ClientTenure({ data }: ClientTenureProps) {
                     labelLine={false}
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     outerRadius={100}
-                    fill="#8884d8"
+                    fill="hsl(var(--brand))"
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
@@ -178,10 +178,10 @@ export function ClientTenure({ data }: ClientTenureProps) {
         </Card>
 
         {/* Top Clients by Tenure Bar Chart */}
-        <Card className="security-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-success" />
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
               Top Clients by Tenure
             </CardTitle>
             <CardDescription>Clients with longest partnership</CardDescription>
@@ -204,22 +204,23 @@ export function ClientTenure({ data }: ClientTenureProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                       formatter={(value: number) => [`${value.toFixed(1)} months`, "Tenure"]}
                     />
                     <Bar
                       dataKey="months"
-                      fill="hsl(var(--primary))"
-                      radius={[0, 8, 8, 0]}
+                      fill="hsl(var(--brand))"
+                      radius={[0, 2, 2, 0]}
                       label={{ position: "right", fill: "hsl(var(--foreground))", fontSize: 12 }}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                <p>No client tenure data available</p>
+              <div className="flex flex-col items-center justify-center gap-2 h-[300px] text-muted-foreground">
+                <p className="registry-eyebrow">No records on file</p>
+                <p className="text-sm">No client tenure data available</p>
               </div>
             )}
           </CardContent>
@@ -228,7 +229,7 @@ export function ClientTenure({ data }: ClientTenureProps) {
 
       {/* Client List */}
       {clients.length > 0 && (
-        <Card className="security-card">
+        <Card>
           <CardHeader>
             <CardTitle>All Clients by Tenure</CardTitle>
             <CardDescription>Complete list of clients with their tenure information</CardDescription>
@@ -240,30 +241,30 @@ export function ClientTenure({ data }: ClientTenureProps) {
                 .map((client) => (
                   <div
                     key={client.id}
-                    className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-full bg-primary/10">
-                        <Building2 className="h-5 w-5 text-primary" />
+                      <div className="p-2 rounded-md bg-surface text-muted-foreground">
+                        <Building2 className="h-5 w-5" />
                       </div>
                       <div>
                         <p className="font-medium">{client.name}</p>
                         <div className="flex items-center gap-3 mt-1">
                           <p className="text-sm text-muted-foreground">
-                            Onboarded: {formatDate(client.onboardingDate)}
+                            Onboarded: <span className="font-mono text-[13px]">{formatDate(client.onboardingDate)}</span>
                           </p>
-                          <Badge variant={client.status === "ACTIVE" ? "default" : "secondary"}>
+                          <Badge variant={client.status === "ACTIVE" ? "success" : "destructive"}>
                             {label.status(client.status)}
                           </Badge>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-2xl font-bold">{client.yearsWithUs.toFixed(1)}</p>
+                      <div className="flex items-baseline justify-end gap-2">
+                        <p className="font-display font-expanded text-2xl font-bold tabular-nums">{client.yearsWithUs.toFixed(1)}</p>
                         <p className="text-sm text-muted-foreground">years</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1 tabular-nums">
                         {client.monthsWithUs} months
                       </p>
                       <Badge variant="outline" className="mt-2">

@@ -26,7 +26,7 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Upcoming Dates</h2>
+          <h2 className="font-display text-xl font-semibold tracking-tight">Upcoming Dates</h2>
           <p className="text-sm text-muted-foreground">Birthdays and anniversaries in the next {daysAhead} days</p>
         </div>
         <div className="flex items-center gap-2">
@@ -51,10 +51,10 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="security-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Cake className="h-5 w-5 text-pink-500" />
+              <Cake className="h-5 w-5 text-muted-foreground" />
               Upcoming Birthdays
             </CardTitle>
             <CardDescription>Birthdays in the next {daysAhead} days</CardDescription>
@@ -65,10 +65,10 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
                 {birthdays.slice(0, 10).map((employee) => (
                   <div
                     key={employee.id}
-                    className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    className="flex items-center space-x-3 p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
                   >
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-gradient-to-br from-pink-500 to-rose-500 text-white text-sm">
+                      <AvatarFallback className="bg-surface font-mono text-sm">
                         {getInitials(employee.firstName, employee.lastName)}
                       </AvatarFallback>
                     </Avatar>
@@ -76,9 +76,9 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
                       <p className="text-sm font-medium truncate">
                         {employee.firstName} {employee.lastName}
                       </p>
-                      <p className="text-xs text-muted-foreground">{employee.id}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{employee.id}</p>
                     </div>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline">
                       {formatDate(employee.dateOfBirth)}
                     </Badge>
                   </div>
@@ -89,17 +89,18 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <Cake className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm">No upcoming birthdays</p>
+                <Cake className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p className="registry-eyebrow">No records on file</p>
+                <p className="text-sm mt-1">No upcoming birthdays</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="security-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-amber-500" />
+              <Award className="h-5 w-5 text-muted-foreground" />
               Employee Anniversaries
             </CardTitle>
             <CardDescription>Work anniversaries in the next {daysAhead} days</CardDescription>
@@ -110,10 +111,10 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
                 {employeeAnniversaries.slice(0, 10).map((employee) => (
                   <div
                     key={employee.id}
-                    className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    className="flex items-center space-x-3 p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
                   >
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-500 text-white text-sm">
+                      <AvatarFallback className="bg-surface font-mono text-sm">
                         {getInitials(employee.firstName, employee.lastName)}
                       </AvatarFallback>
                     </Avatar>
@@ -121,9 +122,9 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
                       <p className="text-sm font-medium truncate">
                         {employee.firstName} {employee.lastName}
                       </p>
-                      <p className="text-xs text-muted-foreground">{employee.id}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{employee.id}</p>
                     </div>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline">
                       {formatDate(employee.employeeOnboardingDate)}
                     </Badge>
                   </div>
@@ -136,17 +137,18 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm">No upcoming employee anniversaries</p>
+                <Award className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p className="registry-eyebrow">No records on file</p>
+                <p className="text-sm mt-1">No upcoming employee anniversaries</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="security-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-info" />
+              <Building2 className="h-5 w-5 text-muted-foreground" />
               Client Anniversaries
             </CardTitle>
             <CardDescription>Client anniversaries in the next {daysAhead} days</CardDescription>
@@ -157,16 +159,16 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
                 {clientAnniversaries.slice(0, 10).map((client) => (
                   <div
                     key={client.id}
-                    className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    className="flex items-center space-x-3 p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
                   >
-                    <div className="p-2 rounded-full bg-info/10">
-                      <Building2 className="h-5 w-5 text-info" />
+                    <div className="p-2 rounded-md bg-surface text-muted-foreground">
+                      <Building2 className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{client.name}</p>
                       <p className="text-xs text-muted-foreground">{label.status(client.status)}</p>
                     </div>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline">
                       {formatDate(client.clientOnboardingDate)}
                     </Badge>
                   </div>
@@ -179,8 +181,9 @@ export function SpecialDates({ data, daysAhead, onDaysChange }: SpecialDatesProp
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-sm">No upcoming client anniversaries</p>
+                <Building2 className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p className="registry-eyebrow">No records on file</p>
+                <p className="text-sm mt-1">No upcoming client anniversaries</p>
               </div>
             )}
           </CardContent>

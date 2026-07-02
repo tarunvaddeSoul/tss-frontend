@@ -14,11 +14,11 @@ interface GrowthChartsProps {
 const employeeChartConfig = {
   count: {
     label: "Total Employees",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--brand))",
   },
   newEmployees: {
     label: "New Employees",
-    color: "hsl(var(--success))",
+    color: "hsl(var(--info))",
   },
 } satisfies ChartConfig
 
@@ -29,7 +29,7 @@ const clientChartConfig = {
   },
   newClients: {
     label: "New Clients",
-    color: "hsl(var(--warning))",
+    color: "hsl(var(--muted-foreground))",
   },
 } satisfies ChartConfig
 
@@ -64,10 +64,10 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Employee Growth */}
-      <Card className="security-card">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
+            <Users className="h-5 w-5 text-muted-foreground" />
             Employee Growth
           </CardTitle>
           <CardDescription>Track employee growth over time</CardDescription>
@@ -82,16 +82,6 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
               <ChartContainer config={employeeChartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={employeeMonthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorNew" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis
                       dataKey="month"
@@ -110,23 +100,23 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
                     <Legend />
                     <Area
                       type="monotone"
                       dataKey="Total Employees"
-                      stroke="hsl(var(--primary))"
-                      fillOpacity={1}
-                      fill="url(#colorTotal)"
+                      stroke="hsl(var(--brand))"
+                      fillOpacity={0.1}
+                      fill="hsl(var(--brand))"
                     />
                     <Area
                       type="monotone"
                       dataKey="New Employees"
-                      stroke="hsl(var(--success))"
-                      fillOpacity={1}
-                      fill="url(#colorNew)"
+                      stroke="hsl(var(--info))"
+                      fillOpacity={0.1}
+                      fill="hsl(var(--info))"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -154,24 +144,24 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
                     <Legend />
                     <Line
                       type="monotone"
                       dataKey="Total Employees"
-                      stroke="hsl(var(--primary))"
+                      stroke="hsl(var(--brand))"
                       strokeWidth={2}
-                      dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                      dot={{ fill: "hsl(var(--brand))", r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                     <Line
                       type="monotone"
                       dataKey="New Employees"
-                      stroke="hsl(var(--success))"
+                      stroke="hsl(var(--info))"
                       strokeWidth={2}
-                      dot={{ fill: "hsl(var(--success))", r: 4 }}
+                      dot={{ fill: "hsl(var(--info))", r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>
@@ -183,10 +173,10 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
       </Card>
 
       {/* Client Growth */}
-      <Card className="security-card">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-info" />
+            <Building2 className="h-5 w-5 text-muted-foreground" />
             Client Growth
           </CardTitle>
           <CardDescription>Track client growth over time</CardDescription>
@@ -201,16 +191,6 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
               <ChartContainer config={clientChartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={clientMonthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorClientTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--info))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--info))" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorClientNew" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--warning))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--warning))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis
                       dataKey="month"
@@ -229,7 +209,7 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
                     <Legend />
@@ -237,15 +217,15 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                       type="monotone"
                       dataKey="Total Clients"
                       stroke="hsl(var(--info))"
-                      fillOpacity={1}
-                      fill="url(#colorClientTotal)"
+                      fillOpacity={0.1}
+                      fill="hsl(var(--info))"
                     />
                     <Area
                       type="monotone"
                       dataKey="New Clients"
-                      stroke="hsl(var(--warning))"
-                      fillOpacity={1}
-                      fill="url(#colorClientNew)"
+                      stroke="hsl(var(--muted-foreground))"
+                      fillOpacity={0.1}
+                      fill="hsl(var(--muted-foreground))"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -273,7 +253,7 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
                     <Legend />
@@ -288,9 +268,9 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                     <Line
                       type="monotone"
                       dataKey="New Clients"
-                      stroke="hsl(var(--warning))"
+                      stroke="hsl(var(--muted-foreground))"
                       strokeWidth={2}
-                      dot={{ fill: "hsl(var(--warning))", r: 4 }}
+                      dot={{ fill: "hsl(var(--muted-foreground))", r: 4 }}
                       activeDot={{ r: 6 }}
                     />
                   </LineChart>

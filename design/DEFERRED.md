@@ -50,6 +50,7 @@
 - Considered unifying the two error boundaries' description copy; kept the wording difference noted in the inventory to avoid any audit mismatch.
 
 ## Cross-cutting
+- The login form's zod schema enforces password complexity (uppercase + lowercase + digit) at sign-in time, so valid backend credentials that predate the policy (e.g. the local demo login admin123) are rejected client-side before any API call. Login forms should only check non-empty; complexity belongs on set/reset flows. Behavior change, so deferred.
 - Unify the dual toast systems (Radix use-toast bottom-right + Sonner top-right). Both pipelines are live with different corners and styles; consolidating means migrating 30+ call sites and changing user-visible toast placement.
 - PdfPreviewDialog has no user-facing error state (errors go to console only). Adding one is a behavior addition.
 - ClientReports and EmployeeReports components (payroll module) are dormant: no route imports them. They were restyled anyway; deciding their fate is a product call.

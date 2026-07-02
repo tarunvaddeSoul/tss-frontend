@@ -1,6 +1,7 @@
 import type React from "react"
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
+import { label, formatDate } from "@/lib/labels"
 
 // Define styles for PDF
 const styles = StyleSheet.create({
@@ -118,17 +119,17 @@ const styles = StyleSheet.create({
   },
 })
 
-interface CompanyViewPDFProps {
-  company: Company
+interface ClientViewPDFProps {
+  client: Client
 }
 
-const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
-  const currentDate = new Date().toLocaleDateString()
+const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
+  const currentDate = formatDate(new Date())
 
   // Get enabled salary template fields for display
   const getEnabledFields = () => {
     // salaryTemplates is an array, so get the first template
-    const template = Array.isArray(company.salaryTemplates) ? company.salaryTemplates[0] : company.salaryTemplates
+    const template = Array.isArray(client.salaryTemplates) ? client.salaryTemplates[0] : client.salaryTemplates
     if (!template) return []
 
     return [
@@ -145,14 +146,14 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title}>{company.name}</Text>
-            <Text style={styles.subtitle}>Company Profile</Text>
+            <Text style={styles.title}>{client.name}</Text>
+            <Text style={styles.subtitle}>Client Profile</Text>
           </View>
           <View style={styles.headerRight}>
-            <View style={company.status === "ACTIVE" ? styles.badge : { ...styles.badge, ...styles.inactiveBadge }}>
-              <Text>{company.status || "ACTIVE"}</Text>
+            <View style={client.status === "ACTIVE" ? styles.badge : { ...styles.badge, ...styles.inactiveBadge }}>
+              <Text>{label.status(client.status)}</Text>
             </View>
-            <Text style={{ fontSize: 10, marginTop: 5 }}>ID: {company.id}</Text>
+            <Text style={{ fontSize: 10, marginTop: 5 }}>ID: {client.id}</Text>
           </View>
         </View>
 
@@ -160,23 +161,23 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
           <Text style={styles.sectionTitle}>Basic Information</Text>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Company Name:</Text>
-            <Text style={styles.value}>{company.name}</Text>
+            <Text style={styles.label}>Client Name:</Text>
+            <Text style={styles.value}>{client.name}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Address:</Text>
-            <Text style={styles.value}>{company.address}</Text>
+            <Text style={styles.value}>{client.address}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Status:</Text>
-            <Text style={styles.value}>{company.status || "ACTIVE"}</Text>
+            <Text style={styles.value}>{label.status(client.status)}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Onboarding Date:</Text>
-            <Text style={styles.value}>{company.companyOnboardingDate || "Not specified"}</Text>
+            <Text style={styles.value}>{formatDate(client.clientOnboardingDate)}</Text>
           </View>
         </View>
 
@@ -185,12 +186,12 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
 
           <View style={styles.row}>
             <Text style={styles.label}>Contact Person:</Text>
-            <Text style={styles.value}>{company.contactPersonName}</Text>
+            <Text style={styles.value}>{client.contactPersonName}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Contact Number:</Text>
-            <Text style={styles.value}>{company.contactPersonNumber}</Text>
+            <Text style={styles.value}>{client.contactPersonNumber}</Text>
           </View>
         </View>
 
@@ -226,4 +227,4 @@ const CompanyViewPDF = ({ company }: CompanyViewPDFProps) => {
   )
 }
 
-export default CompanyViewPDF
+export default ClientViewPDF

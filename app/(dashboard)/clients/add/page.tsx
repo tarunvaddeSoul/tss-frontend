@@ -15,74 +15,74 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
-import { companyService } from "@/services/companyService"
-import { SalaryTemplateConfigForm } from "@/components/companies/salary-template-config-form"
-import { SalarySlipPreview } from "@/components/companies/salary-slip-preview"
-import { CompanyStatus, type SalaryTemplateConfig, getDefaultSalaryTemplateConfig } from "@/types/company"
+import { label } from "@/lib/labels"
+import { clientService } from "@/services/clientService"
+import { ClientSalarySetup } from "@/components/clients/client-salary-setup"
+import { SalarySlipPreview } from "@/components/clients/salary-slip-preview"
+import { ClientStatus, type SalaryTemplateConfig, getDefaultSalaryTemplateConfig } from "@/types/client"
 import { DatePicker } from "@/components/ui/date-picker"
 
-// Form validation schema for basic company info
-const companyFormSchema = z.object({
-  name: z.string().min(2, "Company name must be at least 2 characters"),
+// Form validation schema for basic client info
+const clientFormSchema = z.object({
+  name: z.string().min(2, "Client name must be at least 2 characters"),
   address: z.string().min(5, "Address must be at least 5 characters"),
   contactPersonName: z.string().min(2, "Contact person name must be at least 2 characters"),
   contactPersonNumber: z.string().regex(/^\d{10}$/, "Contact number must be 10 digits"),
-  status: z.nativeEnum(CompanyStatus),
-  companyOnboardingDate: z.date(),
+  status: z.nativeEnum(ClientStatus),
+  clientOnboardingDate: z.date(),
 })
 
-export default function AddCompanyPage() {
+export default function AddClientPage() {
   const [activeTab, setActiveTab] = useState("basic")
   const [isLoading, setIsLoading] = useState(false)
   const [salaryTemplateConfig, setSalaryTemplateConfig] = useState<SalaryTemplateConfig>(
     getDefaultSalaryTemplateConfig(),
   )
-  const [showPreview, setShowPreview] = useState(false)
 
   const router = useRouter()
 
   // Initialize form
-  const form = useForm<z.infer<typeof companyFormSchema>>({
-    resolver: zodResolver(companyFormSchema),
+  const form = useForm<z.infer<typeof clientFormSchema>>({
+    resolver: zodResolver(clientFormSchema),
     defaultValues: {
       name: "",
       address: "",
       contactPersonName: "",
       contactPersonNumber: "",
-      status: CompanyStatus.ACTIVE,
-      companyOnboardingDate: new Date(),
+      status: ClientStatus.ACTIVE,
+      clientOnboardingDate: new Date(),
     },
   })
 
   // Handle form submission
-  const onSubmit = async (values: z.infer<typeof companyFormSchema>) => {
+  const onSubmit = async (values: z.infer<typeof clientFormSchema>) => {
     try {
       setIsLoading(true)
 
       // Format the date as DD-MM-YYYY
-      const formattedDate = format(values.companyOnboardingDate, "dd-MM-yyyy")
+      const formattedDate = format(values.clientOnboardingDate, "dd-MM-yyyy")
 
-      // Prepare the company data with the required structure
-      const companyData = {
+      // Prepare the client data with the required structure
+      const clientData = {
         ...values,
-        companyOnboardingDate: formattedDate,
+        clientOnboardingDate: formattedDate,
         salaryTemplates: salaryTemplateConfig,
       }
 
-      await companyService.createCompany(companyData)
+      await clientService.createClient(clientData)
 
       toast({
         title: "Success",
-        description: "Company created successfully",
+        description: "Client created successfully",
       })
 
-      router.push("/companies")
+      router.push("/clients")
     } catch (error) {
-      console.error("Error creating company:", error)
+      console.error("Error creating client:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create company. Please try again.",
+        description: "Failed to create client. Please try again.",
       })
     } finally {
       setIsLoading(false)
@@ -103,40 +103,40 @@ export default function AddCompanyPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Add New Company</h1>
-          <p className="text-muted-foreground">Create a new company record with salary template configuration</p>
+          <h1 className="text-3xl font-bold tracking-tight">Add New Client</h1>
+          <p className="text-muted-foreground">Add a client and set up their salary slip</p>
         </div>
-        <Button variant="outline" onClick={() => router.push("/companies")}>
+        <Button variant="outline" onClick={() => router.push("/clients")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Companies
+          Back to Clients
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="basic">Basic Information</TabsTrigger>
-          <TabsTrigger value="salary-templates">Salary Templates</TabsTrigger>
+          <TabsTrigger value="salary-templates">Salary Slip</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4 pt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Company Information</CardTitle>
-              <CardDescription>Enter the basic details of the company</CardDescription>
+              <CardTitle>Client Information</CardTitle>
+              <CardDescription>Enter the basic details of the client</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} id="company-form" className="space-y-8">
+                <form onSubmit={form.handleSubmit(onSubmit)} id="client-form" className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Company Name</FormLabel>
+                          <FormLabel>Client Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter company name" {...field} />
+                            <Input placeholder="Enter client name" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -156,8 +156,8 @@ export default function AddCompanyPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value={CompanyStatus.ACTIVE}>ACTIVE</SelectItem>
-                              <SelectItem value={CompanyStatus.INACTIVE}>INACTIVE</SelectItem>
+                              <SelectItem value={ClientStatus.ACTIVE}>{label.status(ClientStatus.ACTIVE)}</SelectItem>
+                              <SelectItem value={ClientStatus.INACTIVE}>{label.status(ClientStatus.INACTIVE)}</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -194,7 +194,7 @@ export default function AddCompanyPage() {
                     />
                     <FormField
                       control={form.control}
-                      name="companyOnboardingDate"
+                      name="clientOnboardingDate"
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Onboarding Date</FormLabel>
@@ -204,7 +204,7 @@ export default function AddCompanyPage() {
                             className="w-full"
                             yearRange={{ from: 1900, to: new Date().getFullYear() }}
                           />
-                          <FormDescription>The date when the company was onboarded</FormDescription>
+                          <FormDescription>The date when the client was onboarded</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -217,7 +217,7 @@ export default function AddCompanyPage() {
                         <FormItem className="md:col-span-2">
                           <FormLabel>Address</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter company address" {...field} />
+                            <Input placeholder="Enter client address" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -228,34 +228,18 @@ export default function AddCompanyPage() {
               </Form>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => router.push("/companies")}>
+              <Button variant="outline" onClick={() => router.push("/clients")}>
                 Cancel
               </Button>
               <div className="flex gap-2">
-                <Button onClick={() => handleTabChange("salary-templates")}>Next: Configure Salary Templates</Button>
+                <Button onClick={() => handleTabChange("salary-templates")}>Next: Set Up Salary Slip</Button>
               </div>
             </CardFooter>
           </Card>
         </TabsContent>
 
         <TabsContent value="salary-templates" className="space-y-4 pt-4">
-          <div className="flex justify-end mb-4">
-            <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
-              {showPreview ? "Hide Preview" : "Show Preview"}
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            <div className={showPreview ? "lg:col-span-3" : "lg:col-span-5"}>
-              <SalaryTemplateConfigForm initialConfig={salaryTemplateConfig} onSave={handleSalaryTemplateChange} />
-            </div>
-
-            {showPreview && (
-              <div className="lg:col-span-2">
-                <SalarySlipPreview config={salaryTemplateConfig} />
-              </div>
-            )}
-          </div>
+          <ClientSalarySetup config={salaryTemplateConfig} onChange={handleSalaryTemplateChange} />
 
           <div className="flex justify-end gap-3 mt-6">
             <Button variant="outline" onClick={() => handleTabChange("basic")}>
@@ -266,7 +250,7 @@ export default function AddCompanyPage() {
             </Button>
             <Button
               type="submit"
-              form="company-form"
+              form="client-form"
               disabled={isLoading}
               onClick={() => {
                 // Validate the form before submission
@@ -286,7 +270,7 @@ export default function AddCompanyPage() {
               }}
             >
               <Save className="mr-2 h-4 w-4" />
-              {isLoading ? "Saving..." : "Save Company"}
+              {isLoading ? "Saving..." : "Save Client"}
             </Button>
           </div>
         </TabsContent>
@@ -306,7 +290,7 @@ export default function AddCompanyPage() {
               </Button>
               <Button
                 type="submit"
-                form="company-form"
+                form="client-form"
                 disabled={isLoading}
                 onClick={() => {
                   form.trigger().then((isValid) => {
@@ -324,7 +308,7 @@ export default function AddCompanyPage() {
                 }}
               >
                 <Save className="mr-2 h-4 w-4" />
-                {isLoading ? "Saving..." : "Save Company"}
+                {isLoading ? "Saving..." : "Save Client"}
               </Button>
             </CardFooter>
           </Card>

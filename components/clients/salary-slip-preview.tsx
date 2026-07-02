@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
-import { SalaryFieldPurpose, SalaryFieldType, type SalaryTemplateConfig } from "@/types/company"
+import { SalaryFieldPurpose, SalaryFieldType, type SalaryTemplateConfig } from "@/types/client"
 
 interface SalarySlipPreviewProps {
   config: SalaryTemplateConfig
@@ -156,7 +156,7 @@ export function SalarySlipPreview({ config }: SalarySlipPreviewProps) {
     }
 
     return {
-      company: "TULSYAN SECURITY SERVICES PVT. LTD.",
+      client: "TULSYAN SECURITY SERVICES PVT. LTD.",
       month: formatMonth(month, year),
       pay_period: getPayPeriod(month, year),
       employee: {

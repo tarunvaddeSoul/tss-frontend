@@ -18,34 +18,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
-import { companyService } from "@/services/companyService"
-import type { Company, CompanyEmployee } from "@/types/company"
+import { Pagination } from "@/components/ui/pagination"
+import { label, formatDate } from "@/lib/labels"
+import { clientService } from "@/services/clientService"
+import type { Client, ClientEmployee } from "@/types/client"
 import { SalaryCategory, SalaryType } from "@/types/salary"
 import { PdfPreviewDialog } from "@/components/pdf/pdf-preview-dialog"
 
-interface CompanyViewDialogProps {
-  company: Company
+interface ClientViewDialogProps {
+  client: Client
   isOpen: boolean
   onClose: () => void
 }
 
-export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialogProps) {
+export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const [employees, setEmployees] = useState<CompanyEmployee[]>([])
+  const [employees, setEmployees] = useState<ClientEmployee[]>([])
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
   const [activeTab, setActiveTab] = useState("details")
+  const [employeePage, setEmployeePage] = useState(1)
+  const EMPLOYEES_PER_PAGE = 20
 
   // Fetch employees when dialog opens
   useEffect(() => {
-    if (isOpen && company.id) {
-      fetchEmployees(company.id)
+    if (isOpen && client.id) {
+      fetchEmployees(client.id)
+      setEmployeePage(1)
     }
-  }, [isOpen, company.id])
+  }, [isOpen, client.id])
 
-  const fetchEmployees = async (companyId: string) => {
+  const fetchEmployees = async (clientId: string) => {
     try {
       setIsLoadingEmployees(true)
-      const response = await companyService.getCompanyEmployees(companyId)
+      const response = await clientService.getClientEmployees(clientId)
       setEmployees(response.data || [])
     } catch (error) {
       console.error("Error fetching employees:", error)
@@ -64,9 +69,15 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
     return employees.filter((emp) => emp.status === "ACTIVE")
   }, [employees])
 
+  const employeeTotalPages = Math.ceil(activeEmployees.length / EMPLOYEES_PER_PAGE)
+  const paginatedEmployees = useMemo(() => {
+    const start = (employeePage - 1) * EMPLOYEES_PER_PAGE
+    return activeEmployees.slice(start, start + EMPLOYEES_PER_PAGE)
+  }, [activeEmployees, employeePage])
+
   // Helper function to format salary display
   // Uses salaryType and salaryPerDay from the updated API response
-  const formatSalary = (employee: CompanyEmployee): string => {
+  const formatSalary = (employee: ClientEmployee): string => {
     // Primary: Use salaryType and salaryPerDay from response
     if (employee.salaryType === SalaryType.PER_DAY && employee.salaryPerDay) {
       return `₹${employee.salaryPerDay.toLocaleString()}/day`
@@ -101,9 +112,9 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
     return "N/A"
   }
 
-  const renderCompanyPDF = async () => {
-    const { default: CompanyViewPDF } = await import("@/components/pdf/company-view-pdf")
-    return <CompanyViewPDF company={company} />
+  const renderClientPDF = async () => {
+    const { default: ClientViewPDF } = await import("@/components/pdf/client-view-pdf")
+    return <ClientViewPDF client={client} />
   }
 
   const handleExportEmployeesExcel = async () => {
@@ -119,20 +130,20 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
           Name: `${emp.title || ""} ${emp.firstName} ${emp.lastName}`.trim(),
           Designation: emp.designation || "N/A",
           Department: emp.department || "N/A",
-          "Joining Date": emp.joiningDate || "N/A",
-          "Salary Type": emp.salaryType ? (emp.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month") : "N/A",
-          "Salary Category": emp.salaryCategory || "N/A",
-          "Salary Sub Category": emp.salarySubCategory || "N/A",
+          "Joining Date": formatDate(emp.joiningDate),
+          "Salary Type": emp.salaryType ? label.salaryType(emp.salaryType) : "N/A",
+          "Salary Category": emp.salaryCategory ? label.salaryCategory(emp.salaryCategory) : "N/A",
+          "Salary Sub Category": emp.salarySubCategory ? label.salarySubCategory(emp.salarySubCategory) : "N/A",
           Salary: formatSalary(emp),
         })),
       )
 
       // Create workbook and add worksheet
       const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, `${company.name} Employees`)
+      XLSX.utils.book_append_sheet(workbook, worksheet, `${client.name} Employees`)
 
       // Generate Excel file
-      XLSX.writeFile(workbook, `${company.name.replace(/\s+/g, "_").toLowerCase()}_employees.xlsx`)
+      XLSX.writeFile(workbook, `${client.name.replace(/\s+/g, "_").toLowerCase()}_employees.xlsx`)
 
       toast({
         title: "Success",
@@ -151,7 +162,7 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
   // Get all enabled fields from salary template config
   const getEnabledFields = () => {
     // salaryTemplates is an array, so get the first template
-    const template = Array.isArray(company.salaryTemplates) ? company.salaryTemplates[0] : company.salaryTemplates
+    const template = Array.isArray(client.salaryTemplates) ? client.salaryTemplates[0] : client.salaryTemplates
     if (!template) return []
 
     return [
@@ -172,13 +183,13 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{company.name}</DialogTitle>
-          <DialogDescription>Company ID: {company.id}</DialogDescription>
+          <DialogTitle className="text-xl font-bold">{client.name}</DialogTitle>
+          <DialogDescription>Client ID: {client.id}</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
           <TabsList className="grid w-full grid-cols-2 shrink-0">
-            <TabsTrigger value="details">Company Details</TabsTrigger>
+            <TabsTrigger value="details">Client Details</TabsTrigger>
             <TabsTrigger value="employees">Employees ({activeEmployees.length})</TabsTrigger>
           </TabsList>
 
@@ -194,24 +205,24 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Company Name</div>
-                      <div className="font-medium">{company.name}</div>
+                      <div className="text-sm font-medium text-muted-foreground mb-1">Client Name</div>
+                      <div className="font-medium">{client.name}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground mb-1">Address</div>
-                      <div>{company.address}</div>
+                      <div>{client.address}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground mb-1">Status</div>
-                      <Badge variant={company.status === "ACTIVE" ? "default" : "secondary"}>
-                        {company.status || "ACTIVE"}
+                      <Badge variant={client.status === "ACTIVE" ? "default" : "secondary"}>
+                        {label.status(client.status)}
                       </Badge>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground mb-1">Onboarding Date</div>
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        {company.companyOnboardingDate || "Not specified"}
+                        {formatDate(client.clientOnboardingDate)}
                       </div>
                     </div>
                   </div>
@@ -229,13 +240,13 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <div className="text-sm font-medium text-muted-foreground mb-1">Contact Person</div>
-                      <div className="font-medium">{company.contactPersonName}</div>
+                      <div className="font-medium">{client.contactPersonName}</div>
                     </div>
                     <div>
                       <div className="text-sm font-medium text-muted-foreground mb-1">Contact Number</div>
                       <div className="flex items-center">
                         <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                        {company.contactPersonNumber}
+                        {client.contactPersonNumber}
                       </div>
                     </div>
                   </div>
@@ -339,6 +350,7 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
             {isLoadingEmployees ? (
               <div className="text-center py-8">Loading employees...</div>
             ) : activeEmployees.length > 0 ? (
+              <div className="flex flex-col flex-1 min-h-0 gap-3">
               <div className="rounded-md border overflow-x-auto scrollbar-sleek flex-1 min-h-0">
                 <table className="w-full min-w-[1200px] caption-bottom text-sm border-collapse">
                   <thead className="[&_tr]:border-b">
@@ -355,7 +367,7 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
                     </tr>
                   </thead>
                   <tbody className="[&_tr:last-child]:border-0">
-                    {activeEmployees.map((employee) => (
+                    {paginatedEmployees.map((employee) => (
                       <tr key={employee.id} className="border-b transition-colors hover:bg-muted/50">
                         <td className="p-4 align-middle">{employee.employeeId}</td>
                         <td className="p-4 align-middle font-medium">
@@ -363,11 +375,11 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
                         </td>
                         <td className="p-4 align-middle">{employee.designation || "N/A"}</td>
                         <td className="p-4 align-middle">{employee.department || "N/A"}</td>
-                        <td className="p-4 align-middle">{employee.joiningDate || "N/A"}</td>
+                        <td className="p-4 align-middle">{formatDate(employee.joiningDate)}</td>
                         <td className="p-4 align-middle">
                           {employee.salaryType ? (
                             <Badge variant="outline" className="text-xs">
-                              {employee.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                              {label.salaryType(employee.salaryType)}
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground text-sm">N/A</span>
@@ -376,7 +388,7 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
                         <td className="p-4 align-middle">
                           {employee.salaryCategory ? (
                             <Badge variant="outline" className="text-xs">
-                              {employee.salaryCategory}
+                              {label.salaryCategory(employee.salaryCategory)}
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground text-sm">N/A</span>
@@ -385,7 +397,7 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
                         <td className="p-4 align-middle">
                           {employee.salarySubCategory ? (
                             <Badge variant="outline" className="text-xs">
-                              {employee.salarySubCategory}
+                              {label.salarySubCategory(employee.salarySubCategory)}
                             </Badge>
                           ) : (
                             <span className="text-muted-foreground text-sm">N/A</span>
@@ -399,12 +411,25 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
                   </tbody>
                 </table>
               </div>
+              {employeeTotalPages > 1 && (
+                <div className="flex items-center justify-between shrink-0">
+                  <span className="text-sm text-muted-foreground">
+                    {activeEmployees.length} active employees
+                  </span>
+                  <Pagination
+                    currentPage={employeePage}
+                    totalPages={employeeTotalPages}
+                    onPageChange={setEmployeePage}
+                  />
+                </div>
+              )}
+              </div>
             ) : (
               <div className="text-center py-12 space-y-3">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
                 <div className="text-lg font-medium">No active employees found</div>
                 <div className="text-sm text-muted-foreground">
-                  This company doesn't have any active employees at the moment.
+                  This client doesn't have any active employees at the moment.
                 </div>
               </div>
             )}
@@ -425,10 +450,10 @@ export function CompanyViewDialog({ company, isOpen, onClose }: CompanyViewDialo
       <PdfPreviewDialog
         open={isPreviewOpen}
         onOpenChange={setIsPreviewOpen}
-        title={`${company.name} - Company Profile`}
-        description="Company details and salary slip template preview"
-        fileName={`company_${company.name.replace(/\s+/g, "_").toLowerCase()}.pdf`}
-        renderDocument={renderCompanyPDF}
+        title={`${client.name} - Client Profile`}
+        description="Client details and salary slip template preview"
+        fileName={`client_${client.name.replace(/\s+/g, "_").toLowerCase()}.pdf`}
+        renderDocument={renderClientPDF}
       />
     </Dialog>
   )

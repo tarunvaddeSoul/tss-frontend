@@ -40,7 +40,7 @@ import {
   SalaryFieldPurpose,
   type SalaryFieldRule,
   getDefaultSalaryTemplateConfig,
-} from "@/types/company"
+} from "@/types/client"
 
 import { ApiErrorAlert } from "@/components/ui/api-error-alert"
 
@@ -86,8 +86,8 @@ const validateTemplateConfig = (config: SalaryTemplateConfig): string[] => {
         errors.push(`${fieldType} field at index ${index} contains an 'id' property which should be removed`)
       }
 
-      if (field.companyId) {
-        errors.push(`${fieldType} field at index ${index} contains a 'companyId' property which should be removed`)
+      if (field.clientId) {
+        errors.push(`${fieldType} field at index ${index} contains a 'clientId' property which should be removed`)
       }
 
       if (field.createdAt) {
@@ -933,7 +933,7 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
               </Tooltip>
             </TooltipProvider>
           </CardTitle>
-          <CardDescription>Customize which fields appear in employee salary slips for this company</CardDescription>
+          <CardDescription>Customize which fields appear in employee salary slips for this client</CardDescription>
         </CardHeader>
         <CardContent>
           {validationError && (
@@ -1488,7 +1488,7 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Your Custom Fields</h3>
                       <p className="text-sm text-gray-600 max-w-md mx-auto mb-4">
-                        Custom fields let you add company-specific items to salary slips. Common examples include
+                        Custom fields let you add client-specific items to salary slips. Common examples include
                         bonuses, advances, overtime pay, or special allowances.
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-500 mb-6">
@@ -1565,14 +1565,14 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
 
               onSave(config)
               toast({
-                title: "Configuration Saved",
-                description: "Salary template configuration has been saved successfully",
+                title: "Applied",
+                description: "Salary template fields applied to the preview. Save the client to store them.",
               })
             }}
             disabled={isLoading}
           >
             <Save className="mr-2 h-4 w-4" />
-            {isLoading ? "Saving..." : "Save Configuration"}
+            {isLoading ? "Applying..." : "Apply to preview"}
           </Button>
         </CardFooter>
       </Card>

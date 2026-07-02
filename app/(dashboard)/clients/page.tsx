@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { label, formatDate } from "@/lib/labels"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination } from "@/components/ui/pagination"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -25,15 +26,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
-import { companyService } from "@/services/companyService"
-import type { Company, CompanySearchParams } from "@/types/company"
-import { CompanyViewDialog } from "@/components/companies/company-view-dialog"
-import { TerminateCompanyDialog } from "@/components/companies/terminate-company-dialog"
+import { clientService } from "@/services/clientService"
+import type { Client, ClientSearchParams } from "@/types/client"
+import { ClientViewDialog } from "@/components/clients/client-view-dialog"
+import { TerminateClientDialog } from "@/components/clients/terminate-client-dialog"
 
-export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([])
+export default function ClientsPage() {
+  const [clients, setClients] = useState<Client[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [searchParams, setSearchParams] = useState<CompanySearchParams>({
+  const [searchParams, setSearchParams] = useState<ClientSearchParams>({
     page: 1,
     limit: 10,
     sortBy: "name",
@@ -41,33 +42,33 @@ export default function CompaniesPage() {
   })
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [viewDialogOpen, setViewDialogOpen] = useState(false)
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false)
-  const [companyToTerminate, setCompanyToTerminate] = useState<Company | null>(null)
+  const [clientToTerminate, setClientToTerminate] = useState<Client | null>(null)
 
   const router = useRouter()
 
-  // Fetch companies
+  // Fetch clients
   useEffect(() => {
-    fetchCompanies()
+    fetchClients()
   }, [searchParams])
 
-  const fetchCompanies = async () => {
+  const fetchClients = async () => {
     try {
       setIsLoading(true)
-      const response = await companyService.getCompanies(searchParams)
-      setCompanies(response.data?.companies || [])
+      const response = await clientService.getClients(searchParams)
+      setClients(response.data?.clients || [])
       const total = response.data?.total || 0
       setTotalCount(total)
       const limit = searchParams.limit || 10
       setTotalPages(Math.ceil(total / limit))
     } catch (error) {
-      console.error("Error fetching companies:", error)
+      console.error("Error fetching clients:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch companies. Please try again.",
+        description: "Failed to fetch clients. Please try again.",
       })
     } finally {
       setIsLoading(false)
@@ -107,48 +108,48 @@ export default function CompaniesPage() {
     })
   }
 
-  // Handle view company
-  const handleViewCompany = (company: Company) => {
-    setSelectedCompany(company)
+  // Handle view client
+  const handleViewClient = (client: Client) => {
+    setSelectedClient(client)
     setViewDialogOpen(true)
   }
 
-  // Handle terminate company
-  const handleTerminate = (company: Company) => {
-    if (company.status === "INACTIVE") {
+  // Handle terminate client
+  const handleTerminate = (client: Client) => {
+    if (client.status === "INACTIVE") {
       toast({
         variant: "destructive",
         title: "Already Terminated",
-        description: "This company is already terminated from TSS.",
+        description: "This client is already terminated from TSS.",
       })
       return
     }
-    setCompanyToTerminate(company)
+    setClientToTerminate(client)
     setTerminateDialogOpen(true)
   }
 
   const handleTerminationSuccess = () => {
-    fetchCompanies() // Refresh the list
+    fetchClients() // Refresh the list
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
-          <p className="text-muted-foreground">Manage your companies and their salary templates</p>
+          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
+          <p className="text-muted-foreground">Manage your clients and their salary templates</p>
         </div>
-        <Button  onClick={() => router.push("/companies/add")}>
+        <Button  onClick={() => router.push("/clients/add")}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Company
+          Add Client
         </Button>
       </div>
 
       {/* Search and Filters */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle>Search Companies</CardTitle>
-          <CardDescription>Find companies by name, contact person, status, or other details</CardDescription>
+          <CardTitle>Search Clients</CardTitle>
+          <CardDescription>Find clients by name, contact person, status, or other details</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-3">
@@ -157,7 +158,7 @@ export default function CompaniesPage() {
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   name="searchText"
-                  placeholder="Search companies..."
+                  placeholder="Search clients..."
                   defaultValue={searchParams.searchText || ""}
                   className="pl-8"
                 />
@@ -200,16 +201,16 @@ export default function CompaniesPage() {
         </CardContent>
       </Card>
 
-      {/* Companies Table */}
+      {/* Clients Table */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Companies List</CardTitle>
+              <CardTitle>Clients List</CardTitle>
               <CardDescription>
                 {isLoading
-                  ? "Loading companies..."
-                  : `Showing ${companies.length} of ${totalCount} companies`}
+                  ? "Loading clients..."
+                  : `Showing ${clients.length} of ${totalCount} clients`}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -248,7 +249,7 @@ export default function CompaniesPage() {
                       className="flex items-center gap-1 font-medium p-0 h-auto"
                       onClick={() => handleSort("name")}
                     >
-                      Company Name
+                      Client Name
                       <ArrowUpDown className="h-4 w-4" />
                     </Button>
                   </TableHead>
@@ -268,7 +269,7 @@ export default function CompaniesPage() {
                     <Button
                       variant="ghost"
                       className="flex items-center gap-1 font-medium p-0 h-auto"
-                      onClick={() => handleSort("companyOnboardingDate")}
+                      onClick={() => handleSort("clientOnboardingDate")}
                     >
                       Onboarding Date
                       <ArrowUpDown className="h-4 w-4" />
@@ -301,29 +302,29 @@ export default function CompaniesPage() {
                       </TableCell>
                     </TableRow>
                   ))
-                ) : companies.length > 0 ? (
-                  companies.map((company) => (
-                    <TableRow key={company.id}>
+                ) : clients.length > 0 ? (
+                  clients.map((client) => (
+                    <TableRow key={client.id}>
                       <TableCell className="font-medium">
-                        {company.name}
+                        {client.name}
                         <div className="text-xs text-muted-foreground mt-1">
-                          {company.id ? <span>ID: {company.id}</span> : null}
+                          {client.id ? <span>ID: {client.id}</span> : null}
                         </div>
                       </TableCell>
-                      <TableCell>{company.contactPersonName}</TableCell>
-                      <TableCell>{company.contactPersonNumber}</TableCell>
+                      <TableCell>{client.contactPersonName}</TableCell>
+                      <TableCell>{client.contactPersonNumber}</TableCell>
                       <TableCell>
-                        <Badge variant={company.status === "ACTIVE" ? "default" : "secondary"}>
-                          {company.status || "ACTIVE"}
+                        <Badge variant={client.status === "ACTIVE" ? "default" : "secondary"}>
+                          {label.status(client.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{company.companyOnboardingDate || "Not specified"}</TableCell>
+                      <TableCell>{formatDate(client.clientOnboardingDate)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleViewCompany(company)}
+                            onClick={() => handleViewClient(client)}
                             title="View Details"
                           >
                             <Eye className="h-4 w-4" />
@@ -331,16 +332,16 @@ export default function CompaniesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => company.id && router.push(`/companies/edit/${company.id}`)}
-                            title="Edit Company"
+                            onClick={() => client.id && router.push(`/clients/edit/${client.id}`)}
+                            title="Edit Client"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          {company.status !== "INACTIVE" && (
+                          {client.status !== "INACTIVE" && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleTerminate(company)}
+                              onClick={() => handleTerminate(client)}
                               title="Terminate from TSS"
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
@@ -355,16 +356,16 @@ export default function CompaniesPage() {
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-10">
                       <div className="flex flex-col items-center justify-center space-y-3">
-                        <div className="text-lg font-medium">No companies found</div>
+                        <div className="text-lg font-medium">No clients found</div>
                         <div className="text-sm text-muted-foreground">
                           {searchParams.searchText
                             ? "Try adjusting your search terms"
-                            : "Get started by adding your first company"}
+                            : "Get started by adding your first client"}
                         </div>
                         {!searchParams.searchText && (
-                          <Button className="mt-2" onClick={() => router.push("/companies/add")}>
+                          <Button className="mt-2" onClick={() => router.push("/clients/add")}>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Company
+                            Add Client
                           </Button>
                         )}
                       </div>
@@ -382,26 +383,26 @@ export default function CompaniesPage() {
         )}
       </Card>
 
-      {/* Company View Dialog */}
-      {selectedCompany && (
-        <CompanyViewDialog
-          company={selectedCompany}
+      {/* Client View Dialog */}
+      {selectedClient && (
+        <ClientViewDialog
+          client={selectedClient}
           isOpen={viewDialogOpen}
           onClose={() => {
             setViewDialogOpen(false)
-            setSelectedCompany(null)
+            setSelectedClient(null)
           }}
         />
       )}
 
-      {/* Terminate Company Dialog */}
-      {companyToTerminate && (
-        <TerminateCompanyDialog
-          company={companyToTerminate}
+      {/* Terminate Client Dialog */}
+      {clientToTerminate && (
+        <TerminateClientDialog
+          client={clientToTerminate}
           open={terminateDialogOpen}
           onOpenChange={(open) => {
             setTerminateDialogOpen(open)
-            if (!open) setCompanyToTerminate(null)
+            if (!open) setClientToTerminate(null)
           }}
           onSuccess={handleTerminationSuccess}
         />

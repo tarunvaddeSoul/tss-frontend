@@ -20,72 +20,72 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
-import { companyService } from "@/services/companyService"
-import { SalaryTemplateConfigForm } from "@/components/companies/salary-template-config-form"
-import { SalarySlipPreview } from "@/components/companies/salary-slip-preview"
+import { label } from "@/lib/labels"
+import { clientService } from "@/services/clientService"
+import { getErrorMessage } from "@/services/api"
+import { ClientSalarySetup } from "@/components/clients/client-salary-setup"
+import { SalarySlipPreview } from "@/components/clients/salary-slip-preview"
 import {
-  CompanyStatus,
+  ClientStatus,
   type SalaryTemplateConfig,
   getDefaultSalaryTemplateConfig,
   convertSalaryTemplatesToConfig,
-} from "@/types/company"
+} from "@/types/client"
 
-// Form validation schema for basic company info
-const companyFormSchema = z.object({
-  name: z.string().min(2, "Company name must be at least 2 characters"),
+// Form validation schema for basic client info
+const clientFormSchema = z.object({
+  name: z.string().min(2, "Client name must be at least 2 characters"),
   address: z.string().min(5, "Address must be at least 5 characters"),
   contactPersonName: z.string().min(2, "Contact person name must be at least 2 characters"),
   contactPersonNumber: z.string().regex(/^\d{10}$/, "Contact number must be 10 digits"),
-  status: z.nativeEnum(CompanyStatus),
-  companyOnboardingDate: z.date(),
+  status: z.nativeEnum(ClientStatus),
+  clientOnboardingDate: z.date(),
 })
 
-export default function EditCompanyPage({ params }: { params: { id: string } }) {
+export default function EditClientPage({ params }: { params: { id: string } }) {
   const [activeTab, setActiveTab] = useState("basic")
   const [isLoading, setIsLoading] = useState(false)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [salaryTemplateConfig, setSalaryTemplateConfig] = useState<SalaryTemplateConfig | null>(null)
-  const [showPreview, setShowPreview] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-  const [originalCompany, setOriginalCompany] = useState<any>(null)
+  const [originalClient, setOriginalClient] = useState<any>(null)
 
   const router = useRouter()
   const { id } = params
 
   // Initialize form
-  const form = useForm<z.infer<typeof companyFormSchema>>({
-    resolver: zodResolver(companyFormSchema),
+  const form = useForm<z.infer<typeof clientFormSchema>>({
+    resolver: zodResolver(clientFormSchema),
     defaultValues: {
       name: "",
       address: "",
       contactPersonName: "",
       contactPersonNumber: "",
-      status: CompanyStatus.ACTIVE,
-      companyOnboardingDate: new Date(),
+      status: ClientStatus.ACTIVE,
+      clientOnboardingDate: new Date(),
     },
   })
 
-  // Fetch company data
+  // Fetch client data
   useEffect(() => {
-    const fetchCompany = async () => {
+    const fetchClient = async () => {
       try {
         setIsDataLoading(true)
-        const response = await companyService.getCompanyById(id)
-        const company = response.data
+        const response = await clientService.getClientById(id)
+        const client = response.data
 
-        console.log("Fetched company data:", company)
-        setOriginalCompany(company)
+        setOriginalClient(client)
 
         // Set form values
-        if (company) {
+        if (client) {
           form.reset({
-            name: company.name,
-            address: company.address,
-            contactPersonName: company.contactPersonName,
-            contactPersonNumber: company.contactPersonNumber,
-            status: company.status,
-            companyOnboardingDate: company.companyOnboardingDate
-              ? new Date(company.companyOnboardingDate.split("-").reverse().join("-"))
+            name: client.name,
+            address: client.address,
+            contactPersonName: client.contactPersonName,
+            contactPersonNumber: client.contactPersonNumber,
+            status: client.status,
+            clientOnboardingDate: client.clientOnboardingDate
+              ? new Date(client.clientOnboardingDate)
               : new Date(),
           })
         }
@@ -93,108 +93,78 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
         // Convert salaryTemplates array to salaryTemplateConfig object
         let templateConfig: SalaryTemplateConfig
 
-        if (company?.salaryTemplates && Array.isArray(company.salaryTemplates) && company.salaryTemplates.length > 0) {
+        if (client?.salaryTemplates && Array.isArray(client.salaryTemplates) && client.salaryTemplates.length > 0) {
           // Use existing saved template
-          const convertedConfig = convertSalaryTemplatesToConfig(company.salaryTemplates)
+          const convertedConfig = convertSalaryTemplatesToConfig(client.salaryTemplates)
           templateConfig = convertedConfig || getDefaultSalaryTemplateConfig()
-          console.log("Using existing salary template config:", templateConfig)
         } else {
           // Use default template if none exists
           templateConfig = getDefaultSalaryTemplateConfig()
-          console.log("Using default salary template config:", templateConfig)
         }
 
         setSalaryTemplateConfig(templateConfig)
       } catch (error) {
-        console.error("Error fetching company:", error)
+        console.error("Error fetching client:", error)
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load company data. Please try again.",
+          description: "Failed to load client data. Please try again.",
         })
-        router.push("/companies")
+        router.push("/clients")
       } finally {
         setIsDataLoading(false)
       }
     }
 
-    fetchCompany()
+    fetchClient()
   }, [id, form, router])
 
   // Handle form submission
-  const onSubmit = async (values: z.infer<typeof companyFormSchema>) => {
+  const onSubmit = async (values: z.infer<typeof clientFormSchema>) => {
     try {
       setIsLoading(true)
       setValidationErrors([])
 
-      console.log("Form values:", values)
-      console.log("Salary template config before submission:", salaryTemplateConfig)
-
       // Format the date as DD-MM-YYYY
-      const formattedDate = format(values.companyOnboardingDate, "dd-MM-yyyy")
+      const formattedDate = format(values.clientOnboardingDate, "dd-MM-yyyy")
 
-      // Prepare the company data with the required structure
-      const companyData = {
+      // Prepare the client data with the required structure
+      const clientData = {
         ...values,
-        companyOnboardingDate: formattedDate,
+        clientOnboardingDate: formattedDate,
         salaryTemplates: salaryTemplateConfig ?? undefined,
       }
 
-      console.log("Company data being submitted:", JSON.stringify(companyData, null, 2))
-
-      await companyService.updateCompany(id, companyData)
+      await clientService.updateClient(id, clientData)
 
       toast({
         title: "Success",
-        description: "Company updated successfully",
+        description: "Client updated successfully",
       })
 
-      router.push("/companies")
+      router.push("/clients")
     } catch (error: any) {
-      console.error("Error updating company:", error)
-      console.error("Error response data:", error.response?.data)
+      const errorMessage = getErrorMessage(error)
+      const details = error.response?.data?.error?.details
+      const messages = Array.isArray(details)
+        ? details.map((d: any) => (typeof d === "string" ? d : d?.message ?? JSON.stringify(d)))
+        : [errorMessage]
 
-      // Handle validation errors
-      if (error.response?.status === 400) {
-        const errorData = error.response.data
+      setValidationErrors(messages)
 
-        if (errorData.message && Array.isArray(errorData.message)) {
-          setValidationErrors(errorData.message)
-
-          // Check if it's a validation error related to salary template
-          if (errorData.message.some((msg: string) => msg.includes("salaryTemplateConfig"))) {
-            toast({
-              variant: "destructive",
-              title: "Salary Template Validation Error",
-              description:
-                "There are validation errors in the salary template configuration. Please check the details below.",
-            })
-
-            // Switch to the salary templates tab to show the error
-            setActiveTab("salary-templates")
-          } else {
-            // Generic validation error
-            toast({
-              variant: "destructive",
-              title: "Validation Error",
-              description: "Please check the validation errors below and try again.",
-            })
-          }
-        } else {
-          // Single validation error
-          setValidationErrors([errorData.message || "Validation failed"])
-          toast({
-            variant: "destructive",
-            title: "Validation Error",
-            description: errorData.message || "Please check your input and try again.",
-          })
-        }
+      if (messages.some((msg: string) => msg.includes("salaryTemplateConfig"))) {
+        toast({
+          variant: "destructive",
+          title: "Salary Template Validation Error",
+          description:
+            "There are validation errors in the salary template configuration. Please check the details below.",
+        })
+        setActiveTab("salary-templates")
       } else {
-        // Generic error
         toast({
           variant: "destructive",
           title: "Error",
-          description: error.message || "Failed to update company. Please try again.",
+          description: errorMessage || "Failed to update client. Please try again.",
         })
       }
     } finally {
@@ -204,7 +174,6 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
 
   // Handle salary template updates
   const handleSalaryTemplateChange = (config: SalaryTemplateConfig) => {
-    console.log("Salary template config changed:", config)
     setSalaryTemplateConfig(config)
     // Clear validation errors when config changes
     setValidationErrors([])
@@ -219,12 +188,12 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Company</h1>
-          <p className="text-muted-foreground">Update company information and salary template configuration</p>
+          <h1 className="text-3xl font-bold tracking-tight">Edit Client</h1>
+          <p className="text-muted-foreground">Update client information and salary template configuration</p>
         </div>
-        <Button variant="outline" onClick={() => router.push("/companies")}>
+        <Button variant="outline" onClick={() => router.push("/clients")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Companies
+          Back to Clients
         </Button>
       </div>
 
@@ -275,7 +244,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
               value="salary-templates"
               className={validationErrors.some((e) => e.includes("salaryTemplateConfig")) ? "text-red-600" : ""}
             >
-              Salary Templates
+              Salary Slip
               {validationErrors.some((e) => e.includes("salaryTemplateConfig")) && (
                 <AlertTriangle className="ml-2 h-4 w-4 text-red-600" />
               )}
@@ -286,21 +255,21 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
           <TabsContent value="basic" className="space-y-4 pt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Company Information</CardTitle>
-                <CardDescription>Update the basic details of the company</CardDescription>
+                <CardTitle>Client Information</CardTitle>
+                <CardDescription>Update the basic details of the client</CardDescription>
               </CardHeader>
               <CardContent>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} id="company-form" className="space-y-8">
+                  <form onSubmit={form.handleSubmit(onSubmit)} id="client-form" className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Company Name</FormLabel>
+                            <FormLabel>Client Name</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter company name" {...field} />
+                              <Input placeholder="Enter client name" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -320,8 +289,8 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value={CompanyStatus.ACTIVE}>ACTIVE</SelectItem>
-                                <SelectItem value={CompanyStatus.INACTIVE}>INACTIVE</SelectItem>
+                                <SelectItem value={ClientStatus.ACTIVE}>{label.status(ClientStatus.ACTIVE)}</SelectItem>
+                                <SelectItem value={ClientStatus.INACTIVE}>{label.status(ClientStatus.INACTIVE)}</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -359,7 +328,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
 
                       <FormField
                         control={form.control}
-                        name="companyOnboardingDate"
+                        name="clientOnboardingDate"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
                             <FormLabel>Onboarding Date</FormLabel>
@@ -388,7 +357,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
                                 />
                               </PopoverContent>
                             </Popover>
-                            <FormDescription>The date when the company was onboarded</FormDescription>
+                            <FormDescription>The date when the client was onboarded</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -401,7 +370,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
                           <FormItem className="md:col-span-2">
                             <FormLabel>Address</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter company address" {...field} />
+                              <Input placeholder="Enter client address" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -412,50 +381,29 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
                 </Form>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={() => router.push("/companies")}>
+                <Button variant="outline" onClick={() => router.push("/clients")}>
                   Cancel
                 </Button>
                 <div className="flex gap-2">
-                  <Button onClick={() => handleTabChange("salary-templates")}>Next: Configure Salary Templates</Button>
+                  <Button onClick={() => handleTabChange("salary-templates")}>Next: Set Up Salary Slip</Button>
                 </div>
               </CardFooter>
             </Card>
           </TabsContent>
 
           <TabsContent value="salary-templates" className="space-y-4 pt-4">
-            <div className="flex justify-end mb-4">
-              <Button variant="outline" onClick={() => setShowPreview(!showPreview)}>
-                {showPreview ? "Hide Preview" : "Show Preview"}
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              <div className={showPreview ? "lg:col-span-3" : "lg:col-span-5"}>
-                {salaryTemplateConfig && (
-                  <SalaryTemplateConfigForm
-                    initialConfig={salaryTemplateConfig}
-                    onSave={handleSalaryTemplateChange}
-                  />
-                )}
-
-                {!salaryTemplateConfig && (
-                  <div className="flex items-center justify-center p-8">
-                    <div className="text-center">
-                      <h3 className="text-lg font-medium mb-2">Loading Template Configuration...</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Please wait while we load the salary template configuration.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {showPreview && salaryTemplateConfig && (
-                <div className="lg:col-span-2">
-                  <SalarySlipPreview config={salaryTemplateConfig} />
+            {salaryTemplateConfig ? (
+              <ClientSalarySetup config={salaryTemplateConfig} onChange={handleSalaryTemplateChange} />
+            ) : (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <h3 className="text-lg font-medium mb-2">Loading Salary Slip...</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please wait while we load this client's salary slip setup.
+                  </p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 mt-6">
               <Button variant="outline" onClick={() => handleTabChange("basic")}>
@@ -466,7 +414,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
               </Button>
               <Button
                 type="submit"
-                form="company-form"
+                form="client-form"
                 disabled={isLoading}
                 onClick={() => {
                   // Validate the form before submission
@@ -486,7 +434,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
                 }}
               >
                 <Save className="mr-2 h-4 w-4" />
-                {isLoading ? "Saving..." : "Update Company"}
+                {isLoading ? "Saving..." : "Update Client"}
               </Button>
             </div>
           </TabsContent>
@@ -512,7 +460,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
                 </Button>
                 <Button
                   type="submit"
-                  form="company-form"
+                  form="client-form"
                   disabled={isLoading || !salaryTemplateConfig}
                   onClick={() => {
                     form.trigger().then((isValid) => {
@@ -530,7 +478,7 @@ export default function EditCompanyPage({ params }: { params: { id: string } }) 
                   }}
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  {isLoading ? "Saving..." : "Update Company"}
+                  {isLoading ? "Saving..." : "Update Client"}
                 </Button>
               </CardFooter>
             </Card>

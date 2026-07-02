@@ -24,7 +24,7 @@ import {
   SalaryFieldCategory,
   SalaryFieldPurpose,
   getDefaultSalaryTemplateConfig,
-} from "@/types/company"
+} from "@/types/client"
 import { ScrollArea } from "../ui/scroll-area"
 
 // Create a dynamic schema based on enabled fields
@@ -374,7 +374,7 @@ export function SalaryTemplateForm({ initialTemplateConfig, onSave, isLoading = 
             </Tooltip>
           </TooltipProvider>
         </CardTitle>
-        <CardDescription>Customize which fields appear in employee salary slips for this company</CardDescription>
+        <CardDescription>Customize which fields appear in employee salary slips for this client</CardDescription>
       </CardHeader>
       <ScrollArea className="flex-1">
         <CardContent>

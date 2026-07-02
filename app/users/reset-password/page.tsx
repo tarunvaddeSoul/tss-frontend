@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PasswordRules } from "@/components/ui/password-rules"
 import { useAuth } from "@/hooks/use-auth"
 import { AxiosError } from "axios"
 import { toast } from "@/components/ui/use-toast"
@@ -197,11 +198,13 @@ export default function ResetPasswordPage() {
                         </div>
                       </FormControl>
                       <FormMessage />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Must be 6-20 characters with uppercase, lowercase, and number
-                      </p>
                     </FormItem>
                   )}
+                />
+
+                <PasswordRules
+                  password={form.watch("newPassword")}
+                  confirm={form.watch("confirmPassword")}
                 />
 
                 <FormField

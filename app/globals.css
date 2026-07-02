@@ -191,6 +191,20 @@
     color: hsl(var(--brand));
   }
 
+  @keyframes stamp-in {
+    from {
+      opacity: 0;
+      transform: rotate(-14deg) scale(1.5);
+    }
+    to {
+      opacity: 1;
+      transform: rotate(-6deg) scale(1);
+    }
+  }
+  .stamp-in {
+    animation: stamp-in 200ms var(--ease-brisk) both;
+  }
+
   /* ── Signature: stamp (status seal) ── */
   .stamp {
     display: inline-flex;

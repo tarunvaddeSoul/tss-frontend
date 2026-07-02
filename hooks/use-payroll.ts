@@ -2,32 +2,32 @@
 
 import { useState, useCallback } from "react"
 import { payrollService } from "@/services/payrollService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 import type {
     CalculatePayrollDto,
     CalculatePayrollResponse,
     FinalizePayrollDto,
     AdminInputField,
 } from "@/types/payroll"
-import type { Company, SalaryTemplateField } from "@/types/company"
+import type { Client, SalaryTemplateField } from "@/types/client"
 import { useToast } from "@/components/ui/use-toast"
 
 export function usePayroll() {
     const [isCalculating, setIsCalculating] = useState(false)
     const [isFinalizing, setIsFinalizing] = useState(false)
     const [calculationResult, setCalculationResult] = useState<CalculatePayrollResponse | null>(null)
-    const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
+    const [selectedClient, setSelectedClient] = useState<Client | null>(null)
     const [adminInputFields, setAdminInputFields] = useState<AdminInputField[]>([])
     const { toast } = useToast()
 
-    const fetchCompanyDetails = useCallback(
-        async (companyId: string) => {
+    const fetchClientDetails = useCallback(
+        async (clientId: string) => {
             try {
-                const company = await companyService.getCompanyById(companyId)
-                setSelectedCompany(company.data ?? null)
+                const client = await clientService.getClientById(clientId)
+                setSelectedClient(client.data ?? null)
 
                 // Extract admin input fields from salary template
-                const salaryTemplates = company.data?.salaryTemplates
+                const salaryTemplates = client.data?.salaryTemplates
                 const salaryTemplate = Array.isArray(salaryTemplates) ? salaryTemplates[0] : salaryTemplates
 
                 if (salaryTemplate) {
@@ -78,11 +78,11 @@ export function usePayroll() {
                     setAdminInputFields(adminFields)
                 }
 
-        return company
+        return client
         } catch (error: any) {
             toast({
                 title: "Error",
-                description: error.message || "Failed to fetch company details",
+                description: error.message || "Failed to fetch client details",
                 variant: "destructive",
             })
             throw error
@@ -95,7 +95,6 @@ const calculatePayroll = useCallback(
     async (request: CalculatePayrollDto) => {
         setIsCalculating(true)
         try {
-            console.log("Calculating payroll with request:", request)
             const result = await payrollService.calculatePayroll(request)
             setCalculationResult(result)
             toast({
@@ -143,7 +142,7 @@ const finalizePayroll = useCallback(
 
 const resetCalculation = useCallback(() => {
     setCalculationResult(null)
-    setSelectedCompany(null)
+    setSelectedClient(null)
     setAdminInputFields([])
 }, [])
 
@@ -151,9 +150,9 @@ return {
     isCalculating,
     isFinalizing,
     calculationResult,
-    selectedCompany,
+    selectedClient,
     adminInputFields,
-    fetchCompanyDetails,
+    fetchClientDetails,
     calculatePayroll,
     finalizePayroll,
     resetCalculation,

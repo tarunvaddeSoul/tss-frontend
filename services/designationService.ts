@@ -6,10 +6,10 @@ export interface Designation {
   name: string
 }
 
+export type DesignationListResponse = Designation[]
+
 export interface DesignationResponse {
-  statusCode: number
-  message: string
-  data: Designation | Designation[]
+  data: Designation
 }
 
 const DESIGNATION_ENDPOINTS = {
@@ -21,8 +21,8 @@ const DESIGNATION_ENDPOINTS = {
 export const designationService = {
   async getDesignations(): Promise<Designation[]> {
     try {
-      const response = await api.get<DesignationResponse>(DESIGNATION_ENDPOINTS.BASE)
-      return response.data.data as Designation[]
+      const response = await api.get(DESIGNATION_ENDPOINTS.BASE)
+      return response.data.data
     } catch (error) {
       throw new Error(handleApiError(error))
     }

@@ -27,7 +27,7 @@ export enum LWFOptions {
   NO = "NO",
 }
 
-export enum CompanyStatus {
+export enum ClientStatus {
   ACTIVE = "ACTIVE",
   INACTIVE = "INACTIVE",
 }
@@ -95,36 +95,36 @@ export interface SalaryTemplateConfig {
   customFields?: CustomSalaryField[]
 }
 
-export interface CompanyFormValues {
+export interface ClientFormValues {
   name: string
   address: string
   contactPersonName: string
   contactPersonNumber: string
-  status: CompanyStatus
-  companyOnboardingDate: string | Date
+  status: ClientStatus
+  clientOnboardingDate: string | Date
   salaryTemplateConfig: SalaryTemplateConfig
 }
 
-export interface Company {
+export interface Client {
   id?: string
   name: string
   address: string
   contactPersonName: string
   contactPersonNumber: string
-  status: CompanyStatus
-  companyOnboardingDate: string
+  status: ClientStatus
+  clientOnboardingDate: string
   salaryTemplates?: SalaryTemplateConfig
 }
 
 // Form related interfaces
-export interface CompanyFormProps {
-  onSubmit: (company: Company) => void
-  initialValues?: Partial<Company>
+export interface ClientFormProps {
+  onSubmit: (client: Client) => void
+  initialValues?: Partial<Client>
   isLoading?: boolean
 }
 
 // Search related interface
-export interface CompanySearchParams {
+export interface ClientSearchParams {
   page?: number
   limit?: number
   sortBy?: string
@@ -134,28 +134,22 @@ export interface CompanySearchParams {
 }
 
 // Response interfaces
-export interface CompanyResponse {
-  statusCode: number
-  message: string
-  data?: Company
+export interface ClientResponse {
+  data?: Client
 }
 
-export interface CompaniesResponse {
-  statusCode: number
-  message: string
+export interface ClientsResponse {
   data?: {
-    companies: Company[]
+    clients: Client[]
     total: number
   }
 }
 
-export interface CompanyEmployeeCountResponse {
-  statusCode: number
-  message: string
+export interface ClientEmployeeCountResponse {
   data: any[]
 }
 
-export interface CompanyEmployee {
+export interface ClientEmployee {
   id: string
   employeeId: string
   title: string
@@ -176,10 +170,8 @@ export interface CompanyEmployee {
   monthlySalary?: number
 }
 
-export interface CompanyEmployeesResponse {
-  statusCode: number
-  message: string
-  data: CompanyEmployee[]
+export interface ClientEmployeesResponse {
+  data: ClientEmployee[]
 }
 
 // Generate options for basic duty (26 to 31 days)
@@ -216,8 +208,8 @@ export const getDefaultSalaryTemplateConfig = (): SalaryTemplateConfig => {
         enabled: true,
       },
       {
-        key: "companyName",
-        label: "Company Name",
+        key: "clientName",
+        label: "Client Name",
         type: SalaryFieldType.TEXT,
         category: SalaryFieldCategory.MANDATORY_NO_RULES,
         purpose: SalaryFieldPurpose.INFORMATION,
@@ -347,7 +339,7 @@ export const getDefaultSalaryTemplateConfig = (): SalaryTemplateConfig => {
         enabled: true,
         requiresAdminInput: true,
         description:
-          "Monthly bonus amount that varies based on performance, attendance, or company policy. Admin must specify the amount for each employee every month.",
+          "Monthly bonus amount that varies based on performance, attendance, or client policy. Admin must specify the amount for each employee every month.",
         defaultValue: "0",
       },
       {

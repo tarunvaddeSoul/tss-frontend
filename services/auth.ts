@@ -2,7 +2,6 @@ import api from "./api"
 import type {
   AuthAPIResponse,
   LoginCredentials,
-  SignupCredentials,
   User,
   ChangePasswordCredentials,
   ForgotPasswordCredentials,
@@ -13,12 +12,10 @@ import type {
 } from "@/types/auth"
 import { getErrorMessage } from "./api"
 import { setTokens, clearTokens } from "./token"
-import { AxiosError } from "axios"
 
 // API endpoints configuration
 const AUTH_ENDPOINTS = {
   LOGIN: "/users/login",
-  SIGNUP: "/users/register",
   LOGOUT: "/users/logout",
   CURRENT_USER: "/users/me",
   REFRESH_TOKEN: "/users/refresh-token",
@@ -35,25 +32,10 @@ const authService = {
 
       // Store the tokens in localStorage
       setTokens(response.data.data.tokens.accessToken, response.data.data.tokens.refreshToken)
-      console.log('Login response:', response.data)
       return response.data
     } catch (error) {
-      console.log('Login error:', JSON.stringify((error as AxiosError).response?.data, null, 2))
       // Pass original axios error with response data
       throw error
-    }
-  },
-
-  async signup(credentials: SignupCredentials): Promise<AuthAPIResponse> {
-    try {
-      const response = await api.post<AuthAPIResponse>(AUTH_ENDPOINTS.SIGNUP, credentials)
-
-      // Store the tokens in localStorage
-      setTokens(response.data.data.tokens.accessToken, response.data.data.tokens.refreshToken)
-
-      return response.data
-    } catch (error) {
-      throw new Error(getErrorMessage(error))
     }
   },
 

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { dashboardService } from "@/services/dashboardService"
-import { companyService } from "@/services/companyService"
-import type { DashboardReportData, CompanyEmployeeCount } from "@/types/dashboard"
+import { clientService } from "@/services/clientService"
+import { getErrorMessage } from "@/services/api"
+import type { DashboardReportData, ClientEmployeeCount } from "@/types/dashboard"
 
 interface UseDashboardReturn {
   data: DashboardReportData | null
-  companyEmployeeCounts: CompanyEmployeeCount[]
+  clientEmployeeCounts: ClientEmployeeCount[]
   loading: boolean
   error: string | null
   refetch: (daysAhead?: number) => Promise<void>
@@ -15,7 +16,7 @@ interface UseDashboardReturn {
 
 export function useDashboard(daysAhead = 30): UseDashboardReturn {
   const [data, setData] = useState<DashboardReportData | null>(null)
-  const [companyEmployeeCounts, setCompanyEmployeeCounts] = useState<CompanyEmployeeCount[]>([])
+  const [clientEmployeeCounts, setClientEmployeeCounts] = useState<ClientEmployeeCount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,16 +25,16 @@ export function useDashboard(daysAhead = 30): UseDashboardReturn {
       setLoading(true)
       setError(null)
 
-      // Fetch both dashboard data and company employee counts in parallel
-      const [dashboardResponse, companyCountsResponse] = await Promise.all([
+      // Fetch both dashboard data and client employee counts in parallel
+      const [dashboardResponse, clientCountsResponse] = await Promise.all([
         dashboardService.getDashboardReport(days),
-        companyService.getCompanyEmployeeCounts(),
+        clientService.getClientEmployeeCounts(),
       ])
 
       setData(dashboardResponse)
-      setCompanyEmployeeCounts(companyCountsResponse)
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch dashboard data")
+      setClientEmployeeCounts(clientCountsResponse)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Failed to fetch dashboard data")
       console.error("Dashboard fetch error:", err)
     } finally {
       setLoading(false)
@@ -50,7 +51,7 @@ export function useDashboard(daysAhead = 30): UseDashboardReturn {
 
   return {
     data,
-    companyEmployeeCounts,
+    clientEmployeeCounts,
     loading,
     error,
     refetch,

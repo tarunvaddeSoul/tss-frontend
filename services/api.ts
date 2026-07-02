@@ -19,11 +19,16 @@ const api = axios.create({
 
 // Helper function to extract error message from API response
 export function getErrorMessage(error: unknown): string {
-  // Handle Axios errors with response data
+  // Handle Axios errors with the API error envelope { error: { message } }
   if (error && typeof error === "object" && "response" in error) {
-    const axiosError = error as { response?: { data?: { message?: string } } }
-    if (axiosError.response?.data?.message) {
-      return axiosError.response.data.message
+    const axiosError = error as {
+      response?: { data?: { error?: { message?: string }; message?: string } }
+    }
+    const apiMessage =
+      axiosError.response?.data?.error?.message ??
+      axiosError.response?.data?.message
+    if (apiMessage) {
+      return apiMessage
     }
   }
   
@@ -153,6 +158,14 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
     
+    // Handle 400/422 validation errors
+    if (error.response?.status === 400 || error.response?.status === 422) {
+      toast({
+        title: "Could not save",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      })
+    }
     // Handle 403 Forbidden errors (insufficient permissions)
     if (error.response?.status === 403) {
       toast({
@@ -177,11 +190,19 @@ api.interceptors.response.use(
         variant: "destructive",
       })
     }
-    // Handle network errors
-    if (error.message === "Network Error") {
+    // Handle request timeouts
+    if (error.code === "ECONNABORTED") {
+      toast({
+        title: "Request Timed Out",
+        description: "The request took too long. Please try again.",
+        variant: "destructive",
+      })
+    }
+    // Handle network errors (request sent but no response received)
+    if (error.message === "Network Error" || (error.request && !error.response && error.code !== "ECONNABORTED")) {
       toast({
         title: "Network Error",
-        description: getErrorMessage(error),
+        description: "Cannot reach the server. Please check your connection and try again.",
         variant: "destructive",
       })
     }

@@ -1,5 +1,5 @@
 export interface CalculatePayrollDto {
-  companyId: string
+  clientId: string
   payrollMonth: string // format: YYYY-MM
   adminInputs?: Record<string, Record<string, number>>
 }
@@ -14,11 +14,11 @@ export type SalaryCategory = "CENTRAL" | "STATE" | "SPECIALIZED" | null
 export type SalarySubCategory = "SKILLED" | "UNSKILLED" | "HIGHSKILLED" | "SEMISKILLED" | null
 
 /**
- * Information fields (employee/company details)
+ * Information fields (employee/client details)
  * Contains fields with purpose: INFORMATION
  */
 export interface PayrollSalaryInformation {
-  companyName: string
+  clientName: string
   employeeName: string
   designation: string
   department: string
@@ -106,7 +106,7 @@ export interface CalculatePayrollResponse {
   statusCode: number
   message: string
   data: {
-    companyName: string
+    clientName: string
     payrollMonth: string
     totalEmployees: number
     payrollResults: PayrollRecord[]
@@ -114,29 +114,27 @@ export interface CalculatePayrollResponse {
 }
 
 export interface FinalizePayrollDto {
-  companyId: string
+  clientId: string
   payrollMonth: string
-  payrollRecords: {
-    employeeId: string
-    salary: Record<string, any>
-  }[]
+  adminInputs?: Record<string, Record<string, number>>
+  force?: boolean
 }
 
 export interface FinalizePayrollResponse {
   statusCode: number
   message: string
   data: {
-    companyId: string
+    clientId: string
     payrollMonth: string
     totalRecords: number
   }
 }
 
-// Company Reports Types
-export interface CompanyPayrollRecord {
+// Client Reports Types
+export interface ClientPayrollRecord {
   id: string
   employeeId: string
-  companyId: string
+  clientId: string
   month: string
   salaryData: PayrollSalaryData
   createdAt: string
@@ -164,19 +162,19 @@ export interface CompanyPayrollRecord {
   }
 }
 
-export interface CompanyPayrollMonth {
+export interface ClientPayrollMonth {
   month: string
   employeeCount: number
   totalNetSalary: number
-  records: CompanyPayrollRecord[]
+  records: ClientPayrollRecord[]
 }
 
 export interface PastPayrollsResponse {
   statusCode: number
   message: string
   data: {
-    companyName: string
-    records: CompanyPayrollMonth[]
+    clientName: string
+    records: ClientPayrollMonth[]
     totalPages: number
     currentPage: number
   }
@@ -186,7 +184,7 @@ export interface PastPayrollsResponse {
 export interface EmployeePayrollRecord {
   id: string
   employeeId: string
-  companyId: string
+  clientId: string
   month: string
   salaryData: PayrollSalaryData
   createdAt: string
@@ -198,7 +196,7 @@ export interface EmployeePayrollResponse {
   message: string
   data: {
     employeeId: string
-    companyId: string
+    clientId: string
     startMonth: string
     endMonth: string
     records: EmployeePayrollRecord[]
@@ -233,8 +231,8 @@ export interface AdminInputField {
 export interface PayrollReportRecord {
   id: string;
   employeeId: string;
-  companyId: string;
-  companyName: string;
+  clientId: string;
+  clientName: string;
   month: string;
   salaryData: PayrollSalaryData;
   createdAt: string;
@@ -256,10 +254,10 @@ export interface PayrollReportResponseData {
   hasPrevPage: boolean
 }
 
-export type ReportType = "company" | "employee"
+export type ReportType = "client" | "employee"
 
 export interface ReportFilters {
-  companyId?: string
+  clientId?: string
   employeeId?: string
   startMonth?: string
   endMonth?: string
@@ -277,7 +275,7 @@ export interface PayrollByMonthSummary {
 export interface PayrollByMonthRecord {
   id: string
   employeeId: string
-  companyId: string
+  clientId: string
   month: string
   salaryData: PayrollSalaryData
   createdAt: string
@@ -285,7 +283,7 @@ export interface PayrollByMonthRecord {
 }
 
 export interface PayrollByMonthData {
-  companyName: string
+  clientName: string
   payrollMonth: string
   summary: PayrollByMonthSummary
   createdAt: string

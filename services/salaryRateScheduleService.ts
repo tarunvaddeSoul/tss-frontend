@@ -31,7 +31,6 @@ class SalaryRateScheduleService {
   async getAll(params?: GetSalaryRateScheduleQuery): Promise<SalaryRateScheduleListResponse> {
     try {
       const response = await api.get(this.baseUrl, { params })
-      // API returns { statusCode, message, data } structure
       return response.data
     } catch (error) {
       console.error("Error fetching salary rate schedules:", error)
@@ -68,10 +67,9 @@ class SalaryRateScheduleService {
   /**
    * Delete a salary rate schedule
    */
-  async delete(id: string): Promise<{ statusCode: number; message: string }> {
+  async delete(id: string): Promise<void> {
     try {
-      const response = await api.delete(`${this.baseUrl}/${id}`)
-      return response.data
+      await api.delete(`${this.baseUrl}/${id}`)
     } catch (error) {
       console.error(`Error deleting salary rate schedule with ID ${id}:`, error)
       throw new Error(getErrorMessage(error))

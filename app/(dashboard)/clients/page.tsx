@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
+import { PageHeader } from "@/components/layout/page-header"
 import { clientService } from "@/services/clientService"
 import type { Client, ClientSearchParams } from "@/types/client"
 import { ClientViewDialog } from "@/components/clients/client-view-dialog"
@@ -134,16 +135,18 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-          <p className="text-muted-foreground">Manage your clients and their salary templates</p>
-        </div>
-        <Button  onClick={() => router.push("/clients/add")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Client
-        </Button>
-      </div>
+      <PageHeader
+        no="05"
+        eyebrow="Client register"
+        title="Clients"
+        description="Manage your clients and their salary templates"
+        actions={
+          <Button onClick={() => router.push("/clients/add")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Client
+          </Button>
+        }
+      />
 
       {/* Search and Filters */}
       <Card>
@@ -307,18 +310,18 @@ export default function ClientsPage() {
                     <TableRow key={client.id}>
                       <TableCell className="font-medium">
                         {client.name}
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="mt-1 font-mono text-[11px] text-muted-foreground">
                           {client.id ? <span>ID: {client.id}</span> : null}
                         </div>
                       </TableCell>
                       <TableCell>{client.contactPersonName}</TableCell>
-                      <TableCell>{client.contactPersonNumber}</TableCell>
+                      <TableCell className="font-mono text-[13px]">{client.contactPersonNumber}</TableCell>
                       <TableCell>
-                        <Badge variant={client.status === "ACTIVE" ? "default" : "secondary"}>
+                        <Badge variant={client.status === "ACTIVE" ? "success" : "destructive"}>
                           {label.status(client.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(client.clientOnboardingDate)}</TableCell>
+                      <TableCell className="font-mono text-[13px]">{formatDate(client.clientOnboardingDate)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -356,11 +359,11 @@ export default function ClientsPage() {
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-10">
                       <div className="flex flex-col items-center justify-center space-y-3">
-                        <div className="text-lg font-medium">No clients found</div>
+                        <div className="registry-eyebrow">No records on file</div>
                         <div className="text-sm text-muted-foreground">
                           {searchParams.searchText
-                            ? "Try adjusting your search terms"
-                            : "Get started by adding your first client"}
+                            ? "No clients match this search. Try adjusting your search terms."
+                            : "Get started by adding your first client."}
                         </div>
                         {!searchParams.searchText && (
                           <Button className="mt-2" onClick={() => router.push("/clients/add")}>

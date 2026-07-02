@@ -388,7 +388,7 @@ export function SalarySlipPreview({ config }: SalarySlipPreviewProps) {
             </div>
           </div>
         ) : (
-          <div className="border rounded-md overflow-hidden h-[500px] flex items-center justify-center bg-muted">
+          <div className="border rounded-md overflow-hidden h-[500px] flex items-center justify-center bg-surface">
             <div className="text-center text-muted-foreground">
               {isGenerating ? (
                 <p>Generating preview...</p>

@@ -130,39 +130,39 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
             </AlertDescription>
           </Alert>
 
-          <div className="bg-muted p-4 rounded-lg mb-4">
+          <div className="rounded-md border bg-surface p-4 mb-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Client Name:</span>
-                <span className="text-sm">{client.name}</span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Client Name</span>
+                <span className="text-sm font-medium">{client.name}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Client ID:</span>
-                <span className="text-sm">{client.id}</span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Client ID</span>
+                <span className="font-mono text-[13px]">{client.id}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Current Status:</span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Current Status</span>
                 <span className="text-sm">{label.status(client.status)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Contact Person:</span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Contact Person</span>
                 <span className="text-sm">{client.contactPersonName || "N/A"}</span>
               </div>
               {isLoadingEmployees ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium flex items-center gap-2">
+                  <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    Employees:
+                    Employees
                   </span>
                   <span className="text-sm">Loading...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium flex items-center gap-2">
+                  <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                     <Users className="h-4 w-4" />
-                    Employees:
+                    Employees
                   </span>
-                  <span className="text-sm">{employeeCount ?? "N/A"}</span>
+                  <span className="font-mono text-[13px]">{employeeCount ?? "N/A"}</span>
                 </div>
               )}
             </div>
@@ -197,7 +197,7 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
               <p>
                 You are about to terminate <strong>{client.name}</strong> from Tulsyan Security Services.
               </p>
-              <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
+              <div className="rounded-md border bg-surface p-3 space-y-1 text-sm">
                 <p>
                   <strong>Client ID:</strong> {client.id}
                 </p>

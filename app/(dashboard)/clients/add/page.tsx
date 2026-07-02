@@ -21,6 +21,7 @@ import { ClientSalarySetup } from "@/components/clients/client-salary-setup"
 import { SalarySlipPreview } from "@/components/clients/salary-slip-preview"
 import { ClientStatus, type SalaryTemplateConfig, getDefaultSalaryTemplateConfig } from "@/types/client"
 import { DatePicker } from "@/components/ui/date-picker"
+import { PageHeader } from "@/components/layout/page-header"
 
 // Form validation schema for basic client info
 const clientFormSchema = z.object({
@@ -101,19 +102,21 @@ export default function AddClientPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Add New Client</h1>
-          <p className="text-muted-foreground">Add a client and set up their salary slip</p>
-        </div>
-        <Button variant="outline" onClick={() => router.push("/clients")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Clients
-        </Button>
-      </div>
+      <PageHeader
+        no="05"
+        eyebrow="Client register"
+        title="Add New Client"
+        description="Add a client and set up their salary slip"
+        actions={
+          <Button variant="outline" onClick={() => router.push("/clients")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Clients
+          </Button>
+        }
+      />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="w-full">
           <TabsTrigger value="basic">Basic Information</TabsTrigger>
           <TabsTrigger value="salary-templates">Salary Slip</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>

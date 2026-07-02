@@ -535,37 +535,20 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
     setSelectOptions((prev) => prev.filter((o) => o !== option))
   }
 
-  // Get purpose badge color
-  const getPurposeBadgeColor = (purpose: SalaryFieldPurpose) => {
+  const getPurposeBadgeVariant = (
+    purpose: SalaryFieldPurpose,
+  ): "success" | "destructive" | "info" | "default" => {
     switch (purpose) {
       case SalaryFieldPurpose.ALLOWANCE:
-        return "bg-green-100 text-green-800 hover:bg-green-100"
+        return "success"
       case SalaryFieldPurpose.DEDUCTION:
-        return "bg-red-100 text-red-800 hover:bg-red-100"
+        return "destructive"
       case SalaryFieldPurpose.CALCULATION:
-        return "bg-blue-100 text-blue-800 hover:bg-blue-100"
+        return "info"
       case SalaryFieldPurpose.INFORMATION:
-        return "bg-gray-100 text-gray-800 hover:bg-gray-100"
+        return "default"
       default:
-        return ""
-    }
-  }
-
-  // Get type badge color
-  const getTypeBadgeColor = (type: SalaryFieldType) => {
-    switch (type) {
-      case SalaryFieldType.TEXT:
-        return "bg-purple-100 text-purple-800 hover:bg-purple-100"
-      case SalaryFieldType.NUMBER:
-        return "bg-blue-100 text-blue-800 hover:bg-blue-100"
-      case SalaryFieldType.DATE:
-        return "bg-orange-100 text-orange-800 hover:bg-orange-100"
-      case SalaryFieldType.BOOLEAN:
-        return "bg-teal-100 text-teal-800 hover:bg-teal-100"
-      case SalaryFieldType.SELECT:
-        return "bg-indigo-100 text-indigo-800 hover:bg-indigo-100"
-      default:
-        return ""
+        return "default"
     }
   }
 
@@ -588,8 +571,8 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
         key={field.key}
         className={cn(
           "mb-4 transition-all duration-200",
-          field.enabled ? "border-primary/20" : "border-muted opacity-70",
-          isMandatoryDisabled && "border-red-200 bg-red-50",
+          field.enabled ? "" : "opacity-70",
+          isMandatoryDisabled && "border-destructive/40 bg-destructive/5",
         )}
       >
         <CardHeader className="pb-2">
@@ -605,29 +588,30 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                 className={cn(
                   "font-medium cursor-pointer",
                   field.enabled ? "text-foreground" : "text-muted-foreground",
-                  isMandatoryDisabled && "text-red-700",
+                  isMandatoryDisabled && "text-destructive",
                 )}
               >
                 {field.label}
-                {fieldType === "mandatory" && <span className="text-red-500 ml-1">*</span>}
+                {fieldType === "mandatory" && <span className="text-destructive ml-1">*</span>}
               </Label>
+              <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">{field.key}</span>
               {isMandatoryDisabled && (
                 <Badge variant="destructive" className="ml-2">
                   Required
                 </Badge>
               )}
               {field.purpose && (
-                <Badge variant="outline" className={cn("ml-2", getPurposeBadgeColor(field.purpose))}>
+                <Badge variant={getPurposeBadgeVariant(field.purpose)} className="ml-2">
                   {field.purpose}
                 </Badge>
               )}
               {field.type && (
-                <Badge variant="outline" className={cn("ml-1", getTypeBadgeColor(field.type))}>
+                <Badge variant="outline" className="ml-1">
                   {field.type}
                 </Badge>
               )}
               {field.requiresAdminInput && (
-                <Badge variant="outline" className="ml-1 bg-orange-100 text-orange-800 hover:bg-orange-100">
+                <Badge variant="warning" className="ml-1">
                   Admin Input
                 </Badge>
               )}
@@ -664,25 +648,25 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
             <div className="text-sm space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="font-semibold text-muted-foreground">Key:</p>
-                  <p>{field.key}</p>
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Key</p>
+                  <p className="font-mono text-[13px]">{field.key}</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-muted-foreground">Category:</p>
-                  <p>{field.category}</p>
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Category</p>
+                  <p className="font-mono text-[13px]">{field.category}</p>
                 </div>
               </div>
 
               {field.description && (
                 <div>
-                  <p className="font-semibold text-muted-foreground">Description:</p>
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Description</p>
                   <p>{field.description}</p>
                 </div>
               )}
 
               {hasRules && (
                 <div>
-                  <p className="font-semibold text-muted-foreground mb-2">Rules:</p>
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Rules</p>
                   <div className="grid grid-cols-2 gap-4">
                     {field.type === SalaryFieldType.NUMBER && (
                       <>
@@ -861,7 +845,7 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
   const renderGroupedFields = (fields: SalaryTemplateField[], fieldType: "mandatory" | "optional" | "custom") => {
     if (!Array.isArray(fields) || fields.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center p-6 border border-dashed rounded-lg">
+        <div className="flex flex-col items-center justify-center p-6 border border-dashed rounded-md">
           <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">No fields available in this category</p>
         </div>
@@ -879,10 +863,10 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
             <AccordionItem key={purpose} value={purpose}>
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={getPurposeBadgeColor(purpose as SalaryFieldPurpose)}>
+                  <Badge variant={getPurposeBadgeVariant(purpose as SalaryFieldPurpose)}>
                     {purpose}
                   </Badge>
-                  <span>
+                  <span className="font-mono text-[13px] text-muted-foreground">
                     ({purposeFields.filter((f) => f.enabled).length}/{purposeFields.length})
                   </span>
                 </div>
@@ -945,7 +929,7 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
             />
           )}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-3 mb-4">
+            <TabsList className="w-full mb-4">
               <TabsTrigger value="mandatory">
                 Mandatory Fields ({countEnabledMandatoryFields()}/{countMandatoryFields()})
               </TabsTrigger>
@@ -959,12 +943,12 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
 
             <TabsContent value="mandatory" className="space-y-4">
               {mandatoryFieldErrors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 mb-4">
                   <div className="flex">
-                    <AlertCircle className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
+                    <AlertCircle className="h-5 w-5 text-destructive mr-2 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-medium text-red-800">Mandatory Fields Required</h3>
-                      <div className="mt-2 text-sm text-red-700">
+                      <h3 className="text-sm font-medium text-destructive">Mandatory Fields Required</h3>
+                      <div className="mt-2 text-sm text-destructive">
                         <ul className="list-disc pl-5 space-y-1">
                           {mandatoryFieldErrors.map((error, index) => (
                             <li key={index}>{error}</li>
@@ -1041,8 +1025,8 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                 {Array.isArray(config.mandatoryFields) && config.mandatoryFields.length > 0 ? (
                   renderGroupedFields(config.mandatoryFields, "mandatory")
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-lg">
-                    <AlertCircle className="h-10 w-10 text-muted-foreground mb-4" />
+                  <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-md">
+                    <div className="registry-eyebrow mb-3">No records on file</div>
                     <h3 className="text-lg font-medium mb-2">No Mandatory Fields</h3>
                     <p className="text-sm text-muted-foreground text-center">
                       There are no mandatory fields configured for this template.
@@ -1107,8 +1091,8 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
                 {Array.isArray(config.optionalFields) && config.optionalFields.length > 0 ? (
                   renderGroupedFields(config.optionalFields, "optional")
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-lg">
-                    <AlertCircle className="h-10 w-10 text-muted-foreground mb-4" />
+                  <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-md">
+                    <div className="registry-eyebrow mb-3">No records on file</div>
                     <h3 className="text-lg font-medium mb-2">No Optional Fields</h3>
                     <p className="text-sm text-muted-foreground text-center">
                       There are no optional fields configured for this template.
@@ -1480,41 +1464,35 @@ export function SalaryTemplateConfigForm({ initialConfig, onSave, isLoading = fa
               {Array.isArray(config.customFields) && config.customFields.length > 0 ? (
                 <div className="space-y-2">{renderGroupedFields(config.customFields, "custom")}</div>
               ) : (
-                <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50">
+                <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-md">
                   <div className="text-center space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Plus className="h-8 w-8 text-blue-600" />
-                    </div>
+                    <div className="registry-eyebrow">No custom fields on file</div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Your Custom Fields</h3>
-                      <p className="text-sm text-gray-600 max-w-md mx-auto mb-4">
+                      <h3 className="font-display text-lg font-semibold mb-2">Create Your Custom Fields</h3>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
                         Custom fields let you add client-specific items to salary slips. Common examples include
                         bonuses, advances, overtime pay, or special allowances.
                       </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-500 mb-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-muted-foreground mb-6">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                          <div className="w-2 h-2 bg-muted-foreground/40 rounded-full"></div>
                           <span>Performance Bonus</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                          <div className="w-2 h-2 bg-muted-foreground/40 rounded-full"></div>
                           <span>Salary Advance</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                          <div className="w-2 h-2 bg-muted-foreground/40 rounded-full"></div>
                           <span>Overtime Pay</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                          <div className="w-2 h-2 bg-muted-foreground/40 rounded-full"></div>
                           <span>Travel Allowance</span>
                         </div>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => setIsAddingCustomField(true)}
-                      size="lg"
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
+                    <Button onClick={() => setIsAddingCustomField(true)} size="lg">
                       <Plus className="mr-2 h-5 w-5" />
                       Add Your First Custom Field
                     </Button>

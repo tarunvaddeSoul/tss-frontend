@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { FileText, Download, Users, Calendar, Phone, Building, User } from "lucide-react"
+import { FileText, Download, Calendar, Phone } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
 import { Pagination } from "@/components/ui/pagination"
@@ -183,12 +183,14 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{client.name}</DialogTitle>
-          <DialogDescription>Client ID: {client.id}</DialogDescription>
+          <DialogTitle className="font-display text-xl font-bold tracking-[-0.02em]">{client.name}</DialogTitle>
+          <DialogDescription className="font-mono text-xs uppercase tracking-[0.08em]">
+            Client ID: {client.id}
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-1 min-h-0">
-          <TabsList className="grid w-full grid-cols-2 shrink-0">
+          <TabsList className="w-full shrink-0">
             <TabsTrigger value="details">Client Details</TabsTrigger>
             <TabsTrigger value="employees">Employees ({activeEmployees.length})</TabsTrigger>
           </TabsList>
@@ -197,30 +199,29 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <Building className="h-4 w-4 mr-2" />
-                    Basic Information
-                  </CardTitle>
+                  <div className="registry-line">
+                    <span className="registry-eyebrow">Basic Information</span>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Client Name</div>
+                      <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Client Name</div>
                       <div className="font-medium">{client.name}</div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Address</div>
+                      <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Address</div>
                       <div>{client.address}</div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Status</div>
-                      <Badge variant={client.status === "ACTIVE" ? "default" : "secondary"}>
+                      <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Status</div>
+                      <Badge variant={client.status === "ACTIVE" ? "success" : "destructive"}>
                         {label.status(client.status)}
                       </Badge>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Onboarding Date</div>
-                      <div className="flex items-center">
+                      <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Onboarding Date</div>
+                      <div className="flex items-center font-mono text-[13px]">
                         <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                         {formatDate(client.clientOnboardingDate)}
                       </div>
@@ -231,20 +232,19 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium flex items-center">
-                    <User className="h-4 w-4 mr-2" />
-                    Contact Information
-                  </CardTitle>
+                  <div className="registry-line">
+                    <span className="registry-eyebrow">Contact Information</span>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Contact Person</div>
+                      <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Contact Person</div>
                       <div className="font-medium">{client.contactPersonName}</div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Contact Number</div>
-                      <div className="flex items-center">
+                      <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Contact Number</div>
+                      <div className="flex items-center font-mono text-[13px]">
                         <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
                         {client.contactPersonNumber}
                       </div>
@@ -254,30 +254,31 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
               </Card>
             </div>
 
-            {/* Salary Template Configuration */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-medium">Salary Template Configuration</CardTitle>
+                <div className="registry-line">
+                  <span className="registry-eyebrow">Salary Template Configuration</span>
+                </div>
               </CardHeader>
               <CardContent>
                 {enabledFields.length > 0 ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-muted rounded-md p-3 text-center">
-                        <div className="text-2xl font-bold">{enabledFields.length}</div>
-                        <div className="text-xs text-muted-foreground">Total Fields</div>
+                      <div className="rounded-md border bg-surface p-3 text-center">
+                        <div className="font-display text-2xl font-bold tabular-nums">{enabledFields.length}</div>
+                        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Total Fields</div>
                       </div>
-                      <div className="bg-muted rounded-md p-3 text-center">
-                        <div className="text-2xl font-bold">{countFieldsByPurpose("CALCULATION")}</div>
-                        <div className="text-xs text-muted-foreground">Calculation Fields</div>
+                      <div className="rounded-md border bg-surface p-3 text-center">
+                        <div className="font-display text-2xl font-bold tabular-nums">{countFieldsByPurpose("CALCULATION")}</div>
+                        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Calculation Fields</div>
                       </div>
-                      <div className="bg-muted rounded-md p-3 text-center">
-                        <div className="text-2xl font-bold">{countFieldsByPurpose("ALLOWANCE")}</div>
-                        <div className="text-xs text-muted-foreground">Allowance Fields</div>
+                      <div className="rounded-md border bg-surface p-3 text-center">
+                        <div className="font-display text-2xl font-bold tabular-nums">{countFieldsByPurpose("ALLOWANCE")}</div>
+                        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Allowance Fields</div>
                       </div>
-                      <div className="bg-muted rounded-md p-3 text-center">
-                        <div className="text-2xl font-bold">{countFieldsByPurpose("DEDUCTION")}</div>
-                        <div className="text-xs text-muted-foreground">Deduction Fields</div>
+                      <div className="rounded-md border bg-surface p-3 text-center">
+                        <div className="font-display text-2xl font-bold tabular-nums">{countFieldsByPurpose("DEDUCTION")}</div>
+                        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Deduction Fields</div>
                       </div>
                     </div>
 
@@ -302,21 +303,20 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
                               </TableCell>
                               <TableCell>
                                 <Badge
-                                  variant="secondary"
-                                  className={
+                                  variant={
                                     field.purpose === "ALLOWANCE"
-                                      ? "bg-green-100 text-green-800"
+                                      ? "success"
                                       : field.purpose === "DEDUCTION"
-                                        ? "bg-red-100 text-red-800"
+                                        ? "destructive"
                                         : field.purpose === "CALCULATION"
-                                          ? "bg-blue-100 text-blue-800"
-                                          : ""
+                                          ? "info"
+                                          : "default"
                                   }
                                 >
                                   {field.purpose}
                                 </Badge>
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="font-mono text-[13px]">
                                 {field.defaultValue || field.rules?.defaultValue || "Not specified"}
                               </TableCell>
                             </TableRow>
@@ -369,13 +369,13 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
                   <tbody className="[&_tr:last-child]:border-0">
                     {paginatedEmployees.map((employee) => (
                       <tr key={employee.id} className="border-b transition-colors hover:bg-muted/50">
-                        <td className="p-4 align-middle">{employee.employeeId}</td>
+                        <td className="p-4 align-middle font-mono text-[13px]">{employee.employeeId}</td>
                         <td className="p-4 align-middle font-medium">
                           {employee.title} {employee.firstName} {employee.lastName}
                         </td>
                         <td className="p-4 align-middle">{employee.designation || "N/A"}</td>
                         <td className="p-4 align-middle">{employee.department || "N/A"}</td>
-                        <td className="p-4 align-middle">{formatDate(employee.joiningDate)}</td>
+                        <td className="p-4 align-middle font-mono text-[13px]">{formatDate(employee.joiningDate)}</td>
                         <td className="p-4 align-middle">
                           {employee.salaryType ? (
                             <Badge variant="outline" className="text-xs">
@@ -404,7 +404,7 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
                           )}
                         </td>
                         <td className="p-4 align-middle">
-                          <span className="font-medium">{formatSalary(employee)}</span>
+                          <span className="font-mono text-[13px] font-semibold">{formatSalary(employee)}</span>
                         </td>
                       </tr>
                     ))}
@@ -426,8 +426,7 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
               </div>
             ) : (
               <div className="text-center py-12 space-y-3">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
-                <div className="text-lg font-medium">No active employees found</div>
+                <div className="registry-eyebrow">No records on file</div>
                 <div className="text-sm text-muted-foreground">
                   This client doesn't have any active employees at the moment.
                 </div>

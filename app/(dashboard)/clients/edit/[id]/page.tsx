@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { label } from "@/lib/labels"
 import { clientService } from "@/services/clientService"
 import { getErrorMessage } from "@/services/api"
+import { PageHeader } from "@/components/layout/page-header"
 import { ClientSalarySetup } from "@/components/clients/client-salary-setup"
 import { SalarySlipPreview } from "@/components/clients/salary-slip-preview"
 import {
@@ -186,16 +187,18 @@ export default function EditClientPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Client</h1>
-          <p className="text-muted-foreground">Update client information and salary template configuration</p>
-        </div>
-        <Button variant="outline" onClick={() => router.push("/clients")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Clients
-        </Button>
-      </div>
+      <PageHeader
+        no="05"
+        eyebrow="Client register"
+        title="Edit Client"
+        description="Update client information and salary template configuration"
+        actions={
+          <Button variant="outline" onClick={() => router.push("/clients")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Clients
+          </Button>
+        }
+      />
 
       {/* Validation Errors Alert */}
       {validationErrors.length > 0 && (
@@ -238,15 +241,15 @@ export default function EditClientPage({ params }: { params: { id: string } }) {
         </Card>
       ) : (
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="w-full">
             <TabsTrigger value="basic">Basic Information</TabsTrigger>
             <TabsTrigger
               value="salary-templates"
-              className={validationErrors.some((e) => e.includes("salaryTemplateConfig")) ? "text-red-600" : ""}
+              className={validationErrors.some((e) => e.includes("salaryTemplateConfig")) ? "text-destructive" : ""}
             >
               Salary Slip
               {validationErrors.some((e) => e.includes("salaryTemplateConfig")) && (
-                <AlertTriangle className="ml-2 h-4 w-4 text-red-600" />
+                <AlertTriangle className="ml-2 h-4 w-4 text-destructive" />
               )}
             </TabsTrigger>
             <TabsTrigger value="preview">Preview</TabsTrigger>

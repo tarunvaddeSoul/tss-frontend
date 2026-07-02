@@ -19,6 +19,7 @@ import { InlineLoader } from "@/components/ui/loader"
 import { employeeService } from "@/services/employeeService"
 import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
 import type { Employee } from "@/types/employee"
+import { label } from "@/lib/labels"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import { format } from "date-fns"
 
@@ -261,9 +262,9 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                 <FormItem>
                   <FormLabel>Salary Category</FormLabel>
                   <Select
-                    value={field.value || ""}
+                    value={field.value || undefined}
                     onValueChange={(value) => {
-                      field.onChange(value === "" ? null : value)
+                      field.onChange(value === "__none__" ? null : value)
                       // Clear dependent fields when category changes
                       if (value === SalaryCategory.SPECIALIZED) {
                         form.setValue("salarySubCategory", null)
@@ -280,10 +281,10 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
-                      <SelectItem value={SalaryCategory.CENTRAL}>CENTRAL</SelectItem>
-                      <SelectItem value={SalaryCategory.STATE}>STATE</SelectItem>
-                      <SelectItem value={SalaryCategory.SPECIALIZED}>SPECIALIZED</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
+                      <SelectItem value={SalaryCategory.CENTRAL}>{label.salaryCategory(SalaryCategory.CENTRAL)}</SelectItem>
+                      <SelectItem value={SalaryCategory.STATE}>{label.salaryCategory(SalaryCategory.STATE)}</SelectItem>
+                      <SelectItem value={SalaryCategory.SPECIALIZED}>{label.salaryCategory(SalaryCategory.SPECIALIZED)}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -300,7 +301,7 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                     <FormItem>
                       <FormLabel>Subcategory *</FormLabel>
                       <Select
-                        value={field.value || ""}
+                        value={field.value || undefined}
                         onValueChange={(value) => {
                           field.onChange(value === "" ? null : value)
                           // Clear salaryPerDay when subcategory changes to trigger rate fetch
@@ -314,10 +315,10 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value={SalarySubCategory.SKILLED}>SKILLED</SelectItem>
-                          <SelectItem value={SalarySubCategory.UNSKILLED}>UNSKILLED</SelectItem>
-                          <SelectItem value={SalarySubCategory.HIGHSKILLED}>HIGHSKILLED</SelectItem>
-                          <SelectItem value={SalarySubCategory.SEMISKILLED}>SEMISKILLED</SelectItem>
+                          <SelectItem value={SalarySubCategory.SKILLED}>{label.salarySubCategory(SalarySubCategory.SKILLED)}</SelectItem>
+                          <SelectItem value={SalarySubCategory.UNSKILLED}>{label.salarySubCategory(SalarySubCategory.UNSKILLED)}</SelectItem>
+                          <SelectItem value={SalarySubCategory.HIGHSKILLED}>{label.salarySubCategory(SalarySubCategory.HIGHSKILLED)}</SelectItem>
+                          <SelectItem value={SalarySubCategory.SEMISKILLED}>{label.salarySubCategory(SalarySubCategory.SEMISKILLED)}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -336,7 +337,7 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                   <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
                     <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     <AlertDescription className="text-blue-800 dark:text-blue-200">
-                      Active rate for {salaryCategory} - {salarySubCategory}: ₹{activeRate.toLocaleString()}/day
+                      Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString()}/day
                       {form.getValues("salaryPerDay") !== activeRate && (
                         <span className="ml-2 text-xs">(You can override this value manually)</span>
                       )}

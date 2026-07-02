@@ -38,7 +38,7 @@ import { employeeService } from "@/services/employeeService"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
-import { formatDate } from "@/lib/utils"
+import { label, formatDate } from "@/lib/labels"
 
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
@@ -221,22 +221,9 @@ export default function EmployeeViewPage() {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
-  // const formatDate = (dateString: string | undefined) => {
-  //   if (!dateString) return "N/A"
-
-  //   // Handle DD-MM-YYYY format
-  //   const [day, month, year] = dateString.split('-')
-  //   if (day && month && year) {
-  //     // Create date using YYYY-MM-DD format (month is 0-based in JS Date)
-  //     const date = new Date(`${year}-${month}-${day}`)
-  //     return date.toLocaleDateString()
-  //   }
-
-  //   // Fallback to original format if the date doesn't match DD-MM-YYYY
-  //   return new Date(dateString).toLocaleDateString()
-  // }
-
-  const currentEmployment = employee.employmentHistories?.[0]
+  const currentEmployment = employee.employmentHistories?.find(
+    (h: IEmployeeEmploymentHistory) => h.status === "ACTIVE"
+  )
 
   return (
     <div className="container mx-auto py-4 sm:py-6 space-y-4 sm:space-y-6">
@@ -253,10 +240,10 @@ export default function EmployeeViewPage() {
               <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
-                    {employee.title} {employee.firstName} {employee.lastName}
+                    {[employee.title ? label.title(employee.title) : "", employee.firstName, employee.lastName].filter(Boolean).join(" ")}
                   </h1>
                   <Badge variant={employee.status === "ACTIVE" ? "default" : "destructive"} className="shrink-0">
-                    {employee.status}
+                    {label.status(employee.status)}
                   </Badge>
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Employee ID: {employee.id}</p>
@@ -268,7 +255,7 @@ export default function EmployeeViewPage() {
                     </div>
                     <div className="flex items-center space-x-1 shrink-0">
                       <Building className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                      <span className="truncate">{currentEmployment.companyName}</span>
+                      <span className="truncate">{currentEmployment.clientName}</span>
                     </div>
                   </div>
                 )}
@@ -337,7 +324,7 @@ export default function EmployeeViewPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <InfoItem icon={<User className="h-4 w-4" />} label="Gender" value={employee.gender} />
+                <InfoItem icon={<User className="h-4 w-4" />} label="Gender" value={label.gender(employee.gender)} />
                 <InfoItem
                   icon={<Calendar className="h-4 w-4" />}
                   label="Date of Birth"
@@ -345,7 +332,7 @@ export default function EmployeeViewPage() {
                 />
                 <InfoItem icon={<Calendar className="h-4 w-4" />} label="Age" value={employee.age?.toString()} />
                 <InfoItem icon={<Heart className="h-4 w-4" />} label="Blood Group" value={employee.bloodGroup} />
-                <InfoItem icon={<Users className="h-4 w-4" />} label="Category" value={employee.category} />
+                <InfoItem icon={<Users className="h-4 w-4" />} label="Category" value={label.category(employee.category)} />
               </CardContent>
             </Card>
 
@@ -441,8 +428,8 @@ export default function EmployeeViewPage() {
                       <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
                           <InfoItem
                             icon={<Building className="h-4 w-4" />}
-                            label="Company"
-                            value={currentEmployment.companyName}
+                            label="Client"
+                            value={currentEmployment.clientName}
                           />
                           <InfoItem
                             icon={<Briefcase className="h-4 w-4" />}
@@ -477,7 +464,7 @@ export default function EmployeeViewPage() {
                           <Table className="min-w-[1000px]">
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="min-w-[120px]">Company</TableHead>
+                                <TableHead className="min-w-[120px]">Client</TableHead>
                                 <TableHead className="min-w-[120px]">Designation</TableHead>
                                 <TableHead className="min-w-[120px]">Department</TableHead>
                                 <TableHead className="min-w-[110px]">Joining Date</TableHead>
@@ -492,7 +479,7 @@ export default function EmployeeViewPage() {
                               {employee.employmentHistories.map((history: IEmployeeEmploymentHistory, index: any) => (
                                 <TableRow key={index}>
                                   <TableCell className="min-w-[120px]">
-                                    <span className="truncate block">{history.companyName}</span>
+                                    <span className="truncate block">{history.clientName}</span>
                                   </TableCell>
                                   <TableCell className="min-w-[120px]">
                                     <span className="truncate block">{history.designationName}</span>
@@ -505,7 +492,7 @@ export default function EmployeeViewPage() {
                                   <TableCell className="min-w-[100px]">
                                     {history.salaryType ? (
                                       <Badge variant="outline" className="text-xs">
-                                        {history.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                                        {label.salaryType(history.salaryType)}
                                       </Badge>
                                     ) : (
                                       <span className="text-xs text-muted-foreground">N/A</span>
@@ -514,7 +501,7 @@ export default function EmployeeViewPage() {
                                   <TableCell className="min-w-[100px]">
                                     {employee.salaryCategory ? (
                                       <Badge variant="outline" className="text-xs">
-                                        {employee.salaryCategory}
+                                        {label.salaryCategory(employee.salaryCategory)}
                                       </Badge>
                                     ) : (
                                       <span className="text-xs text-muted-foreground">N/A</span>
@@ -523,7 +510,7 @@ export default function EmployeeViewPage() {
                                   <TableCell className="min-w-[120px]">
                                     {employee.salarySubCategory ? (
                                       <Badge variant="outline" className="text-xs">
-                                        {employee.salarySubCategory}
+                                        {label.salarySubCategory(employee.salarySubCategory)}
                                       </Badge>
                                     ) : (
                                       <span className="text-xs text-muted-foreground">N/A</span>
@@ -576,13 +563,13 @@ export default function EmployeeViewPage() {
                     <InfoItem
                       icon={<DollarSign className="h-4 w-4" />}
                       label="Salary Category"
-                      value={employee.salaryCategory}
+                      value={label.salaryCategory(employee.salaryCategory)}
                     />
                     {employee.salarySubCategory && (
                       <InfoItem
                         icon={<DollarSign className="h-4 w-4" />}
                         label="Salary Sub-Category"
-                        value={employee.salarySubCategory}
+                        value={label.salarySubCategory(employee.salarySubCategory)}
                       />
                     )}
                     {employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary ? (
@@ -795,7 +782,7 @@ export default function EmployeeViewPage() {
           onOpenChange={setPdfPreviewOpen}
           title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
           description={`Employee ID: ${employee.id}`}
-          fileName={`employee-${employee.firstName}-${employee.lastName}.pdf`}
+          fileName={`Employee-${employee.id}-${employee.firstName}-${employee.lastName}.pdf`}
           renderDocument={async () => {
             const { default: EmployeeViewPDF } = await import("./employee-view-pdf")
             return <EmployeeViewPDF employee={employee} />

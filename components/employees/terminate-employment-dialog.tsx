@@ -104,7 +104,7 @@ export function TerminateEmploymentDialog({
       if (response.statusCode === 200) {
         toast({
           title: "Employment Terminated",
-          description: `Employment at ${employment.companyName} has been terminated successfully.`,
+          description: `Employment at ${employment.clientName} has been terminated successfully.`,
         })
         
         // If reason was provided, you might want to log it or store it separately
@@ -160,8 +160,8 @@ export function TerminateEmploymentDialog({
                 <ul className="list-disc list-inside ml-2 space-y-1">
                   <li>Mark this employment as <strong>INACTIVE</strong> (not deleted)</li>
                   <li>Set the termination date</li>
-                  <li>Prevent the employee from being assigned to payroll for this company</li>
-                  <li>Allow assignment to a new company after termination</li>
+                  <li>Prevent the employee from being assigned to payroll for this client</li>
+                  <li>Allow assignment to a new client after termination</li>
                 </ul>
                 <p className="mt-2 font-medium">This cannot be undone easily. Please verify before confirming.</p>
               </div>
@@ -177,8 +177,8 @@ export function TerminateEmploymentDialog({
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Company:</span>
-                <span className="text-sm">{employment.companyName}</span>
+                <span className="text-sm font-medium">Client:</span>
+                <span className="text-sm">{employment.clientName}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Designation:</span>
@@ -276,7 +276,7 @@ export function TerminateEmploymentDialog({
                 <strong>
                   {employee.firstName} {employee.lastName}
                 </strong>{" "}
-                at <strong>{employment.companyName}</strong>.
+                at <strong>{employment.clientName}</strong>.
               </p>
               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
                 <p>
@@ -292,7 +292,7 @@ export function TerminateEmploymentDialog({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription className="text-sm">
                   This action will mark the employment as INACTIVE. The employee will no longer be associated with this
-                  company for payroll and attendance purposes.
+                  client for payroll and attendance purposes.
                 </AlertDescription>
               </Alert>
             </AlertDialogDescription>

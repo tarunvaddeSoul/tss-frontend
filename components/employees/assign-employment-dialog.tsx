@@ -23,16 +23,16 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
 import { employeeService } from "@/services/employeeService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import { useToast } from "@/components/ui/use-toast"
 import type { Employee, Designation, EmployeeDepartments, CreateEmploymentHistoryDto } from "@/types/employee"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
 import { Status } from "@/enums/employee.enum"
 
 const assignEmploymentSchema = z.object({
-  companyId: z.string().uuid("Please select a valid company"),
+  clientId: z.string().uuid("Please select a valid client"),
   departmentId: z.string().uuid("Please select a valid department"),
   designationId: z.string().uuid("Please select a valid designation"),
   joiningDate: z.date({ required_error: "Joining date is required" }),
@@ -50,14 +50,14 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeEmployment, setActiveEmployment] = useState<any>(null)
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [designations, setDesignations] = useState<Designation[]>([])
   const [departments, setDepartments] = useState<EmployeeDepartments[]>([])
 
   const form = useForm<z.infer<typeof assignEmploymentSchema>>({
     resolver: zodResolver(assignEmploymentSchema),
     defaultValues: {
-      companyId: "",
+      clientId: "",
       departmentId: "",
       designationId: "",
       joiningDate: new Date(),
@@ -88,19 +88,19 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
         }
 
         // Load dropdown options - these should always load regardless of active employment check
-        const [companiesResponse, designationsResponse, departmentsResponse] = await Promise.all([
-          companyService.getCompanies({ page: 1, limit: 100 }),
+        const [clientsResponse, designationsResponse, departmentsResponse] = await Promise.all([
+          clientService.getClients({ page: 1, limit: 100 }),
           designationService.getDesignations(),
           departmentService.getEmployeeDepartments(),
         ])
 
-        setCompanies(companiesResponse.data?.companies || [])
+        setClients(clientsResponse.data?.clients || [])
         setDesignations(designationsResponse || [])
         setDepartments(departmentsResponse || [])
 
         // Reset form
         form.reset({
-          companyId: "",
+          clientId: "",
           departmentId: "",
           designationId: "",
           joiningDate: new Date(),
@@ -135,7 +135,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
       setIsSubmitting(true)
 
       const createData: CreateEmploymentHistoryDto = {
-        companyId: data.companyId,
+        clientId: data.clientId,
         departmentId: data.departmentId,
         designationId: data.designationId,
         joiningDate: format(data.joiningDate, "dd-MM-yyyy"),
@@ -147,7 +147,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
       if (response.statusCode === 201) {
         toast({
           title: "Success",
-          description: "Employee has been successfully assigned to the new company.",
+          description: "Employee has been successfully assigned to the new client.",
         })
         onSuccess()
         onOpenChange(false)
@@ -184,11 +184,11 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
     }
   }
 
-  const companyOptions = companies
-    .filter((c) => c.status === "ACTIVE") // Only show active companies
-    .map((company) => ({
-      value: company.id,
-      label: company.name,
+  const clientOptions = clients
+    .filter((c) => c.status === "ACTIVE") // Only show active clients
+    .map((client) => ({
+      value: client.id,
+      label: client.name,
     }))
 
   const designationOptions = designations.map((designation) => ({
@@ -210,7 +210,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
             Assign New Employment
           </DialogTitle>
           <DialogDescription>
-            Assign this employee to a new company. Employee can only work in one company at a time.
+            Assign this employee to a new client. Employee can only work in one client at a time.
           </DialogDescription>
         </DialogHeader>
 
@@ -227,7 +227,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                 <AlertDescription>
                   <div className="font-semibold mb-1">Active Employment Detected</div>
                   <div className="text-sm">
-                    This employee is currently assigned to <strong>{activeEmployment.companyName}</strong>.
+                    This employee is currently assigned to <strong>{activeEmployment.clientName}</strong>.
                     <br />
                     Please terminate the current employment before assigning a new one.
                   </div>
@@ -247,12 +247,12 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="companyId"
+                    name="clientId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Building2 className="h-4 w-4" />
-                          Company <span className="text-red-500">*</span>
+                          Client <span className="text-red-500">*</span>
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
@@ -261,18 +261,18 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select company" />
+                              <SelectValue placeholder="Select client" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {companyOptions.map((option) => (
+                            {clientOptions.map((option) => (
                               <SelectItem key={option.value} value={option.value as string}>
                                 {option.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormDescription>Only active companies are shown</FormDescription>
+                        <FormDescription>Only active clients are shown</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -22,11 +22,11 @@ import { ReferenceDetailsForm } from "@/components/employees/forms/reference-det
 import { EmploymentHistoryForm } from "@/components/employees/forms/employment-history-form"
 import { SalaryInfoForm } from "@/components/employees/forms/salary-info-form"
 import { employeeService } from "@/services/employeeService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import type { Employee, IEmployeeEmploymentHistory, Designation, EmployeeDepartments } from "@/types/employee"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
 
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
@@ -41,7 +41,7 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("basic")
   const [employee, setEmployee] = useState<Employee | null>(null)
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [designations, setDesignations] = useState<Designation[]>([])
   const [departments, setDepartments] = useState<EmployeeDepartments[]>([])
   const [employmentHistories, setEmploymentHistories] = useState<IEmployeeEmploymentHistory[]>([])
@@ -58,17 +58,17 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
         setError(null)
 
         // Load employee data and related data in parallel
-        const [employeeResponse, companiesResponse, designationsResponse, departmentsResponse, historiesResponse] =
+        const [employeeResponse, clientsResponse, designationsResponse, departmentsResponse, historiesResponse] =
           await Promise.all([
             employeeService.getEmployeeById(employeeId),
-            companyService.getCompanies({ page: 1, limit: 100 }),
+            clientService.getClients({ page: 1, limit: 100 }),
             designationService.getDesignations(),
             departmentService.getEmployeeDepartments(),
             employeeService.getEmployeeEmploymentHistory(employeeId),
           ])
           console.log("employeeResponse.data", JSON.stringify(employeeResponse.data, null, 2))
         setEmployee(employeeResponse.data)
-        setCompanies(companiesResponse.data?.companies || [])
+        setClients(clientsResponse.data?.clients || [])
         setDesignations(designationsResponse || [])
         setDepartments(departmentsResponse || [])
         setEmploymentHistories(historiesResponse.data || [])
@@ -328,9 +328,9 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
                   <span className="font-medium truncate text-right">{employee.id}</span>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground shrink-0">Company:</span>
+                  <span className="text-muted-foreground shrink-0">Client:</span>
                   <span className="font-medium truncate text-right min-w-0">
-                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "Not assigned"}
+                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.clientName || "Not assigned"}
                   </span>
                 </div>
                 <div className="flex justify-between gap-2">

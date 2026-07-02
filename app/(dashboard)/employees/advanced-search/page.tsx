@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { Search } from "lucide-react"
 import { format } from "date-fns"
+import { label } from "@/lib/labels"
 
 // UI Components
 import { Button } from "@/components/ui/button"
@@ -23,19 +24,19 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 
 // Types
 import type { Employee } from "@/types/employee"
 import type { Designation } from "@/services/designationService"
 import type { Department } from "@/services/departmentService"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
 
 interface AdvancedSearchFormValues {
   searchText: string
   designationId: string
   employeeDepartmentId: string
-  companyId: string
+  clientId: string
   gender: string
   category: string
   highestEducationQualification: string
@@ -63,7 +64,7 @@ export default function AdvancedEmployeeSearch() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [designations, setDesignations] = useState<Designation[]>([])
   const [employeeDepartments, setEmployeeDepartments] = useState<Department[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
@@ -76,7 +77,7 @@ export default function AdvancedEmployeeSearch() {
       searchText: "",
       designationId: "",
       employeeDepartmentId: "",
-      companyId: "",
+      clientId: "",
       gender: "",
       category: "",
       highestEducationQualification: "",
@@ -106,13 +107,9 @@ export default function AdvancedEmployeeSearch() {
   useEffect(() => {
     fetchDesignations()
     fetchEmployeeDepartments()
-    fetchCompanies()
+    fetchClients()
     fetchEmployees(1)
   }, [])
-
-  function formatDateToDDMMYYYY(date: Date): string {
-    return format(date, "dd-MM-yyyy")
-  }
 
   const fetchEmployees = async (currentPage = 1) => {
     setLoading(true)
@@ -123,7 +120,7 @@ export default function AdvancedEmployeeSearch() {
         searchText: formValues.searchText || undefined,
         designationId: formValues.designationId && formValues.designationId !== "all" ? formValues.designationId : undefined,
         employeeDepartmentId: formValues.employeeDepartmentId && formValues.employeeDepartmentId !== "all" ? formValues.employeeDepartmentId : undefined,
-        companyId: formValues.companyId && formValues.companyId !== "all" ? formValues.companyId : undefined,
+        clientId: formValues.clientId && formValues.clientId !== "all" ? formValues.clientId : undefined,
         gender: formValues.gender && formValues.gender !== "all" ? formValues.gender : undefined,
         category: formValues.category && formValues.category !== "all" ? formValues.category : undefined,
         highestEducationQualification: formValues.highestEducationQualification && formValues.highestEducationQualification !== "all" ? formValues.highestEducationQualification : undefined,
@@ -131,8 +128,8 @@ export default function AdvancedEmployeeSearch() {
         maxAge: formValues.ageRange[1],
         sortBy: formValues.sortBy || "lastName",
         sortOrder: formValues.sortOrder || "asc",
-        startDate: formValues.startDate ? formatDateToDDMMYYYY(formValues.startDate) : undefined,
-        endDate: formValues.endDate ? formatDateToDDMMYYYY(formValues.endDate) : undefined,
+        startDate: formValues.startDate ? format(formValues.startDate, "yyyy-MM-dd") : undefined,
+        endDate: formValues.endDate ? format(formValues.endDate, "yyyy-MM-dd") : undefined,
         status: formValues.status && formValues.status !== "all" ? formValues.status : undefined,
         // New advanced filters
         salaryCategory: formValues.salaryCategory && formValues.salaryCategory !== "all" ? (formValues.salaryCategory as "CENTRAL" | "STATE" | "SPECIALIZED") : undefined,
@@ -149,8 +146,8 @@ export default function AdvancedEmployeeSearch() {
       }
 
       const response = await employeeService.getEmployees(params)
-      setEmployees(response.data?.data || [])
-      const totalCount = response.data?.total || 0
+      setEmployees(response.data || [])
+      const totalCount = response.meta?.total || 0
       setTotalPages(Math.ceil(totalCount / params.limit))
     } catch (error) {
       console.error("Error fetching employees:", error)
@@ -177,12 +174,12 @@ export default function AdvancedEmployeeSearch() {
     }
   }
 
-  const fetchCompanies = async () => {
+  const fetchClients = async () => {
     try {
-      const data = await companyService.getCompanies()
-      setCompanies(data.data?.companies || [])
+      const data = await clientService.getClients()
+      setClients(data.data?.clients || [])
     } catch (error) {
-      console.error("Error fetching companies:", error)
+      console.error("Error fetching clients:", error)
     }
   }
 
@@ -270,14 +267,14 @@ export default function AdvancedEmployeeSearch() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="companyId">Company</Label>
-                  <Select onValueChange={(value) => setValue("companyId", value)} value={formValues.companyId}>
+                  <Label htmlFor="clientId">Client</Label>
+                  <Select onValueChange={(value) => setValue("clientId", value)} value={formValues.clientId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
+                      <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All</SelectItem>
-                      {companies.map((c) => (
+                      {clients.map((c) => (
                         <SelectItem key={c.id ?? ""} value={c.id ?? ""}>
                           {c.name}
                         </SelectItem>
@@ -628,31 +625,37 @@ export default function AdvancedEmployeeSearch() {
                       <TableHead>Name</TableHead>
                       <TableHead>Designation</TableHead>
                       <TableHead>Department</TableHead>
-                      <TableHead>Company</TableHead>
+                      <TableHead>Client</TableHead>
                       <TableHead>Gender</TableHead>
                       <TableHead>Age</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {employees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell>
-                          <Button
-                            variant="link"
-                            onClick={() => handleIdClick(employee.id)}
-                            className="p-0 h-auto font-normal text-primary"
-                          >
-                            {employee.id}
-                          </Button>
-                        </TableCell>
-                        <TableCell>{`${employee.firstName} ${employee.lastName}`}</TableCell>
-                        <TableCell>{employee.employmentHistories?.[0]?.designation?.name || "N/A"}</TableCell>
-                        <TableCell>{employee.employmentHistories?.[0]?.department?.name || "N/A"}</TableCell>
-                        <TableCell>{employee.employmentHistories?.[0]?.company?.name || "N/A"}</TableCell>
-                        <TableCell>{employee.gender}</TableCell>
-                        <TableCell>{employee.age}</TableCell>
-                      </TableRow>
-                    ))}
+                    {employees.map((employee) => {
+                      const activeHistory =
+                        employee.employmentHistories?.find((h) => h.status === "ACTIVE") ||
+                        employee.employmentHistories?.[0]
+
+                      return (
+                        <TableRow key={employee.id}>
+                          <TableCell>
+                            <Button
+                              variant="link"
+                              onClick={() => handleIdClick(employee.id)}
+                              className="p-0 h-auto font-normal text-primary"
+                            >
+                              {employee.id}
+                            </Button>
+                          </TableCell>
+                          <TableCell>{`${employee.firstName} ${employee.lastName}`}</TableCell>
+                          <TableCell>{activeHistory?.designationName || "N/A"}</TableCell>
+                          <TableCell>{activeHistory?.departmentName || "N/A"}</TableCell>
+                          <TableCell>{activeHistory?.clientName || "N/A"}</TableCell>
+                          <TableCell>{label.gender(employee.gender)}</TableCell>
+                          <TableCell>{employee.age}</TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>

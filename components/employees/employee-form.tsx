@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Upload, User, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, DollarSign, Info, Save } from "lucide-react"
+import { Upload, User, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, DollarSign, Info, Save, RotateCcw, Trash2 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { toast as sonnerToast } from "sonner"
+import { label } from "@/lib/labels"
 import { format, formatDistanceToNow } from "date-fns"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
@@ -31,7 +32,7 @@ interface EmployeeFormProps {
   onSubmit: (values: EmployeeFormValues) => void
   designations: { value: string; label: string }[]
   employeeDepartments: { value: string; label: string }[]
-  companies: { value: string; label: string }[]
+  clients: { value: string; label: string }[]
   isLoading?: boolean
   onChange?: () => void
   enableDrafts?: boolean
@@ -46,7 +47,7 @@ const DATE_FIELDS = new Set([
   "policeVerificationDate",
   "trainingCertificateDate",
   "medicalCertificateDate",
-  "currentCompanyJoiningDate",
+  "currentClientJoiningDate",
 ] as (keyof EmployeeFormValues)[])
 
 const SECTION_FIELD_MAP = {
@@ -83,10 +84,10 @@ const SECTION_FIELD_MAP = {
     "esicEnabled",
   ],
   employment: [
-    "currentCompanyJoiningDate",
-    "currentCompanyDesignationId",
-    "currentCompanyDepartmentId",
-    "currentCompanyId",
+    "currentClientJoiningDate",
+    "currentClientDesignationId",
+    "currentClientDepartmentId",
+    "currentClientId",
   ],
   bank: [
     "bankAccountNumber",
@@ -127,7 +128,7 @@ interface SectionStep {
   description: string
   icon: LucideIcon
   optional?: boolean
-  fields: (keyof EmployeeFormValues)[]
+  fields: readonly (keyof EmployeeFormValues)[]
 }
 
 const steps: SectionStep[] = [
@@ -239,7 +240,7 @@ const mergeDraftValues = (store: Partial<Record<SectionId, SectionDraftRecord>>)
   Object.values(store).forEach((sectionDraft) => {
     if (!sectionDraft?.values) return
     Object.entries(sectionDraft.values).forEach(([field, value]) => {
-      merged[field as keyof EmployeeFormValues] = decodeDraftValue(field, value)
+      merged[field as keyof EmployeeFormValues] = decodeDraftValue(field, value) as any
     })
   })
   return merged
@@ -251,10 +252,10 @@ const employeeFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   // Employment Details - all optional
-  currentCompanyDesignationId: z.string().optional(),
-  currentCompanyDepartmentId: z.string().optional(),
-  currentCompanyJoiningDate: z.date().optional(),
-  currentCompanyId: z.string().optional(),
+  currentClientDesignationId: z.string().optional(),
+  currentClientDepartmentId: z.string().optional(),
+  currentClientJoiningDate: z.date().optional(),
+  currentClientId: z.string().optional(),
   mobileNumber: z.string().regex(/^\d{10}$/, "Invalid mobile number"),
   recruitedBy: z.string().min(1, "Recruiter name is required"),
   gender: z.string().min(1, "Gender is required"),
@@ -263,8 +264,8 @@ const employeeFormSchema = z.object({
   motherName: z.string().min(1, "Mother's name is required"),
   husbandName: z.string().optional(),
   category: z.string().min(1, "Category is required"),
-  dateOfBirth: z.date(),
-  employeeOnboardingDate: z.date(),
+  dateOfBirth: z.date({ required_error: "Date of birth is required" }).max(new Date(), "Date of birth cannot be in the future"),
+  employeeOnboardingDate: z.date({ required_error: "Onboarding date is required" }),
   highestEducationQualification: z.string().min(1, "Education qualification is required"),
   bloodGroup: z.string().min(1, "Blood group is required"),
   permanentAddress: z.string().min(1, "Permanent address is required"),
@@ -272,22 +273,22 @@ const employeeFormSchema = z.object({
   city: z.string().min(1, "City is required"),
   district: z.string().min(1, "District is required"),
   state: z.string().min(1, "State is required"),
-  pincode: z.number().min(1, "Pincode is required"),
-  referenceName: z.string().min(1, "Reference name is required"),
-  referenceAddress: z.string().min(1, "Reference address is required"),
-  referenceNumber: z.string().min(1, "Reference number is required"),
-  bankAccountNumber: z.string().min(1, "Bank account number is required"),
-  ifscCode: z.string().min(1, "IFSC code is required"),
-  bankCity: z.string().min(1, "Bank city is required"),
-  bankName: z.string().min(1, "Bank name is required"),
-  pfUanNumber: z.string().min(1, "PF UAN number is required"),
-  esicNumber: z.string().min(1, "ESIC number is required"),
-  policeVerificationNumber: z.string().min(1, "Police verification number is required"),
-  policeVerificationDate: z.date(),
-  trainingCertificateNumber: z.string().min(1, "Training certificate number is required"),
-  trainingCertificateDate: z.date(),
-  medicalCertificateNumber: z.string().min(1, "Medical certificate number is required"),
-  medicalCertificateDate: z.date(),
+  pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6 digit pincode"),
+  referenceName: z.string().optional(),
+  referenceAddress: z.string().optional(),
+  referenceNumber: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  ifscCode: z.string().optional(),
+  bankCity: z.string().optional(),
+  bankName: z.string().optional(),
+  pfUanNumber: z.string().optional(),
+  esicNumber: z.string().optional(),
+  policeVerificationNumber: z.string().optional(),
+  policeVerificationDate: z.date().optional(),
+  trainingCertificateNumber: z.string().optional(),
+  trainingCertificateDate: z.date().optional(),
+  medicalCertificateNumber: z.string().optional(),
+  medicalCertificateDate: z.date().optional(),
   photo: z.any().optional(),
   aadhaar: z.any().optional(),
   panCard: z.any().optional(),
@@ -356,13 +357,12 @@ export function EmployeeForm({
   onSubmit,
   designations,
   employeeDepartments,
-  companies,
+  clients,
   isLoading = false,
   onChange,
   enableDrafts = false,
   draftStorageKey = EMPLOYEE_FORM_DRAFT_STORAGE_KEY,
 }: EmployeeFormProps) {
-  const { toast } = useToast()
   const [gender, setGender] = useState(initialValues?.gender || "")
   const [sameAsPermanent, setSameAsPermanent] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -381,8 +381,11 @@ export function EmployeeForm({
       return acc
     }, {} as Record<SectionId, number | null>),
   )
-  const autosaveTimersRef = useRef<Record<SectionId, ReturnType<typeof setTimeout>>>({})
+  const autosaveTimersRef = useRef<Record<SectionId, ReturnType<typeof setTimeout>>>(
+    {} as Record<SectionId, ReturnType<typeof setTimeout>>,
+  )
   const skipAutosaveRef = useRef(false)
+  const [pendingDraft, setPendingDraft] = useState<Partial<Record<SectionId, SectionDraftRecord>> | null>(null)
 
   // Initialize the form with default values
   const form = useForm<z.infer<typeof employeeFormSchema>>({
@@ -392,13 +395,13 @@ export function EmployeeForm({
       title: initialValues?.title || "",
       firstName: initialValues?.firstName || "",
       lastName: initialValues?.lastName || "",
-      currentCompanyDesignationId: initialValues?.currentCompanyDesignationId || "",
-      currentCompanyDepartmentId: initialValues?.currentCompanyDepartmentId || "",
-      currentCompanyJoiningDate: initialValues?.currentCompanyJoiningDate
-        ? new Date(initialValues.currentCompanyJoiningDate)
-        : new Date(),
+      currentClientDesignationId: initialValues?.currentClientDesignationId || "",
+      currentClientDepartmentId: initialValues?.currentClientDepartmentId || "",
+      currentClientJoiningDate: initialValues?.currentClientJoiningDate
+        ? new Date(initialValues.currentClientJoiningDate)
+        : undefined,
       mobileNumber: initialValues?.mobileNumber || "",
-      currentCompanyId: initialValues?.currentCompanyId || "",
+      currentClientId: initialValues?.currentClientId || "",
       recruitedBy: initialValues?.recruitedBy || "",
       gender: initialValues?.gender || "",
       status: initialValues?.status || "ACTIVE",
@@ -406,10 +409,10 @@ export function EmployeeForm({
       motherName: initialValues?.motherName || "",
       husbandName: initialValues?.husbandName || "",
       category: initialValues?.category || "",
-      dateOfBirth: initialValues?.dateOfBirth ? new Date(initialValues.dateOfBirth) : new Date(),
+      dateOfBirth: initialValues?.dateOfBirth ? new Date(initialValues.dateOfBirth) : undefined,
       employeeOnboardingDate: initialValues?.employeeOnboardingDate
         ? new Date(initialValues.employeeOnboardingDate)
-        : new Date(),
+        : undefined,
       highestEducationQualification: initialValues?.highestEducationQualification || "",
       bloodGroup: initialValues?.bloodGroup || "",
       permanentAddress: initialValues?.permanentAddress || "",
@@ -417,7 +420,7 @@ export function EmployeeForm({
       city: initialValues?.city || "",
       district: initialValues?.district || "",
       state: initialValues?.state || "",
-      pincode: initialValues?.pincode || 0,
+      pincode: initialValues?.pincode ? String(initialValues.pincode) : "",
       referenceName: initialValues?.referenceName || "",
       referenceAddress: initialValues?.referenceAddress || "",
       referenceNumber: initialValues?.referenceNumber || "",
@@ -430,15 +433,15 @@ export function EmployeeForm({
       policeVerificationNumber: initialValues?.policeVerificationNumber || "",
       policeVerificationDate: initialValues?.policeVerificationDate
         ? new Date(initialValues.policeVerificationDate)
-        : new Date(),
+        : undefined,
       trainingCertificateNumber: initialValues?.trainingCertificateNumber || "",
       trainingCertificateDate: initialValues?.trainingCertificateDate
         ? new Date(initialValues.trainingCertificateDate)
-        : new Date(),
+        : undefined,
       medicalCertificateNumber: initialValues?.medicalCertificateNumber || "",
       medicalCertificateDate: initialValues?.medicalCertificateDate
         ? new Date(initialValues.medicalCertificateDate)
-        : new Date(),
+        : undefined,
       photo: initialValues?.photo || null,
       aadhaar: initialValues?.aadhaar || null,
       panCard: initialValues?.panCard || null,
@@ -462,7 +465,7 @@ export function EmployeeForm({
     SECTION_FIELD_MAP[sectionId].forEach((field) => {
       const value = form.getValues(field)
       if (value !== undefined) {
-        values[field] = encodeDraftValue(value)
+        values[field] = encodeDraftValue(value) as any
       }
     })
     return values
@@ -633,27 +636,42 @@ export function EmployeeForm({
     if (!enableDrafts) return
     const storedDraft = readDraftStore(draftStorageKey)
     if (!Object.keys(storedDraft).length) return
+    setPendingDraft(storedDraft)
+  }, [draftStorageKey, enableDrafts])
+
+  const applyDraft = () => {
+    if (!pendingDraft) return
 
     skipAutosaveRef.current = true
-    const mergedValues = mergeDraftValues(storedDraft)
+    const mergedValues = mergeDraftValues(pendingDraft)
     form.reset({
       ...form.getValues(),
       ...mergedValues,
-    })
+    } as any)
 
     const statusUpdates: Record<SectionId, SectionSaveStatus> = {} as Record<SectionId, SectionSaveStatus>
     const lastSavedUpdates: Record<SectionId, number | null> = {} as Record<SectionId, number | null>
-    Object.entries(storedDraft).forEach(([sectionId, record]) => {
+    Object.entries(pendingDraft).forEach(([sectionId, record]) => {
       statusUpdates[sectionId as SectionId] = "saved"
       lastSavedUpdates[sectionId as SectionId] = record?.updatedAt ?? null
     })
     setSectionSaveStatus((prev) => ({ ...prev, ...statusUpdates }))
     setSectionLastSaved((prev) => ({ ...prev, ...lastSavedUpdates }))
+    setPendingDraft(null)
 
     setTimeout(() => {
       skipAutosaveRef.current = false
     }, 0)
-  }, [draftStorageKey, enableDrafts, form])
+  }
+
+  const discardDraft = () => {
+    clearEmployeeFormDraft(draftStorageKey)
+    setPendingDraft(null)
+  }
+
+  const latestDraftTimestamp = pendingDraft
+    ? Math.max(...Object.values(pendingDraft).map((record) => record?.updatedAt ?? 0))
+    : 0
 
   useEffect(() => {
     if (!enableDrafts) return
@@ -730,12 +748,8 @@ export function EmployeeForm({
       validateAllSteps()
       
       // Show error toast
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Please fill in all required fields. Check the highlighted steps for errors.",
-      })
-      
+      sonnerToast.error("Please fill in all required fields. Check the highlighted steps for errors.")
+
       // Scroll to first error
       scrollToFirstError()
       
@@ -752,18 +766,24 @@ export function EmployeeForm({
         ...restValues,
         dateOfBirth: formatDateToDDMMYYYY(values.dateOfBirth),
         employeeOnboardingDate: formatDateToDDMMYYYY(values.employeeOnboardingDate),
-        policeVerificationDate: formatDateToDDMMYYYY(values.policeVerificationDate),
-        trainingCertificateDate: formatDateToDDMMYYYY(values.trainingCertificateDate),
-        medicalCertificateDate: formatDateToDDMMYYYY(values.medicalCertificateDate),
-        currentCompanyJoiningDate: values.currentCompanyJoiningDate 
-          ? formatDateToDDMMYYYY(values.currentCompanyJoiningDate)
+        policeVerificationDate: values.policeVerificationDate
+          ? formatDateToDDMMYYYY(values.policeVerificationDate)
+          : undefined,
+        trainingCertificateDate: values.trainingCertificateDate
+          ? formatDateToDDMMYYYY(values.trainingCertificateDate)
+          : undefined,
+        medicalCertificateDate: values.medicalCertificateDate
+          ? formatDateToDDMMYYYY(values.medicalCertificateDate)
+          : undefined,
+        currentClientJoiningDate: values.currentClientJoiningDate
+          ? formatDateToDDMMYYYY(values.currentClientJoiningDate)
           : undefined,
         // Only include monthlySalary if category is SPECIALIZED
         ...(values.salaryCategory === SalaryCategory.SPECIALIZED && monthlySalary ? { monthlySalary } : {}),
       }
 
       await onSubmit(formattedValues as unknown as EmployeeFormValues)
-      
+
       // Clear error indicators
       setStepsWithErrors(new Set())
     } catch (error) {
@@ -780,11 +800,7 @@ export function EmployeeForm({
         errorMessage = String(error.message)
       }
 
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: errorMessage,
-      })
+      sonnerToast.error(errorMessage)
     }
   }
   
@@ -920,35 +936,37 @@ export function EmployeeForm({
   }
 
   const titleOptions = [
-    { value: "MR", label: "MR" },
-    { value: "MS", label: "MS" },
+    { value: "MR", label: label.title("MR") },
+    { value: "MS", label: label.title("MS") },
   ]
 
   const statusOptions = [
-    { value: "ACTIVE", label: "ACTIVE" },
-    { value: "INACTIVE", label: "INACTIVE" },
+    { value: "ACTIVE", label: label.status("ACTIVE") },
+    { value: "INACTIVE", label: label.status("INACTIVE") },
   ]
 
   const genderOptions = [
-    { value: "MALE", label: "MALE" },
-    { value: "FEMALE", label: "FEMALE" },
+    { value: "MALE", label: label.gender("MALE") },
+    { value: "FEMALE", label: label.gender("FEMALE") },
   ]
 
   const categoryOptions = [
-    { value: "SC", label: "SC" },
-    { value: "ST", label: "ST" },
-    { value: "OBC", label: "OBC" },
-    { value: "GENERAL", label: "GENERAL" },
+    { value: "SC", label: label.category("SC") },
+    { value: "ST", label: label.category("ST") },
+    { value: "OBC", label: label.category("OBC") },
+    { value: "GENERAL", label: label.category("GENERAL") },
   ]
 
   const educationQualificationOptions = [
-    { value: "UNDER_8", label: "UNDER 8" },
-    { value: "EIGHT", label: "8TH" },
-    { value: "TEN", label: "10TH" },
-    { value: "TWELVE", label: "12TH" },
-    { value: "GRADUATE", label: "GRADUATE" },
-    { value: "POST_GRADUATE", label: "POST GRADUATE" },
+    { value: "UNDER_8", label: label.education("UNDER_8") },
+    { value: "EIGHT", label: label.education("EIGHT") },
+    { value: "TEN", label: label.education("TEN") },
+    { value: "TWELVE", label: label.education("TWELVE") },
+    { value: "GRADUATE", label: label.education("GRADUATE") },
+    { value: "POST_GRADUATE", label: label.education("POST_GRADUATE") },
   ]
+
+  const bloodGroupOptions = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
   // Calculate form completion progress
   const [progress, setProgress] = useState(0)
@@ -956,54 +974,33 @@ export function EmployeeForm({
   useEffect(() => {
     const calculateProgress = () => {
       const formValues = form.getValues()
-      const totalFields = 40 // Approximate total required fields
-      let completedFields = 0
 
-      // Basic Details
-      if (formValues.firstName && formValues.lastName && formValues.title) completedFields += 3
-      if (formValues.dateOfBirth) completedFields++
-      if (formValues.gender) completedFields++
-      if (formValues.fatherName) completedFields++
-      if (formValues.motherName) completedFields++
-      if (formValues.bloodGroup) completedFields++
-      if (formValues.employeeOnboardingDate) completedFields++
-      if (formValues.status) completedFields++
-      if (formValues.recruitedBy) completedFields++
-      if (formValues.highestEducationQualification) completedFields++
-      if (formValues.category) completedFields++
+      const checks = [
+        Boolean(formValues.title),
+        Boolean(formValues.firstName),
+        Boolean(formValues.lastName),
+        Boolean(formValues.dateOfBirth),
+        Boolean(formValues.gender),
+        Boolean(formValues.fatherName),
+        Boolean(formValues.motherName),
+        Boolean(formValues.bloodGroup),
+        Boolean(formValues.employeeOnboardingDate),
+        Boolean(formValues.status),
+        Boolean(formValues.recruitedBy),
+        Boolean(formValues.highestEducationQualification),
+        Boolean(formValues.category),
+        Boolean(formValues.mobileNumber && formValues.mobileNumber.length === 10),
+        Boolean(formValues.aadhaarNumber && formValues.aadhaarNumber.length === 12),
+        Boolean(formValues.permanentAddress),
+        Boolean(formValues.presentAddress),
+        Boolean(formValues.city),
+        Boolean(formValues.district),
+        Boolean(formValues.state),
+        Boolean(formValues.pincode && /^\d{6}$/.test(String(formValues.pincode))),
+      ]
 
-      // Contact Details
-      if (formValues.mobileNumber && formValues.mobileNumber.length === 10) completedFields++
-      if (formValues.aadhaarNumber && formValues.aadhaarNumber.length === 12) completedFields++
-      if (formValues.permanentAddress) completedFields++
-      if (formValues.presentAddress) completedFields++
-      if (formValues.city) completedFields++
-      if (formValues.district) completedFields++
-      if (formValues.state) completedFields++
-      if (formValues.pincode) completedFields++
-
-      // Bank Details
-      if (formValues.bankAccountNumber) completedFields++
-      if (formValues.ifscCode) completedFields++
-      if (formValues.bankName) completedFields++
-      if (formValues.bankCity) completedFields++
-
-      // Additional Details
-      if (formValues.pfUanNumber) completedFields++
-      if (formValues.esicNumber) completedFields++
-      if (formValues.policeVerificationNumber) completedFields++
-      if (formValues.policeVerificationDate) completedFields++
-      if (formValues.trainingCertificateNumber) completedFields++
-      if (formValues.trainingCertificateDate) completedFields++
-      if (formValues.medicalCertificateNumber) completedFields++
-      if (formValues.medicalCertificateDate) completedFields++
-
-      // Reference Details
-      if (formValues.referenceName) completedFields++
-      if (formValues.referenceAddress) completedFields++
-      if (formValues.referenceNumber) completedFields++
-
-      return Math.round((completedFields / totalFields) * 100)
+      const completedFields = checks.filter(Boolean).length
+      return Math.round((completedFields / checks.length) * 100)
     }
 
     const subscription = form.watch(() => {
@@ -1059,6 +1056,35 @@ export function EmployeeForm({
         }}
         className="space-y-6"
       >
+        {/* Saved Draft Banner */}
+        {pendingDraft && (
+          <Alert className="border-primary/40">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Unsaved draft found</AlertTitle>
+            <AlertDescription>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  A saved draft from{" "}
+                  {latestDraftTimestamp
+                    ? formatDistanceToNow(new Date(latestDraftTimestamp), { addSuffix: true })
+                    : "earlier"}{" "}
+                  is available. Restore it or start a new employee.
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={applyDraft} className="flex items-center gap-1">
+                    <RotateCcw className="h-4 w-4" />
+                    Restore draft
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={discardDraft} className="flex items-center gap-1">
+                    <Trash2 className="h-4 w-4" />
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Validation Error Alert */}
         {totalErrors > 0 && (
           <Alert variant="destructive" className="border-destructive">
@@ -1355,9 +1381,13 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Blood Group <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter blood group" {...field} />
-                    </FormControl>
+                    <ClearableSelect field={field} placeholder="Select blood group">
+                      {bloodGroupOptions.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1550,10 +1580,10 @@ export function EmployeeForm({
                     <FormLabel>Pincode <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
+                        inputMode="numeric"
+                        maxLength={6}
                         placeholder="Enter pincode"
                         {...field}
-                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1609,9 +1639,9 @@ export function EmployeeForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={SalaryCategory.CENTRAL}>CENTRAL</SelectItem>
-                        <SelectItem value={SalaryCategory.STATE}>STATE</SelectItem>
-                        <SelectItem value={SalaryCategory.SPECIALIZED}>SPECIALIZED</SelectItem>
+                        <SelectItem value={SalaryCategory.CENTRAL}>{label.salaryCategory(SalaryCategory.CENTRAL)}</SelectItem>
+                        <SelectItem value={SalaryCategory.STATE}>{label.salaryCategory(SalaryCategory.STATE)}</SelectItem>
+                        <SelectItem value={SalaryCategory.SPECIALIZED}>{label.salaryCategory(SalaryCategory.SPECIALIZED)}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -1641,10 +1671,10 @@ export function EmployeeForm({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={SalarySubCategory.SKILLED}>SKILLED</SelectItem>
-                            <SelectItem value={SalarySubCategory.UNSKILLED}>UNSKILLED</SelectItem>
-                            <SelectItem value={SalarySubCategory.HIGHSKILLED}>HIGHSKILLED</SelectItem>
-                            <SelectItem value={SalarySubCategory.SEMISKILLED}>SEMISKILLED</SelectItem>
+                            <SelectItem value={SalarySubCategory.SKILLED}>{label.salarySubCategory(SalarySubCategory.SKILLED)}</SelectItem>
+                            <SelectItem value={SalarySubCategory.UNSKILLED}>{label.salarySubCategory(SalarySubCategory.UNSKILLED)}</SelectItem>
+                            <SelectItem value={SalarySubCategory.HIGHSKILLED}>{label.salarySubCategory(SalarySubCategory.HIGHSKILLED)}</SelectItem>
+                            <SelectItem value={SalarySubCategory.SEMISKILLED}>{label.salarySubCategory(SalarySubCategory.SEMISKILLED)}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1663,7 +1693,7 @@ export function EmployeeForm({
                     <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
                       <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       <AlertDescription className="text-blue-800 dark:text-blue-200">
-                        Active rate for {salaryCategory} - {salarySubCategory}: ₹{activeRate.toLocaleString()}/day
+                        Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString()}/day
                         {form.getValues("salaryPerDay") !== activeRate && (
                           <span className="ml-2 text-xs">(You can override this value manually)</span>
                         )}
@@ -1800,14 +1830,14 @@ export function EmployeeForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
-                name="currentCompanyJoiningDate"
+                name="currentClientJoiningDate"
                 render={({ field }) => (
-                  <ClearableDatePicker field={field} label="Company Date of Joining" />
+                  <ClearableDatePicker field={field} label="Client Date of Joining" />
                 )}
               />
               <FormField
                 control={form.control}
-                name="currentCompanyDesignationId"
+                name="currentClientDesignationId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Designation</FormLabel>
@@ -1824,7 +1854,7 @@ export function EmployeeForm({
               />
               <FormField
                 control={form.control}
-                name="currentCompanyDepartmentId"
+                name="currentClientDepartmentId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employee Department</FormLabel>
@@ -1841,12 +1871,12 @@ export function EmployeeForm({
               />
               <FormField
                 control={form.control}
-                name="currentCompanyId"
+                name="currentClientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company</FormLabel>
-                    <ClearableSelect field={field} placeholder="Select company">
-                      {companies.map((option) => (
+                    <FormLabel>Client</FormLabel>
+                    <ClearableSelect field={field} placeholder="Select client">
+                      {clients.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>

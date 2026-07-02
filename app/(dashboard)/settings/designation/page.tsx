@@ -126,7 +126,7 @@ export default function DesignationSettingsPage() {
                   <DialogTitle>Add New Designation</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleAddDesignation)} className="space-y-4">
+                  <form noValidate onSubmit={form.handleSubmit(handleAddDesignation)} className="space-y-4">
                     <FormField
                       control={form.control}
                       name="name"

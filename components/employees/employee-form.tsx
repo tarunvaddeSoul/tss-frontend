@@ -1044,7 +1044,7 @@ export function EmployeeForm({
 
   return (
     <Form {...form}>
-      <form 
+      <form noValidate 
         id="employee-form" 
         ref={formRef} 
         onSubmit={(e) => {

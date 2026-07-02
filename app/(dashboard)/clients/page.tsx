@@ -155,7 +155,7 @@ export default function ClientsPage() {
           <CardDescription>Find clients by name, contact person, status, or other details</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="space-y-3">
+          <form noValidate onSubmit={handleSearch} className="space-y-3">
             <div className="flex items-center space-x-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />

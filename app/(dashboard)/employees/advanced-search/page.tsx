@@ -222,7 +222,7 @@ export default function AdvancedEmployeeSearch() {
           <CardDescription>Use the filters below to find specific employees</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(handleSearch)} className="space-y-6">
+          <form noValidate onSubmit={handleSubmit(handleSearch)} className="space-y-6">
             <div className="space-y-4">
               <div>
                 <Label htmlFor="searchText">Search</Label>

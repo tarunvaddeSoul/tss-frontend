@@ -1694,7 +1694,7 @@ export function MarkAttendanceBySite() {
 
       {/* Main Form */}
       <Form {...form}>
-        <form 
+        <form noValidate 
           onSubmit={(e) => {
             e.preventDefault()
             // Only allow form submission on step 5 (Review & Submit)

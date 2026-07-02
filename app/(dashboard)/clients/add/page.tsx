@@ -130,7 +130,7 @@ export default function AddClientPage() {
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} id="client-form" className="space-y-8">
+                <form noValidate onSubmit={form.handleSubmit(onSubmit)} id="client-form" className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}

@@ -379,7 +379,7 @@ export function SalaryTemplateForm({ initialTemplateConfig, onSave, isLoading = 
       <ScrollArea className="flex-1">
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Accordion type="multiple" defaultValue={["mandatory", "optional"]} className="w-full">
                 {hasMandatoryFields && (
                   <AccordionItem value="mandatory">

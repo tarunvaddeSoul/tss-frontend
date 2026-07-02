@@ -236,7 +236,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
             )}
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              <form noValidate onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <Alert variant="info">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-sm">

@@ -141,7 +141,7 @@ export default function DepartmentSettingsPage() {
                       <DialogTitle>Add New Department</DialogTitle>
                     </DialogHeader>
                     <Form {...form}>
-                      <form onSubmit={form.handleSubmit(handleAddDepartment)} className="space-y-4">
+                      <form noValidate onSubmit={form.handleSubmit(handleAddDepartment)} className="space-y-4">
                         <FormField
                           control={form.control}
                           name="name"

@@ -505,7 +505,7 @@ export function UploadAttendanceComponent() {
       />
 
       <Form {...form}>
-        <form className="space-y-6">
+        <form noValidate className="space-y-6">
           {/* Client and Month Selection */}
             <Card>
             <CardHeader>

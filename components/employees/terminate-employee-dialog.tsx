@@ -165,7 +165,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <form noValidate onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="employeeRelievingDate"

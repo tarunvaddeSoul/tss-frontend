@@ -272,7 +272,7 @@ export default function SalaryRateSchedulePage() {
                   <DialogTitle>Add New Rate Schedule</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleAddRateSchedule)} className="space-y-4">
+                  <form noValidate onSubmit={form.handleSubmit(handleAddRateSchedule)} className="space-y-4">
                     {dialogError && (
                       <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
@@ -577,7 +577,7 @@ export default function SalaryRateSchedulePage() {
             <DialogTitle>Edit Rate Schedule</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleUpdateRateSchedule)} className="space-y-4">
+            <form noValidate onSubmit={form.handleSubmit(handleUpdateRateSchedule)} className="space-y-4">
               {dialogError && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />

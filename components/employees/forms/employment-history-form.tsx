@@ -583,7 +583,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleUpdateEmploymentHistory)} className="space-y-4">
+            <form noValidate onSubmit={form.handleSubmit(handleUpdateEmploymentHistory)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}

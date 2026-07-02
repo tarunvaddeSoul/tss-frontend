@@ -254,7 +254,7 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} onChange={() => setHasChanges(true)} className="space-y-6">
+          <form noValidate onSubmit={form.handleSubmit(handleSubmit)} onChange={() => setHasChanges(true)} className="space-y-6">
             <FormField
               control={form.control}
               name="salaryCategory"

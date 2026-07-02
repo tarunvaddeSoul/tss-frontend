@@ -43,6 +43,7 @@ import { label } from "@/lib/labels"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import type { SalaryRateSchedule, CreateSalaryRateScheduleDto, UpdateSalaryRateScheduleDto } from "@/types/salary"
 import { DatePicker } from "@/components/ui/date-picker"
+import { PageHeader } from "@/components/layout/page-header"
 
 const rateScheduleSchema = z
   .object({
@@ -234,20 +235,22 @@ export default function SalaryRateSchedulePage() {
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
-        Salary Rate Schedule Management
-      </h1>
+    <div>
+      <PageHeader
+        no="06"
+        eyebrow="Settings register"
+        title="Salary Rate Schedule Management"
+        description="Manage per-day salary rates for Central and State categories."
+      />
 
-      <Card className="backdrop-blur-sm bg-white/5 border border-white/10 shadow-xl rounded-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent rounded-2xl z-0 opacity-50" />
-        <CardHeader className="relative z-10">
+      <Card>
+        <CardHeader>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+              <CardTitle>
                 Rate Schedules
               </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-300">
+              <CardDescription>
                 Manage per-day salary rates for CENTRAL and STATE categories
               </CardDescription>
             </div>
@@ -259,7 +262,7 @@ export default function SalaryRateSchedulePage() {
               }
             }}>
               <DialogTrigger asChild>
-                <Button className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
+                <Button className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Rate Schedule
                 </Button>
@@ -271,7 +274,7 @@ export default function SalaryRateSchedulePage() {
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(handleAddRateSchedule)} className="space-y-4">
                     {dialogError && (
-                      <Alert variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20">
+                      <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>{dialogError}</AlertDescription>
                       </Alert>
@@ -379,14 +382,14 @@ export default function SalaryRateSchedulePage() {
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent className="relative z-10">
+        <CardContent>
           <div className="space-y-4">
             {/* Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="filter-category">Category</Label>
                 <Select value={filterCategory} onValueChange={(value) => setFilterCategory(value as any)}>
-                  <SelectTrigger id="filter-category" className="bg-white/5 border-white/10">
+                  <SelectTrigger id="filter-category">
                     <SelectValue placeholder="All categories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -400,7 +403,7 @@ export default function SalaryRateSchedulePage() {
               <div>
                 <Label htmlFor="filter-subcategory">Subcategory</Label>
                 <Select value={filterSubCategory} onValueChange={(value) => setFilterSubCategory(value as any)}>
-                  <SelectTrigger id="filter-subcategory" className="bg-white/5 border-white/10">
+                  <SelectTrigger id="filter-subcategory">
                     <SelectValue placeholder="All subcategories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -419,7 +422,7 @@ export default function SalaryRateSchedulePage() {
                   value={filterIsActive === "all" ? "all" : filterIsActive ? "true" : "false"}
                   onValueChange={(value) => setFilterIsActive(value === "all" ? "all" : value === "true")}
                 >
-                  <SelectTrigger id="filter-active" className="bg-white/5 border-white/10">
+                  <SelectTrigger id="filter-active">
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent>
@@ -438,7 +441,7 @@ export default function SalaryRateSchedulePage() {
                     setFilterSubCategory("all")
                     setFilterIsActive("all")
                   }}
-                  className="w-full bg-white/5 border-white/10"
+                  className="w-full"
                 >
                   <Filter className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">Clear Filters</span>
@@ -448,46 +451,51 @@ export default function SalaryRateSchedulePage() {
             </div>
 
             {error && (
-              <Alert variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20">
+              <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            <ScrollArea className="h-[400px] sm:h-[500px] rounded-lg border border-white/10">
+            <ScrollArea className="h-[400px] sm:h-[500px] rounded-md border">
               <div className="space-y-2 p-4">
                 {isLoading && rateSchedules.length === 0 ? (
                   <InlineLoader />
                 ) : rateSchedules.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    No rate schedules found
+                  <div className="py-12 text-center">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      No records on file
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      No rate schedules match the current filters.
+                    </p>
                   </div>
                 ) : (
                   rateSchedules.map((schedule) => (
                     <div
                       key={schedule.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-md border bg-card hover:bg-muted/40 transition-colors"
                     >
                       <div className="flex items-start sm:items-center gap-4 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                          <DollarSign className="h-5 w-5 text-primary" />
+                        <div className="w-10 h-10 rounded-md bg-surface flex items-center justify-center flex-shrink-0">
+                          <DollarSign className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 min-w-0">
                           <div className="min-w-0">
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Category</p>
-                            <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{label.salaryCategory(schedule.category)}</p>
+                            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Category</p>
+                            <p className="font-medium text-sm sm:text-base truncate">{label.salaryCategory(schedule.category)}</p>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Subcategory</p>
-                            <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{label.salarySubCategory(schedule.subCategory)}</p>
+                            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Subcategory</p>
+                            <p className="font-medium text-sm sm:text-base truncate">{label.salarySubCategory(schedule.subCategory)}</p>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Rate Per Day</p>
-                            <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">₹{schedule.ratePerDay.toLocaleString()}</p>
+                            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Rate Per Day</p>
+                            <p className="font-mono text-[13px] font-semibold tabular-nums">₹{schedule.ratePerDay.toLocaleString()}</p>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Effective Period</p>
-                            <p className="font-medium text-xs sm:text-sm text-gray-900 dark:text-white">
+                            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Effective Period</p>
+                            <p className="font-mono text-[13px] tabular-nums">
                               {format(new Date(schedule.effectiveFrom), "MMM dd, yyyy")}
                               {schedule.effectiveTo
                                 ? ` - ${format(new Date(schedule.effectiveTo), "MMM dd, yyyy")}`
@@ -495,7 +503,7 @@ export default function SalaryRateSchedulePage() {
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant={schedule.isActive ? "default" : "secondary"} className="text-xs">
+                            <Badge variant={schedule.isActive ? "success" : "destructive"}>
                               {schedule.isActive ? "Active" : "Inactive"}
                             </Badge>
                           </div>
@@ -505,7 +513,7 @@ export default function SalaryRateSchedulePage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-blue-400 hover:text-blue-600 hover:bg-blue-500/10"
+                          className="text-info hover:text-info hover:bg-info/10"
                           onClick={() => handleEditClick(schedule)}
                         >
                           <Edit className="h-4 w-4" />
@@ -513,7 +521,7 @@ export default function SalaryRateSchedulePage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-red-400 hover:text-red-600 hover:bg-red-500/10"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => setRateScheduleToDelete(schedule)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -528,7 +536,7 @@ export default function SalaryRateSchedulePage() {
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-left">
+                <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                   Showing {rateSchedules.length} of {total} rate schedules
                 </p>
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -537,7 +545,7 @@ export default function SalaryRateSchedulePage() {
                     size="sm"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1 || isLoading}
-                    className="bg-white/5 border-white/10 flex-1 sm:flex-initial"
+                    className="flex-1 sm:flex-initial"
                   >
                     Previous
                   </Button>
@@ -546,7 +554,7 @@ export default function SalaryRateSchedulePage() {
                     size="sm"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages || isLoading}
-                    className="bg-white/5 border-white/10 flex-1 sm:flex-initial"
+                    className="flex-1 sm:flex-initial"
                   >
                     Next
                   </Button>
@@ -571,7 +579,7 @@ export default function SalaryRateSchedulePage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleUpdateRateSchedule)} className="space-y-4">
               {dialogError && (
-                <Alert variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20">
+                <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>{dialogError}</AlertDescription>
                 </Alert>
@@ -579,13 +587,13 @@ export default function SalaryRateSchedulePage() {
               <div className="space-y-2">
                 <Label>Category</Label>
                 <Input value={label.salaryCategory(rateScheduleToEdit?.category)} disabled className="bg-muted" />
-                <p className="text-xs text-gray-500">Category cannot be changed</p>
+                <p className="text-xs text-muted-foreground">Category cannot be changed</p>
               </div>
 
               <div className="space-y-2">
                 <Label>Subcategory</Label>
                 <Input value={label.salarySubCategory(rateScheduleToEdit?.subCategory)} disabled className="bg-muted" />
-                <p className="text-xs text-gray-500">Subcategory cannot be changed</p>
+                <p className="text-xs text-muted-foreground">Subcategory cannot be changed</p>
               </div>
 
               <FormField
@@ -655,8 +663,8 @@ export default function SalaryRateSchedulePage() {
                   {label.salarySubCategory(rateScheduleToDelete?.subCategory)} (₹
                   {rateScheduleToDelete?.ratePerDay.toLocaleString()}/day). It stays on record for past payroll but stops
                   applying to new payroll.
-                  <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
-                    <p className="text-yellow-600 dark:text-yellow-400 text-sm">
+                  <div className="mt-2 p-2 bg-warning/[0.06] border border-warning/30 rounded-md">
+                    <p className="text-warning text-sm">
                       This rate schedule is currently active. Deactivating it may affect employees using this rate.
                     </p>
                   </div>
@@ -672,7 +680,7 @@ export default function SalaryRateSchedulePage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteRateSchedule} className="bg-red-500 hover:bg-red-600">
+            <AlertDialogAction onClick={handleDeleteRateSchedule} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {rateScheduleToDelete?.isActive ? "Deactivate" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>

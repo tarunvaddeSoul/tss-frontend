@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { designationService } from "@/services/designationService"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { PageHeader } from "@/components/layout/page-header"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,26 +95,28 @@ export default function DesignationSettingsPage() {
   )
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
-        Designation Management
-      </h1>
+    <div>
+      <PageHeader
+        no="06"
+        eyebrow="Settings register"
+        title="Designation Management"
+        description="Manage job designations and titles."
+      />
 
-      <Card className="backdrop-blur-sm bg-white/5 border border-white/10 shadow-xl rounded-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent rounded-2xl z-0 opacity-50" />
-        <CardHeader className="relative z-10">
+      <Card>
+        <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+              <CardTitle>
                 Designations
               </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-300">
+              <CardDescription>
                 Manage job designations and titles
               </CardDescription>
             </div>
             <Dialog open={isAddingDesignation} onOpenChange={setIsAddingDesignation}>
               <DialogTrigger asChild>
-                <Button className="bg-primary hover:bg-primary/90">
+                <Button>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Designation
                 </Button>
@@ -153,43 +156,54 @@ export default function DesignationSettingsPage() {
             </Dialog>
           </div>
         </CardHeader>
-        <CardContent className="relative z-10">
+        <CardContent>
           <div className="space-y-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Search designations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                className="pl-10"
               />
             </div>
 
-            <ScrollArea className="h-[400px] rounded-lg border border-white/10">
+            <ScrollArea className="h-[400px] rounded-md border">
               <div className="space-y-2 p-4">
-                {filteredDesignations.map((designation) => (
-                  <div
-                    key={designation.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                        <Briefcase className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900 dark:text-white">{designation.name}</h3>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-400 hover:text-red-600 hover:bg-red-500/10"
-                      onClick={() => setDesignationToDelete(designation)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                {filteredDesignations.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                      No records on file
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      No designations match this list yet.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  filteredDesignations.map((designation) => (
+                    <div
+                      key={designation.id}
+                      className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-md bg-surface flex items-center justify-center">
+                          <Briefcase className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{designation.name}</h3>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDesignationToDelete(designation)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
+                )}
               </div>
             </ScrollArea>
           </div>
@@ -208,7 +222,7 @@ export default function DesignationSettingsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteDesignation}
-              className="bg-red-500 hover:bg-red-600"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>

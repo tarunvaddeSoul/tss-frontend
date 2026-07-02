@@ -43,12 +43,12 @@ export function Loader({
   text,
   size = "default",
   fullPage = false,
-  height = "calc(100vh-200px)",
+  height = "calc(100vh - 200px)",
   className,
 }: LoaderProps) {
   const loaderContent = (
     <div className={cn("flex flex-col items-center gap-4", className)}>
-      <Loader2 className={cn("text-primary animate-spin", sizeMap[size])} />
+      <Loader2 className={cn("text-brand animate-spin", sizeMap[size])} />
       {text && (
         <div className={cn("text-muted-foreground", textSizeMap[size])}>
           {text}
@@ -82,7 +82,7 @@ export function InlineLoader({
   return (
     <div className={cn("flex items-center justify-center py-8", className)}>
       <div className="text-center space-y-2">
-        <Loader2 className={cn("text-primary animate-spin mx-auto", sizeMap[size])} />
+        <Loader2 className={cn("text-brand animate-spin mx-auto", sizeMap[size])} />
         {text && (
           <p className={cn("text-muted-foreground", textSizeMap[size])}>
             {text}

@@ -4,10 +4,20 @@ import { useCallback, useEffect, useState } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { AlertCircle, MailPlus, RefreshCw, Send, UserCheck, UserPlus, UserX } from "lucide-react"
+import { AlertCircle, MailPlus, RefreshCw, Send, Trash2, UserCheck, UserPlus, UserX } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ButtonLoader } from "@/components/ui/loader"
@@ -58,6 +68,7 @@ export default function UsersSettingsPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [isInviting, setIsInviting] = useState(false)
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null)
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(inviteSchema),
@@ -165,6 +176,21 @@ export default function UsersSettingsPage() {
       toast.success(`Password reset link sent to ${target.email}.`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not send the email.")
+    } finally {
+      setBusyUserId(null)
+    }
+  }
+
+  async function handleDelete() {
+    if (!userToDelete) return
+    setBusyUserId(userToDelete.id)
+    try {
+      await userAdminService.deleteUser(userToDelete.id)
+      toast.success(`${userToDelete.name} was deleted.`)
+      setUserToDelete(null)
+      await fetchAll()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete the user.")
     } finally {
       setBusyUserId(null)
     }
@@ -408,6 +434,17 @@ export default function UsersSettingsPage() {
                         >
                           {u.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setUserToDelete(u)}
+                          disabled={isSelf(u) || busyUserId === u.id}
+                          title={isSelf(u) ? "You cannot delete your own account" : "Delete account"}
+                          aria-label="Delete account"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -417,6 +454,39 @@ export default function UsersSettingsPage() {
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {userToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  This permanently removes <span className="font-medium text-foreground">{userToDelete?.email}</span> and
+                  cannot be undone.
+                </p>
+                <p>
+                  If this person has processed payroll or attendance, use <span className="font-medium text-foreground">Deactivate</span> instead
+                  so the record of who did what stays intact. Delete is best for mistaken invites or accounts that were never used.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busyUserId === userToDelete?.id}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void handleDelete()
+              }}
+              disabled={busyUserId === userToDelete?.id}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {busyUserId === userToDelete?.id ? "Deleting..." : "Delete user"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

@@ -85,4 +85,12 @@ export const userAdminService = {
       throw new Error(getErrorMessage(error))
     }
   },
+
+  async deleteUser(userId: string): Promise<void> {
+    try {
+      await api.delete(`/users/${userId}`)
+    } catch (error) {
+      throw new Error(getErrorMessage(error))
+    }
+  },
 }

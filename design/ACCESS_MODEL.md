@@ -36,6 +36,10 @@ This keeps the landing page honest for the public (Staff Login is a quiet footer
 - The set-password page reads `?invite=1` and switches copy to "Account activation / Set your password / Welcome to the TSS Ops Portal", and **clears any existing browser session on success** so the person always lands on a clean login instead of bouncing into whatever account the browser was already in.
 - Deactivated accounts are refused at login with a clear message.
 
+## Delete vs deactivate (both implemented)
+- **Deactivate** is the everyday "remove": it blocks login but keeps the account and preserves the audit trail (payroll/attendance records carry loose `createdById`/`finalizedById`/`markedById` strings that would otherwise point at a missing user). Use it for real staff, offboarding, or temporary suspension. Reactivating restores access with the same password, no new link.
+- **Delete** (`DELETE /users/:id`, ADMIN) permanently removes the account and its tokens. Guards: cannot delete yourself; cannot delete the last administrator (prevents org lockout). The confirm dialog steers admins to deactivate for anyone who has processed work, since the audit IDs are not FKs and would be orphaned. Delete is meant for mistaken invites, duplicates, and never-activated accounts.
+
 ## Still deferred
-- No hard-delete endpoint for users; deactivation is the intended "remove". Add `DELETE /users/:id` (ADMIN) only if hard delete is ever required (I used a one-off Prisma script to clean test rows).
 - First-ever admin is created by the seed script; document that as the bootstrap step for a fresh deployment.
+- Audit fields (`createdById`, `finalizedById`, `markedById`) are loose strings, not FKs to User. If strict audit integrity is ever required, make them real relations with `onDelete: Restrict` so the DB itself blocks deleting a user with history (today the app-level confirm copy is the only guard).

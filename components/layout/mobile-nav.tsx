@@ -41,7 +41,7 @@ export function MobileNav() {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0 flex flex-col">
         <SheetHeader className="px-4 py-4 border-b text-left">
-          <SheetTitle className="text-primary">Tulsyan Security</SheetTitle>
+          <SheetTitle className="text-[15px]">Tulsyan Security</SheetTitle>
         </SheetHeader>
         <ScrollArea className="flex-1">
           <nav className="p-2 space-y-1">
@@ -55,7 +55,7 @@ export function MobileNav() {
                     onClick={() => setOpen(false)}
                     className={cn(
                       "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      active ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                      active ? "bg-brand/[0.07] text-brand" : "hover:bg-muted",
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -71,7 +71,7 @@ export function MobileNav() {
                           className={cn(
                             "block rounded-md px-3 py-1.5 text-sm transition-colors",
                             pathname === s.href
-                              ? "text-primary font-medium"
+                              ? "text-brand font-medium"
                               : "text-muted-foreground hover:text-foreground",
                           )}
                         >

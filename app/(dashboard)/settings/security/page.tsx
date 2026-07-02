@@ -63,23 +63,9 @@ export default function SecuritySettingsPage() {
         setSuccess(false)
       }, 3000)
     } catch (err: any) {
-      if (err.response) {
-        const statusCode = err.response.status
-        const responseData = err.response.data
-
-        if (statusCode === 400) {
-          setError("Current password is incorrect.")
-        } else if (responseData && responseData.message) {
-          setError(responseData.message)
-        } else {
-          setError("An error occurred. Please try again.")
-        }
-      } else if (err.request) {
-        setError("No response from server. Please check your internet connection.")
-      } else {
-        setError(err.message || "An unexpected error occurred. Please try again.")
-      }
-
+      // authService normalizes API errors into Error.message via getErrorMessage,
+      // so read that directly rather than inspecting err.response (always undefined here).
+      setError(err?.message || "An unexpected error occurred. Please try again.")
       console.error("Change password error:", err)
     } finally {
       setIsLoading(false)

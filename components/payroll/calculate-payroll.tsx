@@ -408,7 +408,10 @@ export default function CalculatePayroll() {
                                         <div className="space-y-1">
                                             <p className="font-medium">Payroll already finalized for this month</p>
                                             <p className="text-sm">
-                                                Finalized on {format(new Date(existingPayroll.finalizedDate), "MMM dd, yyyy")} •
+                                                {(() => {
+                                                    const d = new Date(existingPayroll.finalizedDate)
+                                                    return !isNaN(d.getTime()) ? `Finalized on ${format(d, "MMM dd, yyyy")} • ` : ""
+                                                })()}
                                                 {existingPayroll.totalEmployees} employees •
                                                 Net Salary: ₹{existingPayroll.totalNetSalary.toLocaleString("en-IN")}
                                             </p>
@@ -514,8 +517,12 @@ export default function CalculatePayroll() {
                             <Button variant="outline" onClick={() => setCurrentStep(1)}>
                                 Back
                             </Button>
-                            <Button onClick={handleDataReview}>
-                                {adminInputFields.length > 0 ? "Continue to Admin Input" : "Calculate Payroll"}
+                            <Button onClick={handleDataReview} disabled={isCalculating}>
+                                {isCalculating
+                                    ? "Calculating..."
+                                    : adminInputFields.length > 0
+                                        ? "Continue to Admin Input"
+                                        : "Calculate Payroll"}
                             </Button>
                         </div>
                     </CardContent>
@@ -576,7 +583,7 @@ export default function CalculatePayroll() {
                                                     type="number"
                                                     min="0"
                                                     placeholder={field.defaultValue || "0"}
-                                                    value={adminInputs[employee.employeeId]?.[field.key] || ""}
+                                                    value={adminInputs[employee.employeeId]?.[field.key] ?? ""}
                                                     onChange={(e) =>
                                                         updateAdminInput(employee.employeeId, field.key, Number.parseFloat(e.target.value) || 0)
                                                     }

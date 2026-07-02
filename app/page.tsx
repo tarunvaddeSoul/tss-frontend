@@ -276,9 +276,6 @@ function DutyRegister(): ReactNode {
       className="relative w-full max-w-md"
       aria-hidden="true"
     >
-      {/* ledger ruling behind the card */}
-      <div className="absolute -inset-6 -z-10 bg-[repeating-linear-gradient(to_bottom,transparent,transparent_27px,hsl(var(--border))_27px,hsl(var(--border))_28px)]" />
-
       <div className="rounded-md border border-border bg-card shadow-[0_16px_40px_-16px_rgba(27,27,29,0.18)]">
         {/* document head */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">

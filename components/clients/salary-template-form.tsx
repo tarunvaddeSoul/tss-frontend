@@ -308,9 +308,9 @@ export function SalaryTemplateForm({ initialTemplateConfig, onSave, isLoading = 
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
             {field.label}
-            {field.category === SalaryFieldCategory.MANDATORY_WITH_RULES && <span className="text-red-500 ml-1">*</span>}
+            {field.category === SalaryFieldCategory.MANDATORY_WITH_RULES && <span className="text-destructive ml-1">*</span>}
           </label>
-          {field.enabled ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-red-500" />}
+          {field.enabled ? <Check className="h-4 w-4 text-success" /> : <X className="h-4 w-4 text-destructive" />}
         </div>
         <div className="flex items-center space-x-2">
           <Switch
@@ -324,7 +324,7 @@ export function SalaryTemplateForm({ initialTemplateConfig, onSave, isLoading = 
               variant="ghost"
               size="sm"
               onClick={() => handleRemoveCustomField(field.key)}
-              className="text-red-500 hover:text-red-700"
+              className="text-destructive hover:text-destructive/80"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

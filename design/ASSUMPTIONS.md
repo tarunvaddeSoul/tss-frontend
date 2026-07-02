@@ -7,3 +7,6 @@
 - Sonner + Radix toast both remain wired as today (both are mounted in root layout); only their styling changes.
 - Web fonts move from Inter/Space Grotesk to Archivo/Public Sans/IBM Plex Mono via `next/font/google`. same loading mechanism, no new runtime dependency. PDF fonts embed static TTFs placed in `public/fonts` (OFL-licensed).
 - The keyboard shortcuts (Cmd+B sidebar, Cmd+Shift+K shortcuts dialog) are behavior and are preserved exactly.
+- `next lint` was never configured in this repo (running it prompts for first-time ESLint setup). The redesign gates on typecheck + production build; introducing an ESLint config is out of scope.
+- Status badge variants were remapped to the new semantic stamps everywhere (ACTIVE -> success, INACTIVE/TERMINATED -> destructive, pending -> warning). Trigger conditions and label text are unchanged; only the color language moved.
+- The temporary QA harness `app/design-preview/` was used for authed-shell and PDF visual verification and is deleted from the final branch state.

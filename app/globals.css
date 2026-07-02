@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════
-   TSS Design System — "The Register"
+   TSS Design System - "The Register"
    Palette, type and shape tokens. See design/DESIGN_SYSTEM.md.
    All text pairs verified WCAG AA (ratios in the doc).
    ═══════════════════════════════════════════════════════════ */
@@ -235,65 +235,8 @@
   body:has([data-dashboard-layout]) { height: 100vh; overflow: hidden; }
   html:has([data-dashboard-layout]) { height: 100%; overflow: hidden; }
 
-  /* ── Legacy (consumed only by app/page.tsx; removed with the landing rewrite) ── */
-  .noise-overlay { position: relative; }
-  .noise-overlay::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    opacity: 0.025;
-    pointer-events: none;
-    z-index: 1;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 256px 256px;
-  }
-  .spotlight-card {
-    position: relative;
-    overflow: hidden;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-  .spotlight-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.3s;
-    background: radial-gradient(
-      600px circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
-      hsl(var(--brand) / 0.06),
-      transparent 40%
-    );
-    pointer-events: none;
-    z-index: 1;
-  }
-  .spotlight-card:hover::before { opacity: 1; }
-  .glow-btn { position: relative; overflow: hidden; }
-  .gradient-mesh {
-    background:
-      radial-gradient(ellipse at 20% 50%, hsl(var(--brand) / 0.10) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, hsl(var(--brand) / 0.06) 0%, transparent 50%);
-  }
-  .gradient-text {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--brand)), hsl(var(--brand) / 0.75));
-  }
   .fade-mask-x {
     mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
     -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-  }
-  .glass {
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    background: hsl(var(--background) / 0.7);
-    border: 1px solid hsl(var(--border) / 0.5);
-  }
-  .glass-strong {
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    background: hsl(var(--background) / 0.85);
-    border: 1px solid hsl(var(--border) / 0.4);
   }
 }

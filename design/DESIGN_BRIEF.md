@@ -1,4 +1,4 @@
-# Design Brief — TSS Portal & Site
+# Design Brief. TSS Portal & Site
 
 ## What the product is
 
@@ -14,9 +14,9 @@ Two products share this codebase:
 
 ## Three highest-traffic journeys (traced through code)
 
-1. **Mark attendance by site** — `/attendance/mark-by-site` (daily): pick client site → month grid → mark/adjust days → save (`attendanceService`). Alternative: bulk Excel via `/attendance/upload`.
-2. **Run payroll → payslip PDFs** — `/payroll/calculate` → review per-employee calculations → generate documents (`payrollService`, `components/payroll/pdf/*`). Monthly, business-critical, ends in a PDF a guard receives.
-3. **Employee lifecycle** — `/employees` list → view/add/edit multi-step form (personal → statutory IDs → salary). Continuous onboarding/attrition at 2000+ headcount.
+1. **Mark attendance by site**. `/attendance/mark-by-site` (daily): pick client site → month grid → mark/adjust days → save (`attendanceService`). Alternative: bulk Excel via `/attendance/upload`.
+2. **Run payroll → payslip PDFs**. `/payroll/calculate` → review per-employee calculations → generate documents (`payrollService`, `components/payroll/pdf/*`). Monthly, business-critical, ends in a PDF a guard receives.
+3. **Employee lifecycle**. `/employees` list → view/add/edit multi-step form (personal → statutory IDs → salary). Continuous onboarding/attrition at 2000+ headcount.
 
 ## First five seconds
 
@@ -26,7 +26,7 @@ A first-time visitor should feel: **institutional trust** and **order/discipline
 
 Muster rolls. Duty registers. Shift charts. ID badges and uniforms. Payslips. PF/ESIC challans. ISO certificates with serial numbers. Site logs, gate passes, verification stamps. The vocabulary is **sites, posts, shifts, deployment, musters, registers, rates, serials**. The logo itself is a vigilant eye.
 
-Distinctive design therefore comes from **the register and the stamp** — the graphic language of official Indian institutional paperwork, executed with modern restraint — not from a SaaS mood board. This is the seed of the design system's signature (see DESIGN_SYSTEM.md: "the registry line").
+Distinctive design therefore comes from **the register and the stamp**. the graphic language of official Indian institutional paperwork, executed with modern restraint. not from a SaaS mood board. This is the seed of the design system's signature (see DESIGN_SYSTEM.md: "the registry line").
 
 ## What the current design is, and why it changes
 

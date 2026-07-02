@@ -4,50 +4,61 @@ import type React from "react"
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { AuthProvider, useAuth } from "@/hooks/use-auth"
-import { Shield } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { motion } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
 
 function AuthLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isInitializing } = useAuth()
   const router = useRouter()
+  const reduced = useReducedMotion()
 
   useEffect(() => {
-    // Only redirect if user is logged in
     if (!isInitializing && user) {
       router.push("/dashboard")
     }
   }, [user, isInitializing, router])
 
-  // Show loading screen only for initial auth check
   if (isInitializing) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Shield className="h-12 w-12 text-primary animate-pulse" />
-          <div className="text-muted-foreground text-sm">Loading...</div>
+          <Image src="/tss-logo.png" alt="TSS" width={48} height={48} className="animate-pulse object-contain" />
+          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Loading</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 flex flex-col items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.1),transparent_50%)]" />
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="absolute inset-x-0 top-0 h-1 bg-brand" />
       <div className="absolute top-4 right-4 z-20">
         <ThemeToggle />
       </div>
+
+      <div className="mb-8 flex flex-col items-center gap-3">
+        <Image src="/tss-logo.png" alt="Tulsyan Security Services" width={44} height={44} className="object-contain" />
+        <div className="text-center">
+          <div className="font-display text-base font-bold tracking-tight">Tulsyan Security Services</div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Staff Portal</div>
+        </div>
+      </div>
+
       <motion.div
-        initial={false}
+        initial={reduced ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="z-10 w-full max-w-md relative"
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="z-10 w-full max-w-md"
       >
         {children}
       </motion.div>
-      <div className="mt-8 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} Tulsyan Security Services. All rights reserved.</p>
+
+      <div className="mt-8 text-center">
+        <p className="font-mono text-[11px] text-muted-foreground">
+          © {new Date().getFullYear()} Tulsyan Security Services. All rights reserved.
+        </p>
       </div>
     </div>
   )

@@ -5,13 +5,13 @@ import Link from "next/link"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Shield, Mail, ArrowLeft, Loader2 } from "lucide-react"
+import { Mail, ArrowLeft, Loader2, MailCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from "@/hooks/use-auth"
-import { motion } from "framer-motion"
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -46,42 +46,32 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Card className="border shadow-lg">
-      <CardHeader className="space-y-1">
-        <div className="flex justify-center mb-4">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Shield className="h-12 w-12 text-primary" />
-          </motion.div>
+    <Card>
+      <CardHeader className="space-y-1.5">
+        <div className="registry-line mb-2">
+          <span className="registry-eyebrow"><strong>N° 02</strong> · Password reset</span>
         </div>
-        <CardTitle className="text-2xl font-bold text-center">Forgot Password</CardTitle>
-        <CardDescription className="text-center">Enter your email to receive a password reset link</CardDescription>
+        <CardTitle className="text-xl">Forgot password</CardTitle>
+        <CardDescription>Enter your email to receive a password reset link</CardDescription>
       </CardHeader>
       <CardContent>
         {success ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-center space-y-4"
-          >
-            <div className="bg-green-500/10 text-green-500 p-4 rounded-lg border border-green-500/20">
-              <h3 className="font-medium mb-2">Reset Link Sent!</h3>
-              <p className="text-sm">
-                We've sent a password reset link to your email address. Please check your inbox and follow the
+          <div className="space-y-4">
+            <Alert variant="success">
+              <MailCheck className="h-4 w-4" />
+              <AlertTitle>Reset link sent</AlertTitle>
+              <AlertDescription>
+                We&apos;ve sent a password reset link to your email address. Please check your inbox and follow the
                 instructions.
-              </p>
-            </div>
-            <Button variant="outline" asChild className="mt-4">
+              </AlertDescription>
+            </Alert>
+            <Button variant="outline" asChild className="w-full">
               <Link href="/login">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Login
               </Link>
             </Button>
-          </motion.div>
+          </div>
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

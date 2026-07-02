@@ -5,7 +5,7 @@ import Link from "next/link"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Shield, Mail, Lock, Loader2, AlertCircle } from "lucide-react"
+import { Mail, Lock, Loader2, AlertCircle } from "lucide-react"
 import { AxiosError } from "axios"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +13,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/hooks/use-auth"
-import { motion } from "framer-motion"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -66,19 +65,13 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="border shadow-lg">
-      <CardHeader className="space-y-1">
-        <div className="flex justify-center mb-4">
-          <motion.div
-            initial={false}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Shield className="h-12 w-12 text-primary" />
-          </motion.div>
+    <Card>
+      <CardHeader className="space-y-1.5">
+        <div className="registry-line mb-2">
+          <span className="registry-eyebrow"><strong>N° 01</strong> · Sign in</span>
         </div>
-        <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
-        <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+        <CardTitle className="text-xl">Welcome back</CardTitle>
+        <CardDescription>Enter your credentials to access your account</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>

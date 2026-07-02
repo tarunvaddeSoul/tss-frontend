@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Download, FileText, Printer } from "lucide-react"
+import { AlertCircle, Download, FileText, Printer, RefreshCw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -36,6 +36,7 @@ export function PdfPreviewDialog({
 }: PdfPreviewDialogProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [generationError, setGenerationError] = useState<string | null>(null)
 
   // Cleanup object URL when dialog closes or component unmounts
   useEffect(() => {
@@ -55,6 +56,7 @@ export function PdfPreviewDialog({
   const handleGenerate = async () => {
     try {
       setIsGenerating(true)
+      setGenerationError(null)
       if (pdfUrl) URL.revokeObjectURL(pdfUrl)
 
       const [{ pdf }] = await Promise.all([import("@react-pdf/renderer")])
@@ -65,6 +67,8 @@ export function PdfPreviewDialog({
       setPdfUrl(url)
     } catch (err) {
       console.error("Failed to generate PDF", err)
+      setPdfUrl(null)
+      setGenerationError(err instanceof Error ? err.message : "The document could not be generated.")
     } finally {
       setIsGenerating(false)
     }
@@ -101,7 +105,19 @@ export function PdfPreviewDialog({
         <div className="px-5 pb-4 flex-1 min-h-0 overflow-hidden">
           <div className="border rounded-md overflow-hidden h-full bg-white" style={{ minHeight: "500px" }}>
             {pdfUrl ? (
-              <iframe src={pdfUrl} className="w-full h-full" />
+              <iframe src={pdfUrl} className="w-full h-full" title={title} />
+            ) : generationError ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">The PDF could not be generated.</p>
+                  <p className="mt-1 max-w-md break-words font-mono text-xs text-muted-foreground">{generationError}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleGenerate}>
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  Try again
+                </Button>
+              </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
                 {isGenerating ? "Generating preview..." : "Click Regenerate to create a preview"}

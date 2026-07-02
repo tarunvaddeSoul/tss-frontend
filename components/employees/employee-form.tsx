@@ -367,6 +367,7 @@ export function EmployeeForm({
   const [sameAsPermanent, setSameAsPermanent] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [stepsWithErrors, setStepsWithErrors] = useState<Set<number>>(new Set())
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [isExplicitSubmit, setIsExplicitSubmit] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const [sectionSaveStatus, setSectionSaveStatus] = useState<Record<SectionId, SectionSaveStatus>>(() =>
@@ -705,6 +706,7 @@ export function EmployeeForm({
     })
 
     setStepsWithErrors(errorSteps)
+    setCompletedSteps((prev) => new Set([...prev].filter((i) => !errorSteps.has(i))))
     return errorSteps.size === 0
   }
 
@@ -840,11 +842,31 @@ export function EmployeeForm({
     form.setValue("gender", value || "")
   }
 
+  // Steps earn their check only when their fields validate on leave
+  const validateStepOnLeave = (stepIndex: number) => {
+    const fields = steps[stepIndex].fields as unknown as Parameters<typeof form.trigger>[0]
+    void form.trigger(fields, { shouldFocus: false }).then((valid) => {
+      setCompletedSteps((prev) => {
+        const next = new Set(prev)
+        if (valid) next.add(stepIndex)
+        else next.delete(stepIndex)
+        return next
+      })
+      setStepsWithErrors((prev) => {
+        const next = new Set(prev)
+        if (valid) next.delete(stepIndex)
+        else next.add(stepIndex)
+        return next
+      })
+    })
+  }
+
   // Navigation handlers
   const handleNext = (e?: React.MouseEvent<HTMLButtonElement>) => {
     e?.preventDefault()
     e?.stopPropagation()
     if (currentStep < steps.length - 1) {
+      validateStepOnLeave(currentStep)
       setCurrentStep(currentStep + 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
@@ -854,12 +876,16 @@ export function EmployeeForm({
     e?.preventDefault()
     e?.stopPropagation()
     if (currentStep > 0) {
+      validateStepOnLeave(currentStep)
       setCurrentStep(currentStep - 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
   }
 
   const handleStepClick = (stepIndex: number) => {
+    if (stepIndex !== currentStep) {
+      validateStepOnLeave(currentStep)
+    }
     setCurrentStep(stepIndex)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -1126,7 +1152,7 @@ export function EmployeeForm({
               <div className="flex items-center justify-between pt-2">
                 {steps.map((step, index) => {
                   const isActive = index === currentStep
-                  const isCompleted = index < currentStep
+                  const isCompleted = completedSteps.has(index) && !isActive
                   // All steps are always clickable to allow free navigation
                   const isClickable = true
 

@@ -127,6 +127,7 @@ const styles = StyleSheet.create({
     borderRightColor: BRAND.colors.border,
   },
   statusBadge: {
+    alignSelf: "flex-start",
     fontFamily: "IBMPlexMono",
     fontSize: 7,
     fontWeight: 600,
@@ -140,6 +141,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   statusBadgeInactive: {
+    alignSelf: "flex-start",
     fontFamily: "IBMPlexMono",
     fontSize: 7,
     fontWeight: 600,

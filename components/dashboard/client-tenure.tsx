@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartConfig } from "@/components/ui/chart"
 import { Badge } from "@/components/ui/badge"
 import { Building2, Calendar, TrendingUp } from "lucide-react"
+import { formatDate, label } from "@/lib/labels"
 import type { DashboardReportData } from "@/types/dashboard"
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
-interface CompanyTenureProps {
+interface ClientTenureProps {
   data: DashboardReportData
 }
 
@@ -42,9 +43,9 @@ const COLORS = [
   "hsl(var(--primary))",
 ]
 
-export function CompanyTenure({ data }: CompanyTenureProps) {
-  const { tenure } = data.companyStats
-  const { tenureDistribution, averageTenureMonths, averageTenureYears, companies } = tenure
+export function ClientTenure({ data }: ClientTenureProps) {
+  const { tenure } = data.clientStats
+  const { tenureDistribution, averageTenureMonths, averageTenureYears, clients } = tenure
 
   // Prepare data for pie chart
   const pieData = Object.entries(tenureDistribution).map(([name, value]) => ({
@@ -52,16 +53,16 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
     value,
   }))
 
-  // Prepare data for bar chart (top companies by tenure)
-  const topCompanies = [...companies]
+  // Prepare data for bar chart (top clients by tenure)
+  const topClients = [...clients]
     .sort((a, b) => b.monthsWithUs - a.monthsWithUs)
     .slice(0, 10)
-    .map((company) => ({
-      name: company.name.length > 15 ? company.name.substring(0, 15) + "..." : company.name,
-      fullName: company.name,
-      months: company.monthsWithUs,
-      years: company.yearsWithUs,
-      group: company.tenureGroup,
+    .map((client) => ({
+      name: client.name.length > 15 ? client.name.substring(0, 15) + "..." : client.name,
+      fullName: client.name,
+      months: client.monthsWithUs,
+      years: client.yearsWithUs,
+      group: client.tenureGroup,
     }))
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -71,7 +72,7 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
           <div className="grid gap-2">
             <div className="flex flex-col">
               <span className="text-[0.70rem] uppercase text-muted-foreground">{payload[0].name}</span>
-              <span className="font-bold text-muted-foreground">{payload[0].value} companies</span>
+              <span className="font-bold text-muted-foreground">{payload[0].value} clients</span>
             </div>
           </div>
         </div>
@@ -108,8 +109,8 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Companies</p>
-                <p className="text-3xl font-bold mt-2">{companies.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Clients</p>
+                <p className="text-3xl font-bold mt-2">{clients.length}</p>
                 <p className="text-xs text-muted-foreground mt-1">with tenure data</p>
               </div>
               <div className="p-3 rounded-full bg-info/10">
@@ -125,8 +126,8 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Longest Tenure</p>
                 <p className="text-3xl font-bold mt-2">
-                  {companies.length > 0
-                    ? Math.max(...companies.map((c) => c.yearsWithUs)).toFixed(1)
+                  {clients.length > 0
+                    ? Math.max(...clients.map((c) => c.yearsWithUs)).toFixed(1)
                     : "0"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">years</p>
@@ -148,7 +149,7 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
               <Building2 className="h-5 w-5 text-primary" />
               Tenure Distribution
             </CardTitle>
-            <CardDescription>Distribution of companies by tenure period</CardDescription>
+            <CardDescription>Distribution of clients by tenure period</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={tenureChartConfig} className="h-[300px]">
@@ -176,20 +177,20 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
           </CardContent>
         </Card>
 
-        {/* Top Companies by Tenure Bar Chart */}
+        {/* Top Clients by Tenure Bar Chart */}
         <Card className="security-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-success" />
-              Top Companies by Tenure
+              Top Clients by Tenure
             </CardTitle>
-            <CardDescription>Companies with longest partnership</CardDescription>
+            <CardDescription>Clients with longest partnership</CardDescription>
           </CardHeader>
           <CardContent>
-            {topCompanies.length > 0 ? (
+            {topClients.length > 0 ? (
               <ChartContainer config={tenureChartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topCompanies} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+                  <BarChart data={topClients} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                     <YAxis
@@ -218,27 +219,27 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
               </ChartContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                <p>No company tenure data available</p>
+                <p>No client tenure data available</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Company List */}
-      {companies.length > 0 && (
+      {/* Client List */}
+      {clients.length > 0 && (
         <Card className="security-card">
           <CardHeader>
-            <CardTitle>All Companies by Tenure</CardTitle>
-            <CardDescription>Complete list of companies with their tenure information</CardDescription>
+            <CardTitle>All Clients by Tenure</CardTitle>
+            <CardDescription>Complete list of clients with their tenure information</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {companies
+              {clients
                 .sort((a, b) => b.monthsWithUs - a.monthsWithUs)
-                .map((company) => (
+                .map((client) => (
                   <div
-                    key={company.id}
+                    key={client.id}
                     className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
@@ -246,27 +247,27 @@ export function CompanyTenure({ data }: CompanyTenureProps) {
                         <Building2 className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{company.name}</p>
+                        <p className="font-medium">{client.name}</p>
                         <div className="flex items-center gap-3 mt-1">
                           <p className="text-sm text-muted-foreground">
-                            Onboarded: {company.onboardingDate}
+                            Onboarded: {formatDate(client.onboardingDate)}
                           </p>
-                          <Badge variant={company.status === "ACTIVE" ? "default" : "secondary"}>
-                            {company.status}
+                          <Badge variant={client.status === "ACTIVE" ? "default" : "secondary"}>
+                            {label.status(client.status)}
                           </Badge>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="flex items-baseline gap-2">
-                        <p className="text-2xl font-bold">{company.yearsWithUs.toFixed(1)}</p>
+                        <p className="text-2xl font-bold">{client.yearsWithUs.toFixed(1)}</p>
                         <p className="text-sm text-muted-foreground">years</p>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {company.monthsWithUs} months
+                        {client.monthsWithUs} months
                       </p>
                       <Badge variant="outline" className="mt-2">
-                        {company.tenureGroup}
+                        {client.tenureGroup}
                       </Badge>
                     </div>
                   </div>

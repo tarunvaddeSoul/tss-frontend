@@ -22,13 +22,13 @@ const employeeChartConfig = {
   },
 } satisfies ChartConfig
 
-const companyChartConfig = {
+const clientChartConfig = {
   count: {
-    label: "Total Companies",
+    label: "Total Clients",
     color: "hsl(var(--info))",
   },
-  newCompanies: {
-    label: "New Companies",
+  newClients: {
+    label: "New Clients",
     color: "hsl(var(--warning))",
   },
 } satisfies ChartConfig
@@ -38,7 +38,7 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
 
   // Format monthly data for charts
   const employeeMonthlyData = growthMetrics.employees.monthly.map((item) => ({
-    month: new Date(item.month + "-01").toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+    month: new Date(item.month + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
     "Total Employees": item.count,
     "New Employees": item.newEmployees,
   }))
@@ -49,16 +49,16 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
     "New Employees": item.newEmployees,
   }))
 
-  const companyMonthlyData = growthMetrics.companies.monthly.map((item) => ({
-    month: new Date(item.month + "-01").toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-    "Total Companies": item.count,
-    "New Companies": item.newCompanies,
+  const clientMonthlyData = growthMetrics.clients.monthly.map((item) => ({
+    month: new Date(item.month + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" }),
+    "Total Clients": item.count,
+    "New Clients": item.newClients,
   }))
 
-  const companyYearlyData = growthMetrics.companies.yearly.map((item) => ({
+  const clientYearlyData = growthMetrics.clients.yearly.map((item) => ({
     year: item.year.toString(),
-    "Total Companies": item.count,
-    "New Companies": item.newCompanies,
+    "Total Clients": item.count,
+    "New Clients": item.newClients,
   }))
 
   return (
@@ -182,14 +182,14 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
         </CardContent>
       </Card>
 
-      {/* Company Growth */}
+      {/* Client Growth */}
       <Card className="security-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-info" />
-            Company Growth
+            Client Growth
           </CardTitle>
-          <CardDescription>Track company growth over time</CardDescription>
+          <CardDescription>Track client growth over time</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="monthly" className="w-full">
@@ -198,15 +198,15 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
               <TabsTrigger value="yearly">Yearly</TabsTrigger>
             </TabsList>
             <TabsContent value="monthly" className="mt-4">
-              <ChartContainer config={companyChartConfig} className="h-[300px]">
+              <ChartContainer config={clientChartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={companyMonthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <AreaChart data={clientMonthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorCompanyTotal" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorClientTotal" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--info))" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="hsl(var(--info))" stopOpacity={0} />
                       </linearGradient>
-                      <linearGradient id="colorCompanyNew" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorClientNew" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--warning))" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="hsl(var(--warning))" stopOpacity={0} />
                       </linearGradient>
@@ -235,26 +235,26 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                     <Legend />
                     <Area
                       type="monotone"
-                      dataKey="Total Companies"
+                      dataKey="Total Clients"
                       stroke="hsl(var(--info))"
                       fillOpacity={1}
-                      fill="url(#colorCompanyTotal)"
+                      fill="url(#colorClientTotal)"
                     />
                     <Area
                       type="monotone"
-                      dataKey="New Companies"
+                      dataKey="New Clients"
                       stroke="hsl(var(--warning))"
                       fillOpacity={1}
-                      fill="url(#colorCompanyNew)"
+                      fill="url(#colorClientNew)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </TabsContent>
             <TabsContent value="yearly" className="mt-4">
-              <ChartContainer config={companyChartConfig} className="h-[300px]">
+              <ChartContainer config={clientChartConfig} className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={companyYearlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <LineChart data={clientYearlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis
                       dataKey="year"
@@ -279,7 +279,7 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                     <Legend />
                     <Line
                       type="monotone"
-                      dataKey="Total Companies"
+                      dataKey="Total Clients"
                       stroke="hsl(var(--info))"
                       strokeWidth={2}
                       dot={{ fill: "hsl(var(--info))", r: 4 }}
@@ -287,7 +287,7 @@ export function GrowthCharts({ data }: GrowthChartsProps) {
                     />
                     <Line
                       type="monotone"
-                      dataKey="New Companies"
+                      dataKey="New Clients"
                       stroke="hsl(var(--warning))"
                       strokeWidth={2}
                       dot={{ fill: "hsl(var(--warning))", r: 4 }}

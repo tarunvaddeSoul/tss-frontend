@@ -4,25 +4,20 @@ import { useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { AlertCircle, RefreshCw, Calendar } from "lucide-react"
+import { AlertCircle, RefreshCw } from "lucide-react"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { StatCards } from "@/components/dashboard/stat-cards"
 import { GrowthCharts } from "@/components/dashboard/growth-charts"
-import { CompanyTenure } from "@/components/dashboard/company-tenure"
+import { ClientTenure } from "@/components/dashboard/client-tenure"
 import { EmployeeDistribution } from "@/components/dashboard/employee-distribution"
 import { SpecialDates } from "@/components/dashboard/special-dates"
 
 export default function DashboardPage() {
   const [daysAhead, setDaysAhead] = useState<number>(30)
-  const { data, companyEmployeeCounts, loading, error, refetch } = useDashboard(daysAhead)
+  const { data, clientEmployeeCounts, loading, error, refetch } = useDashboard(daysAhead)
 
   const handleDaysChange = (value: string) => {
-    const days = parseInt(value, 10)
-    setDaysAhead(days)
-    // Refetch with new days value
-    refetch(days)
+    setDaysAhead(parseInt(value, 10))
   }
 
   if (loading) {
@@ -53,7 +48,7 @@ export default function DashboardPage() {
           <Skeleton className="h-80" />
         </div>
 
-        {/* Company Tenure Skeleton */}
+        {/* Client Tenure Skeleton */}
         <Skeleton className="h-96" />
 
         {/* Special Dates Skeleton */}
@@ -97,40 +92,19 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-tss-primary to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
             Dashboard Overview
           </h1>
           <p className="text-muted-foreground">Welcome back! Here's what's happening with your organization today.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="days-select" className="text-sm text-muted-foreground whitespace-nowrap">
-              Period:
-            </Label>
-            <Select value={daysAhead.toString()} onValueChange={handleDaysChange}>
-              <SelectTrigger id="days-select" className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="15">Last 15 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="60">Last 60 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="180">Last 180 days</SelectItem>
-                <SelectItem value="365">Last year</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => refetch(daysAhead)}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch(daysAhead)}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats Cards */}
-      <StatCards data={data} companyEmployeeCounts={companyEmployeeCounts} />
+      <StatCards data={data} clientEmployeeCounts={clientEmployeeCounts} />
 
       {/* Growth Charts */}
       <GrowthCharts data={data} />
@@ -138,11 +112,11 @@ export default function DashboardPage() {
       {/* Employee Distribution */}
       <EmployeeDistribution data={data} />
 
-      {/* Company Tenure */}
-      <CompanyTenure data={data} />
+      {/* Client Tenure */}
+      <ClientTenure data={data} />
 
       {/* Special Dates */}
-      <SpecialDates data={data} />
+      <SpecialDates data={data} daysAhead={daysAhead} onDaysChange={handleDaysChange} />
     </div>
   )
 }

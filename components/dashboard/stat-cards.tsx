@@ -3,19 +3,19 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Building2, UserPlus, Building, TrendingUp, TrendingDown } from "lucide-react"
-import type { DashboardReportData, CompanyEmployeeCount } from "@/types/dashboard"
+import type { DashboardReportData, ClientEmployeeCount } from "@/types/dashboard"
 
 interface StatCardsProps {
   data: DashboardReportData
-  companyEmployeeCounts: CompanyEmployeeCount[]
+  clientEmployeeCounts: ClientEmployeeCount[]
 }
 
-export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
-  const { summary, employeeStats, companyStats } = data
+export function StatCards({ data, clientEmployeeCounts }: StatCardsProps) {
+  const { summary, employeeStats, clientStats } = data
 
-  // Calculate companies with employees vs without employees
-  const companiesWithEmployees = companyEmployeeCounts.filter((company) => company.employeeCount > 0).length
-  const companiesWithoutEmployees = companyEmployeeCounts.filter((company) => company.employeeCount === 0).length
+  // Calculate clients with employees vs without employees
+  const clientsWithEmployees = clientEmployeeCounts.filter((client) => client.employeeCount > 0).length
+  const clientsWithoutEmployees = clientEmployeeCounts.filter((client) => client.employeeCount === 0).length
 
   const stats = [
     {
@@ -37,18 +37,18 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
       iconColor: "text-success",
     },
     {
-      title: "Total Companies",
-      value: summary.totalCompanies,
-      change: summary.newCompaniesThisMonth,
+      title: "Total Clients",
+      value: summary.totalClients,
+      change: summary.newClientsThisMonth,
       changeLabel: "new this month",
       icon: Building2,
       gradient: "from-info/20 to-info/10",
       iconColor: "text-info",
     },
     {
-      title: "Active Companies",
-      value: summary.activeCompanies,
-      change: companiesWithEmployees,
+      title: "Active Clients",
+      value: summary.activeClients,
+      change: clientsWithEmployees,
       changeLabel: "with employees",
       icon: Building,
       gradient: "from-warning/20 to-warning/10",
@@ -75,7 +75,7 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
                   <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{stat.title}</p>
                   <div className="flex items-baseline space-x-3">
                     <p className="text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                      {stat.value.toLocaleString()}
+                      {stat.value.toLocaleString("en-IN")}
                     </p>
                     {stat.change > 0 && (
                       <Badge 

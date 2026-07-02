@@ -39,12 +39,11 @@ function AuthLayoutContent({ children }: { children: React.ReactNode }) {
         <ThemeToggle />
       </div>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="z-10 w-full max-w-md relative"
       >
-        <div className="absolute inset-0 bg-card/50 backdrop-blur-sm rounded-lg -z-10" />
         {children}
       </motion.div>
       <div className="mt-8 text-center text-sm text-muted-foreground">

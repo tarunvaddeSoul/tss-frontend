@@ -37,6 +37,7 @@ import { Employee, EmployeeSearchParams, IEmployeeEmploymentHistory } from "@/ty
 import { Client } from "@/types/client"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { PageHeader } from "@/components/layout/page-header"
 import { TerminateEmployeeDialog } from "@/components/employees/terminate-employee-dialog"
 import dynamic from "next/dynamic"
 // import { EmployeeViewPDF } from "@/components/employees/employee-view-pdf"
@@ -251,18 +252,20 @@ export default function EmployeeListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
-          <p className="text-sm text-gray-500">View and manage all employees</p>
-        </div>
-        <Link href="/employees/add">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Employee
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        no="04"
+        eyebrow="Employee register"
+        title="Employees"
+        description="View and manage all employees."
+        actions={
+          <Link href="/employees/add">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Employee
+            </Button>
+          </Link>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Search Employees</CardTitle>
@@ -473,7 +476,7 @@ export default function EmployeeListPage() {
                               <p className="font-medium">{`${employee.firstName} ${employee.lastName}`}</p>
                               <button
                                 onClick={() => handleIdClick(employee.id)}
-                                className="text-xs text-primary hover:underline"
+                                className="font-mono text-xs text-info hover:underline"
                               >
                                 ID: {employee.id}
                               </button>
@@ -481,40 +484,34 @@ export default function EmployeeListPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10">
-                              {activeHistory?.designationName || "N/A"}
-                            </Badge>
-                          </div>
+                          <span className={activeHistory?.designationName ? "text-sm" : "text-sm text-muted-foreground"}>
+                            {activeHistory?.designationName || "N/A"}
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10">
-                              {activeHistory?.departmentName || "N/A"}
-                            </Badge>
-                          </div>
+                          <span className={activeHistory?.departmentName ? "text-sm" : "text-sm text-muted-foreground"}>
+                            {activeHistory?.departmentName || "N/A"}
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10">
-                              {activeHistory?.clientName || "N/A"}
-                            </Badge>
-                          </div>
+                          <span className={activeHistory?.clientName ? "text-sm" : "text-sm text-muted-foreground"}>
+                            {activeHistory?.clientName || "N/A"}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             {(() => {
                               if (activeHistory?.salaryType === SalaryType.PER_DAY && activeHistory.salaryPerDay) {
-                                return <span className="text-sm font-semibold">₹{activeHistory.salaryPerDay.toLocaleString("en-IN")}/day</span>
+                                return <span className="font-mono text-[13px] font-semibold">₹{activeHistory.salaryPerDay.toLocaleString("en-IN")}/day</span>
                               }
                               if (activeHistory?.salaryType === SalaryType.PER_MONTH && activeHistory.salary) {
-                                return <span className="text-sm font-semibold">₹{activeHistory.salary.toLocaleString("en-IN")}/month</span>
+                                return <span className="font-mono text-[13px] font-semibold">₹{activeHistory.salary.toLocaleString("en-IN")}/month</span>
                               }
                               if (employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary) {
-                                return <span className="text-sm font-semibold">₹{employee.monthlySalary.toLocaleString("en-IN")}/month</span>
+                                return <span className="font-mono text-[13px] font-semibold">₹{employee.monthlySalary.toLocaleString("en-IN")}/month</span>
                               }
                               if (employee.salaryPerDay) {
-                                return <span className="text-sm font-semibold">₹{employee.salaryPerDay.toLocaleString("en-IN")}/day</span>
+                                return <span className="font-mono text-[13px] font-semibold">₹{employee.salaryPerDay.toLocaleString("en-IN")}/day</span>
                               }
                               return <span className="text-xs text-muted-foreground">Not configured</span>
                             })()}
@@ -529,7 +526,7 @@ export default function EmployeeListPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={employee.status === "ACTIVE" ? "default" : "secondary"}>
+                          <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"}>
                             {label.status(employee.status)}
                           </Badge>
                         </TableCell>
@@ -585,8 +582,19 @@ export default function EmployeeListPage() {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10">
-                        No employees found
+                      <TableCell colSpan={7} className="py-12">
+                        <div className="flex flex-col items-center justify-center gap-3 text-center">
+                          <span className="registry-eyebrow">No records on file</span>
+                          <p className="text-sm text-muted-foreground">
+                            No employees match the current filters.
+                          </p>
+                          <Link href="/employees/add">
+                            <Button variant="outline" size="sm">
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Employee
+                            </Button>
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
@@ -631,8 +639,8 @@ export default function EmployeeListPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-xl font-bold">{`${selectedEmployee.firstName} ${selectedEmployee.lastName}`}</h3>
-                    <p className="text-sm text-muted-foreground">ID: {selectedEmployee.id}</p>
+                    <h3 className="font-display text-xl font-bold">{`${selectedEmployee.firstName} ${selectedEmployee.lastName}`}</h3>
+                    <p className="font-mono text-[13px] text-muted-foreground">ID: {selectedEmployee.id}</p>
                   </div>
                 </div>
 

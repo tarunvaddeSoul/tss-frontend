@@ -12,6 +12,7 @@ import { clientService } from "@/services/clientService"
 import type { EmployeeFormValues } from "@/types/employee"
 import { useEffect } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { PageHeader } from "@/components/layout/page-header"
 import { getErrorMessage } from "@/services/api"
 
 export default function AddEmployeePage() {
@@ -88,10 +89,12 @@ export default function AddEmployeePage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Add New Employee</h1>
-                <p className="text-muted-foreground">Create a new employee record</p>
-            </div>
+            <PageHeader
+                no="04"
+                eyebrow="Employee register"
+                title="Add New Employee"
+                description="Create a new employee record."
+            />
 
             {isDataLoading ? (
                 <Card>

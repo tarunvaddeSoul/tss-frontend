@@ -230,23 +230,28 @@ export default function EmployeeViewPage() {
       {/* Header Section */}
       <Card>
         <CardContent className="p-4 sm:p-6">
+          <div className="registry-line mb-4">
+            <span className="registry-eyebrow">
+              <strong>N° 04</strong> · Personnel file
+            </span>
+          </div>
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
               <Avatar className="h-16 w-16 sm:h-20 sm:w-20 shrink-0">
-                <AvatarFallback className="text-base sm:text-lg font-semibold bg-primary/10 text-primary">
+                <AvatarFallback className="text-base sm:text-lg font-semibold bg-surface text-foreground">
                   {getInitials(employee.firstName, employee.lastName)}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
+                  <h1 className="font-display text-xl sm:text-2xl font-bold tracking-[-0.02em] text-foreground truncate">
                     {[employee.title ? label.title(employee.title) : "", employee.firstName, employee.lastName].filter(Boolean).join(" ")}
                   </h1>
-                  <Badge variant={employee.status === "ACTIVE" ? "default" : "destructive"} className="shrink-0">
+                  <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"} className="shrink-0">
                     {label.status(employee.status)}
                   </Badge>
                 </div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Employee ID: {employee.id}</p>
+                <p className="font-mono text-xs sm:text-[13px] text-muted-foreground">Employee ID: {employee.id}</p>
                 {currentEmployment && (
                   <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center space-x-1 shrink-0">
@@ -318,7 +323,7 @@ export default function EmployeeViewPage() {
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                   <User className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Basic Information</span>
                 </CardTitle>
@@ -338,7 +343,7 @@ export default function EmployeeViewPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                   <Users className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Reference Details</span>
                 </CardTitle>
@@ -368,7 +373,7 @@ export default function EmployeeViewPage() {
         <TabsContent value="contact" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+              <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                 <Phone className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span>Contact Information</span>
               </CardTitle>
@@ -419,7 +424,7 @@ export default function EmployeeViewPage() {
                   {currentEmployment && (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                      <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                         <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                         <span>Current Employment</span>
                       </CardTitle>
@@ -453,7 +458,7 @@ export default function EmployeeViewPage() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                      <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                         <FileText className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                         <span>Employment History</span>
                       </CardTitle>
@@ -479,7 +484,7 @@ export default function EmployeeViewPage() {
                               {employee.employmentHistories.map((history: IEmployeeEmploymentHistory, index: any) => (
                                 <TableRow key={index}>
                                   <TableCell className="min-w-[120px]">
-                                    <span className="truncate block">{history.clientName}</span>
+                                    <span className="truncate block font-medium">{history.clientName}</span>
                                   </TableCell>
                                   <TableCell className="min-w-[120px]">
                                     <span className="truncate block">{history.designationName}</span>
@@ -487,8 +492,8 @@ export default function EmployeeViewPage() {
                                   <TableCell className="min-w-[120px]">
                                     <span className="truncate block">{history.departmentName}</span>
                                   </TableCell>
-                                  <TableCell className="min-w-[110px] whitespace-nowrap">{formatDate(history.joiningDate)}</TableCell>
-                                  <TableCell className="min-w-[110px] whitespace-nowrap">{history.leavingDate ? formatDate(history.leavingDate) : "Present"}</TableCell>
+                                  <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{formatDate(history.joiningDate)}</TableCell>
+                                  <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{history.leavingDate ? formatDate(history.leavingDate) : "Present"}</TableCell>
                                   <TableCell className="min-w-[100px]">
                                     {history.salaryType ? (
                                       <Badge variant="outline" className="text-xs">
@@ -516,7 +521,7 @@ export default function EmployeeViewPage() {
                                       <span className="text-xs text-muted-foreground">N/A</span>
                                     )}
                                   </TableCell>
-                                  <TableCell className="min-w-[130px] whitespace-nowrap">
+                                  <TableCell className="min-w-[130px] whitespace-nowrap font-mono text-[13px]">
                                     {(() => {
                                       if (history.salaryType === SalaryType.PER_DAY && history.salaryPerDay) {
                                         return <span>₹{history.salaryPerDay.toLocaleString()}/day</span>
@@ -536,7 +541,10 @@ export default function EmployeeViewPage() {
                           </Table>
                         </div>
                       ) : (
-                        <p className="text-muted-foreground text-center py-4">No employment history available</p>
+                        <div className="flex flex-col items-center gap-2 py-6 text-center">
+                          <span className="registry-eyebrow">No records on file</span>
+                          <p className="text-sm text-muted-foreground">No employment history available.</p>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
@@ -552,7 +560,7 @@ export default function EmployeeViewPage() {
             {/* Salary Information */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                   <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Salary Information</span>
                 </CardTitle>
@@ -588,17 +596,17 @@ export default function EmployeeViewPage() {
                     <div className="flex items-center gap-4 pt-2 border-t">
                       <div className="flex items-center gap-2">
                         {employee.pfEnabled ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CheckCircle2 className="h-4 w-4 text-success" />
                         ) : (
-                          <XCircle className="h-4 w-4 text-gray-400" />
+                          <XCircle className="h-4 w-4 text-muted-foreground" />
                         )}
                         <span className="text-sm">PF Enabled</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {employee.esicEnabled ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CheckCircle2 className="h-4 w-4 text-success" />
                         ) : (
-                          <XCircle className="h-4 w-4 text-gray-400" />
+                          <XCircle className="h-4 w-4 text-muted-foreground" />
                         )}
                         <span className="text-sm">ESIC Enabled</span>
                       </div>
@@ -620,7 +628,7 @@ export default function EmployeeViewPage() {
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                   <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Banking Information</span>
                 </CardTitle>
@@ -646,7 +654,7 @@ export default function EmployeeViewPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                   <Shield className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Government Details</span>
                 </CardTitle>
@@ -677,7 +685,7 @@ export default function EmployeeViewPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                   <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                   <span>Training & Medical</span>
                 </CardTitle>
@@ -712,7 +720,7 @@ export default function EmployeeViewPage() {
         <TabsContent value="documents" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+              <CardTitle className="registry-line gap-2 font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">
                 <FileText className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                 <span>Document Uploads</span>
               </CardTitle>
@@ -741,7 +749,7 @@ export default function EmployeeViewPage() {
                         </div>
                         {value ? (
                           key === "otherDocumentRemarks" ? (
-                            <span className="text-gray-700 text-sm">{value as string}</span>
+                            <span className="text-foreground text-sm">{value as string}</span>
                           ) : (
                             <div className="flex gap-2">
                               <Button
@@ -768,7 +776,10 @@ export default function EmployeeViewPage() {
                     ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-4">No documents uploaded</p>
+                <div className="flex flex-col items-center gap-2 py-6 text-center">
+                  <span className="registry-eyebrow">No records on file</span>
+                  <p className="text-sm text-muted-foreground">No documents uploaded.</p>
+                </div>
               )}
             </CardContent>
           </Card>

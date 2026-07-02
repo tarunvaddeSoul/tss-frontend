@@ -383,8 +383,8 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
 
       <CardContent className="p-0">
         {employmentHistories.length === 0 ? (
-          <div className="text-center py-8">
-            <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <div className="flex flex-col items-center py-8 text-center">
+            <span className="registry-eyebrow mb-2">No records on file</span>
             <h3 className="text-lg font-medium mb-2">No Employment History</h3>
             <p className="text-muted-foreground mb-4">This employee has no employment history records yet.</p>
             <Button onClick={() => setShowAssignDialog(true)}>
@@ -461,7 +461,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     <TableCell className="min-w-[120px]">
                       <span className="truncate block">{history.departmentName}</span>
                     </TableCell>
-                    <TableCell className="min-w-[110px] whitespace-nowrap">{history.joiningDate}</TableCell>
+                    <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{history.joiningDate}</TableCell>
                     <TableCell className="min-w-[100px]">
                       {history.salaryType ? (
                         <Badge variant="outline" className="text-xs">
@@ -489,7 +489,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                         <span className="text-xs text-muted-foreground">N/A</span>
                       )}
                     </TableCell>
-                    <TableCell className="min-w-[130px] whitespace-nowrap">
+                    <TableCell className="min-w-[130px] whitespace-nowrap font-mono text-[13px]">
                       {history.salaryType === SalaryType.PER_DAY && history.salaryPerDay ? (
                         <>
                           ₹{history.salaryPerDay.toLocaleString()}
@@ -506,7 +506,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     </TableCell>
                     <TableCell className="min-w-[100px]">
                       <Badge
-                        variant={history.status === Status.ACTIVE ? "default" : "secondary"}
+                        variant={history.status === Status.ACTIVE ? "success" : "secondary"}
                         className="flex items-center gap-1 w-fit"
                       >
                         {history.status === Status.ACTIVE ? (
@@ -665,7 +665,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   name="joiningDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>Start Date <span className="text-destructive">*</span></FormLabel>
                       <DatePicker 
                         date={field.value ?? null} 
                         onSelect={(date) => {
@@ -682,7 +682,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   name="leavingDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>End Date {!form.watch("isActive") && <span className="text-red-500">*</span>}</FormLabel>
+                      <FormLabel>End Date {!form.watch("isActive") && <span className="text-destructive">*</span>}</FormLabel>
                       {form.watch("isActive") ? (
                         <div className="text-sm text-muted-foreground">Not applicable for current employment</div>
                       ) : (

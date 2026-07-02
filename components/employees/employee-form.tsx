@@ -923,7 +923,7 @@ export function EmployeeForm({
       <FormItem className="flex flex-col">
         <FormLabel>
           {typeof label === 'string' ? label : label}
-          {required && <span className="text-red-500">*</span>}
+          {required && <span className="text-destructive">*</span>}
         </FormLabel>
         <DatePicker 
           key={`date-${dateValue ? dateValue.getTime() : 'null'}`}
@@ -1058,7 +1058,7 @@ export function EmployeeForm({
       >
         {/* Saved Draft Banner */}
         {pendingDraft && (
-          <Alert className="border-primary/40">
+          <Alert variant="info">
             <Info className="h-4 w-4" />
             <AlertTitle>Unsaved draft found</AlertTitle>
             <AlertDescription>
@@ -1087,7 +1087,7 @@ export function EmployeeForm({
 
         {/* Validation Error Alert */}
         {totalErrors > 0 && (
-          <Alert variant="destructive" className="border-destructive">
+          <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Validation Errors</AlertTitle>
             <AlertDescription>
@@ -1100,19 +1100,19 @@ export function EmployeeForm({
         )}
 
         {/* Progress Indicator */}
-        <Card className="border-primary/20">
+        <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Form Completion</span>
-                <span className="text-muted-foreground">{progress}%</span>
+                <span className="registry-eyebrow">Form completion</span>
+                <span className="font-mono text-[13px] text-muted-foreground">{progress}%</span>
               </div>
               <Progress value={progress} className="h-2" />
-              
+
               {/* Step Indicator */}
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
-                  <CurrentStepIcon className="h-4 w-4 text-primary" />
+                  <CurrentStepIcon className="h-4 w-4 text-brand" />
                   <span className="text-sm font-medium">
                     Step {currentStep + 1} of {steps.length}: {steps[currentStep]?.title}
                   </span>
@@ -1125,12 +1125,11 @@ export function EmployeeForm({
               {/* Visual Stepper */}
               <div className="flex items-center justify-between pt-2">
                 {steps.map((step, index) => {
-                  const StepIcon = step.icon
                   const isActive = index === currentStep
                   const isCompleted = index < currentStep
                   // All steps are always clickable to allow free navigation
                   const isClickable = true
-                  
+
                   return (
                     <div key={step.id} className="flex items-center flex-1">
                       <div
@@ -1140,29 +1139,31 @@ export function EmployeeForm({
                           "hover:opacity-80"
                         )}
                       >
-                        {/* Icon Container with Optional Badge Overlay */}
+                        {/* Ordinal Container with Optional Badge Overlay */}
                         <div className="relative mb-2">
                           <div
                             className={cn(
-                              "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all relative",
-                              isActive && "border-primary bg-primary text-primary-foreground",
-                              isCompleted && !stepsWithErrors.has(index) && "border-green-500 bg-green-500 text-white",
-                              stepsWithErrors.has(index) && "border-destructive bg-destructive/10 text-destructive border-2",
-                              !isActive && !isCompleted && !stepsWithErrors.has(index) && "border-muted bg-background"
+                              "flex items-center justify-center w-10 h-10 rounded-sm border font-mono text-[13px] transition-all relative",
+                              isActive && "border-brand bg-brand/10 text-brand font-semibold",
+                              isCompleted && !stepsWithErrors.has(index) && "border-success/40 bg-success/10 text-success",
+                              stepsWithErrors.has(index) && "border-destructive bg-destructive/10 text-destructive",
+                              !isActive && !isCompleted && !stepsWithErrors.has(index) && "border-border bg-background text-muted-foreground"
                             )}
                           >
                             {stepsWithErrors.has(index) ? (
                               <AlertCircle className="h-5 w-5" />
+                            ) : isCompleted ? (
+                              <CheckCircle2 className="h-5 w-5" />
                             ) : (
-                              <StepIcon className="h-5 w-5" />
+                              String(index + 1).padStart(2, "0")
                             )}
                           </div>
-                          {/* Optional Badge as Overlay on Icon */}
+                          {/* Optional Badge as Overlay on Ordinal */}
                           {step.optional && (
                             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-                              <Badge 
-                                variant="outline" 
-                                className="text-[10px] px-1.5 py-0 h-4 bg-background/95 backdrop-blur-sm border-primary/30"
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 h-4 bg-background"
                               >
                                 Opt
                               </Badge>
@@ -1179,8 +1180,8 @@ export function EmployeeForm({
                         <div className="text-center min-h-[2.5rem] flex flex-col items-center justify-start">
                           <div className={cn(
                             "text-xs font-medium leading-tight",
-                            isActive && "text-primary",
-                            isCompleted && !stepsWithErrors.has(index) && "text-green-600",
+                            isActive && "text-brand",
+                            isCompleted && !stepsWithErrors.has(index) && "text-success",
                             stepsWithErrors.has(index) && "text-destructive font-semibold",
                             !isActive && !isCompleted && !stepsWithErrors.has(index) && "text-muted-foreground"
                           )}>
@@ -1194,8 +1195,8 @@ export function EmployeeForm({
                       {index < steps.length - 1 && (
                         <div
                           className={cn(
-                            "h-0.5 mx-2 flex-1 transition-all",
-                            isCompleted ? "bg-green-500" : "bg-muted"
+                            "h-px mx-2 flex-1 transition-all",
+                            isCompleted ? "bg-success" : "bg-border"
                           )}
                         />
                       )}
@@ -1213,7 +1214,7 @@ export function EmployeeForm({
           <Card>
             <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+                <User className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Basic Information</CardTitle>
               </div>
               <div className="flex items-start justify-between gap-4">
@@ -1228,14 +1229,16 @@ export function EmployeeForm({
             <CardContent className="space-y-6">
               {/* Personal Details Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Personal Details</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Personal details</h3>
+                </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Title <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select title">
                       {titleOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -1252,7 +1255,7 @@ export function EmployeeForm({
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>First Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter first name" {...field} />
                     </FormControl>
@@ -1265,7 +1268,7 @@ export function EmployeeForm({
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Last Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter last name" {...field} />
                     </FormControl>
@@ -1285,7 +1288,7 @@ export function EmployeeForm({
                 name="gender"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gender <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Gender <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Select
                         value={field.value && field.value !== "" ? field.value : undefined}
@@ -1339,7 +1342,7 @@ export function EmployeeForm({
                 name="fatherName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Father's Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Father's Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter father's name" {...field} />
                     </FormControl>
@@ -1352,7 +1355,7 @@ export function EmployeeForm({
                 name="motherName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mother's Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Mother's Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter mother's name" {...field} />
                     </FormControl>
@@ -1380,7 +1383,7 @@ export function EmployeeForm({
                 name="bloodGroup"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Blood Group <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Blood Group <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select blood group">
                       {bloodGroupOptions.map((group) => (
                         <SelectItem key={group} value={group}>
@@ -1404,7 +1407,7 @@ export function EmployeeForm({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Status <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select status">
                       {statusOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -1421,7 +1424,7 @@ export function EmployeeForm({
                 name="recruitedBy"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Recruited By <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Recruited By <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter recruiter name" {...field} />
                     </FormControl>
@@ -1434,7 +1437,7 @@ export function EmployeeForm({
                 name="highestEducationQualification"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Highest Education Qualification <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Highest Education Qualification <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select qualification">
                       {educationQualificationOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -1451,7 +1454,7 @@ export function EmployeeForm({
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Category <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select category">
                       {categoryOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -1468,14 +1471,16 @@ export function EmployeeForm({
               
               {/* Contact Details Section */}
               <div className="space-y-4 pt-6 border-t">
-                <h3 className="text-lg font-semibold">Contact Details</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Contact details</h3>
+                </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="mobileNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobile Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Mobile Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter mobile number" {...field} />
                     </FormControl>
@@ -1488,7 +1493,7 @@ export function EmployeeForm({
                 name="aadhaarNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Aadhaar Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Aadhaar Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter Aadhaar number" {...field} />
                     </FormControl>
@@ -1502,7 +1507,7 @@ export function EmployeeForm({
               name="permanentAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Permanent Address <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Permanent Address <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter permanent address" {...field} />
                   </FormControl>
@@ -1524,7 +1529,7 @@ export function EmployeeForm({
               name="presentAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Present Address <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Present Address <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter present address" {...field} disabled={sameAsPermanent} />
                   </FormControl>
@@ -1538,7 +1543,7 @@ export function EmployeeForm({
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>City <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter city" {...field} />
                     </FormControl>
@@ -1551,7 +1556,7 @@ export function EmployeeForm({
                 name="district"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>District <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>District <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter district" {...field} />
                     </FormControl>
@@ -1564,7 +1569,7 @@ export function EmployeeForm({
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>State <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>State <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter state" {...field} />
                     </FormControl>
@@ -1577,7 +1582,7 @@ export function EmployeeForm({
                 name="pincode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pincode <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Pincode <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input
                         inputMode="numeric"
@@ -1601,7 +1606,7 @@ export function EmployeeForm({
           <Card>
             <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
+                <DollarSign className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Salary Configuration</CardTitle>
               </div>
               <div className="flex items-start justify-between gap-4">
@@ -1690,9 +1695,9 @@ export function EmployeeForm({
                   )}
 
                   {activeRate && !loadingActiveRate && (
-                    <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                      <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <AlertDescription className="text-blue-800 dark:text-blue-200">
+                    <Alert variant="info">
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
                         Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString()}/day
                         {form.getValues("salaryPerDay") !== activeRate && (
                           <span className="ml-2 text-xs">(You can override this value manually)</span>
@@ -1896,7 +1901,7 @@ export function EmployeeForm({
           <Card>
               <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-primary" />
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Bank Details</CardTitle>
                 </div>
                 <div className="flex items-start justify-between gap-4">
@@ -1915,7 +1920,7 @@ export function EmployeeForm({
                 name="bankAccountNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank Account Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Bank Account Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank account number" {...field} />
                     </FormControl>
@@ -1928,7 +1933,7 @@ export function EmployeeForm({
                 name="ifscCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>IFSC Code <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>IFSC Code <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter IFSC code" {...field} />
                     </FormControl>
@@ -1941,7 +1946,7 @@ export function EmployeeForm({
                 name="bankName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Bank Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank name" {...field} />
                     </FormControl>
@@ -1954,7 +1959,7 @@ export function EmployeeForm({
                 name="bankCity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank City <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Bank City <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank city" {...field} />
                     </FormControl>
@@ -1972,7 +1977,7 @@ export function EmployeeForm({
           <Card>
               <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
+                  <FileText className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Additional Details</CardTitle>
                 </div>
                 <div className="flex items-start justify-between gap-4">
@@ -1991,7 +1996,7 @@ export function EmployeeForm({
                 name="pfUanNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>PF UAN Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>PF UAN Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter PF UAN number" {...field} />
                     </FormControl>
@@ -2004,7 +2009,7 @@ export function EmployeeForm({
                 name="esicNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ESIC Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>ESIC Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter ESIC number" {...field} />
                     </FormControl>
@@ -2017,7 +2022,7 @@ export function EmployeeForm({
                 name="policeVerificationNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Police Verification Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Police Verification Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter police verification number" {...field} />
                     </FormControl>
@@ -2037,7 +2042,7 @@ export function EmployeeForm({
                 name="trainingCertificateNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Training Certificate Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Training Certificate Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter training certificate number" {...field} />
                     </FormControl>
@@ -2057,7 +2062,7 @@ export function EmployeeForm({
                 name="medicalCertificateNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Medical Certificate Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Medical Certificate Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter medical certificate number" {...field} />
                     </FormControl>
@@ -2082,7 +2087,7 @@ export function EmployeeForm({
           <Card>
               <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" />
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Reference Details</CardTitle>
                 </div>
                 <div className="flex items-start justify-between gap-4">
@@ -2101,7 +2106,7 @@ export function EmployeeForm({
                 name="referenceName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Reference Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference name" {...field} />
                     </FormControl>
@@ -2114,7 +2119,7 @@ export function EmployeeForm({
                 name="referenceAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Address <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Reference Address <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference address" {...field} />
                     </FormControl>
@@ -2127,7 +2132,7 @@ export function EmployeeForm({
                 name="referenceNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Reference Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference number" {...field} />
                     </FormControl>
@@ -2145,7 +2150,7 @@ export function EmployeeForm({
           <Card>
             <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
+                <FileText className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Document Uploads</CardTitle>
                 <Badge variant="outline" className="ml-2">Optional</Badge>
               </div>
@@ -2325,7 +2330,7 @@ export function EmployeeForm({
         )}
 
         {/* Navigation Buttons */}
-        <Card className="border-primary/20">
+        <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <Button
@@ -2345,12 +2350,12 @@ export function EmployeeForm({
               
               <div className="text-sm text-muted-foreground text-center">
                 {progress === 100 && currentStep === steps.length - 1 ? (
-                  <div className="flex items-center gap-2 text-green-600">
+                  <div className="flex items-center gap-2 text-success">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Ready to submit!</span>
                   </div>
                 ) : (
-                  <span>Step {currentStep + 1} of {steps.length}</span>
+                  <span className="font-mono text-xs">Step {currentStep + 1} of {steps.length}</span>
                 )}
               </div>
               
@@ -2369,10 +2374,11 @@ export function EmployeeForm({
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button 
-                  type="submit" 
-                  disabled={isLoading} 
-                  size="lg" 
+                <Button
+                  type="submit"
+                  variant="brand"
+                  disabled={isLoading}
+                  size="lg"
                   className="min-w-[120px]"
                   onClick={(e) => {
                     // Mark as explicit submit when button is clicked

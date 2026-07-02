@@ -149,7 +149,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Employee ID:</span>
-                <span className="text-sm">{employee.id}</span>
+                <span className="font-mono text-[13px]">{employee.id}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Current Status:</span>
@@ -173,7 +173,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Termination Date <span className="text-red-500">*</span>
+                      Termination Date <span className="text-destructive">*</span>
                     </FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormDescription>

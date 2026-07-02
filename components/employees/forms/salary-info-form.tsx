@@ -233,7 +233,7 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
     <Card>
       <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 space-y-0 pb-4">
         <div className="flex items-center gap-2 min-w-0">
-          <DollarSign className="h-5 w-5 text-primary shrink-0" />
+          <DollarSign className="h-5 w-5 text-muted-foreground shrink-0" />
           <CardTitle className="truncate">Salary Information</CardTitle>
         </div>
         {hasChanges && (
@@ -334,9 +334,9 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                 )}
 
                 {activeRate && !loadingActiveRate && (
-                  <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <AlertDescription className="text-blue-800 dark:text-blue-200">
+                  <Alert variant="info">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
                       Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString()}/day
                       {form.getValues("salaryPerDay") !== activeRate && (
                         <span className="ml-2 text-xs">(You can override this value manually)</span>

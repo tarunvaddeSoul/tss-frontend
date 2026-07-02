@@ -19,6 +19,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { PageHeader } from "@/components/layout/page-header"
 
 // Services
 import { employeeService } from "@/services/employeeService"
@@ -208,10 +209,12 @@ export default function AdvancedEmployeeSearch() {
 
   return (
     <div className="space-y-6 min-h-0">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Advanced Employee Search</h1>
-        <p className="text-muted-foreground">Search for employees using multiple criteria</p>
-      </div>
+      <PageHeader
+        no="04"
+        eyebrow="Employee register"
+        title="Advanced Employee Search"
+        description="Search for employees using multiple criteria."
+      />
 
       <Card>
         <CardHeader>
@@ -409,7 +412,9 @@ export default function AdvancedEmployeeSearch() {
 
               {/* Salary Filters Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">Salary Filters</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Salary filters</h3>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -499,7 +504,9 @@ export default function AdvancedEmployeeSearch() {
 
               {/* Personal Information Filters Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">Personal Information Filters</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Personal information filters</h3>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -532,7 +539,9 @@ export default function AdvancedEmployeeSearch() {
 
               {/* Location Filters Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">Location Filters</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Location filters</h3>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
@@ -627,7 +636,7 @@ export default function AdvancedEmployeeSearch() {
                       <TableHead>Department</TableHead>
                       <TableHead>Client</TableHead>
                       <TableHead>Gender</TableHead>
-                      <TableHead>Age</TableHead>
+                      <TableHead className="text-right">Age</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -642,17 +651,17 @@ export default function AdvancedEmployeeSearch() {
                             <Button
                               variant="link"
                               onClick={() => handleIdClick(employee.id)}
-                              className="p-0 h-auto font-normal text-primary"
+                              className="p-0 h-auto font-normal font-mono text-[13px]"
                             >
                               {employee.id}
                             </Button>
                           </TableCell>
-                          <TableCell>{`${employee.firstName} ${employee.lastName}`}</TableCell>
+                          <TableCell className="font-medium">{`${employee.firstName} ${employee.lastName}`}</TableCell>
                           <TableCell>{activeHistory?.designationName || "N/A"}</TableCell>
                           <TableCell>{activeHistory?.departmentName || "N/A"}</TableCell>
                           <TableCell>{activeHistory?.clientName || "N/A"}</TableCell>
                           <TableCell>{label.gender(employee.gender)}</TableCell>
-                          <TableCell>{employee.age}</TableCell>
+                          <TableCell className="text-right font-mono text-[13px]">{employee.age}</TableCell>
                         </TableRow>
                       )
                     })}
@@ -665,7 +674,10 @@ export default function AdvancedEmployeeSearch() {
               </div>
             </>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">No results found</div>
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+              <span className="registry-eyebrow">No records on file</span>
+              <p className="text-sm text-muted-foreground">No employees match the current search criteria.</p>
+            </div>
           )}
         </CardContent>
       </Card>

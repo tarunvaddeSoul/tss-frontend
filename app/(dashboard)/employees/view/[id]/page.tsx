@@ -16,7 +16,7 @@ function EmployeeViewPageSkeleton() {
   return (
     <div className="space-y-6">
       {/* Header Skeleton */}
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-card rounded-lg border p-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-4">
             <Skeleton className="h-20 w-20 rounded-full" />
@@ -34,7 +34,7 @@ function EmployeeViewPageSkeleton() {
       </div>
 
       {/* Tabs Skeleton */}
-      <div className="bg-white rounded-lg border">
+      <div className="bg-card rounded-lg border">
         <div className="border-b">
           <div className="flex space-x-8 px-6 py-4">
             {Array.from({ length: 5 }).map((_, i) => (

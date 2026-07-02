@@ -37,8 +37,8 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="flex flex-row items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <User className="h-5 w-5 text-primary" />
+            <div className="w-10 h-10 bg-surface rounded-full flex items-center justify-center">
+              <User className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <DialogTitle className="text-xl">
@@ -82,7 +82,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Status</p>
-                        <Badge variant={employee.status === "ACTIVE" ? "default" : "secondary"}>
+                        <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"}>
                           {label.status(employee.status)}
                         </Badge>
                       </div>
@@ -236,17 +236,17 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             {employee.pfEnabled ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <CheckCircle2 className="h-4 w-4 text-success" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-gray-400" />
+                              <XCircle className="h-4 w-4 text-muted-foreground" />
                             )}
                             <span className="text-sm">PF</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {employee.esicEnabled ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <CheckCircle2 className="h-4 w-4 text-success" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-gray-400" />
+                              <XCircle className="h-4 w-4 text-muted-foreground" />
                             )}
                             <span className="text-sm">ESIC</span>
                           </div>
@@ -343,8 +343,8 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                               <TableCell>{history.clientName}</TableCell>
                               <TableCell>{history.designationName}</TableCell>
                               <TableCell>{history.departmentName}</TableCell>
-                              <TableCell>{formatDate(history.joiningDate)}</TableCell>
-                              <TableCell>{history.leavingDate ? formatDate(history.leavingDate) : "-"}</TableCell>
+                              <TableCell className="font-mono text-[13px]">{formatDate(history.joiningDate)}</TableCell>
+                              <TableCell className="font-mono text-[13px]">{history.leavingDate ? formatDate(history.leavingDate) : "-"}</TableCell>
                               <TableCell>
                                 {history.salaryType ? (
                                   <Badge variant="outline" className="text-xs">
@@ -372,7 +372,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                                   <span className="text-xs text-muted-foreground">N/A</span>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="font-mono text-[13px]">
                                 {(() => {
                                   if (history.salaryType === SalaryType.PER_DAY && history.salaryPerDay) {
                                     return <span>₹{history.salaryPerDay.toLocaleString()}/day</span>
@@ -387,7 +387,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                                 })()}
                               </TableCell>
                               <TableCell>
-                                <Badge variant={history.status === "ACTIVE" ? "default" : "secondary"}>
+                                <Badge variant={history.status === "ACTIVE" ? "success" : "secondary"}>
                                   {history.status === "ACTIVE" ? "Current" : "Previous"}
                                 </Badge>
                               </TableCell>

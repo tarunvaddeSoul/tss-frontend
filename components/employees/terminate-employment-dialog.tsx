@@ -190,7 +190,7 @@ export function TerminateEmploymentDialog({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Joining Date:</span>
-                <span className="text-sm">{employment.joiningDate}</span>
+                <span className="font-mono text-[13px]">{employment.joiningDate}</span>
               </div>
             </div>
           </div>
@@ -204,7 +204,7 @@ export function TerminateEmploymentDialog({
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Termination Date <span className="text-red-500">*</span>
+                      Termination Date <span className="text-destructive">*</span>
                     </FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormDescription>

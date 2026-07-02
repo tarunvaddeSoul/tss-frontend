@@ -102,27 +102,27 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-64 bg-gray-200 rounded animate-pulse" />
+            <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-64 bg-muted rounded animate-pulse" />
           </div>
           <div className="flex gap-2">
-            <div className="h-10 w-20 bg-gray-200 rounded animate-pulse" />
-            <div className="h-10 w-24 bg-gray-200 rounded animate-pulse" />
+            <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+            <div className="h-10 w-24 bg-muted rounded animate-pulse" />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border p-4">
-          <div className="h-8 w-32 bg-gray-200 rounded animate-pulse mb-4" />
+        <div className="bg-card rounded-lg border p-4">
+          <div className="h-8 w-32 bg-muted rounded animate-pulse mb-4" />
           <div className="flex gap-2 mb-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-10 w-24 bg-gray-200 rounded animate-pulse" />
+              <div key={i} className="h-10 w-24 bg-muted rounded animate-pulse" />
             ))}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="space-y-2">
-                <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-                <div className="h-10 w-full bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+                <div className="h-10 w-full bg-muted rounded animate-pulse" />
               </div>
             ))}
           </div>
@@ -181,14 +181,19 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1 min-w-0 flex-1">
+            <div className="registry-line">
+              <span className="registry-eyebrow">
+                <strong>N° 04</strong> · Employee register
+              </span>
+            </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 <User className="h-5 w-5 text-muted-foreground shrink-0" />
-                <h1 className="text-xl sm:text-2xl font-bold truncate">
+                <h1 className="font-display text-xl sm:text-2xl font-bold tracking-[-0.02em] truncate">
                   Edit: {employee.firstName} {employee.lastName}
                 </h1>
               </div>
-              <Badge variant={employee.status === "ACTIVE" ? "default" : "secondary"} className="shrink-0">
+              <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"} className="shrink-0">
                 {employee.status}
               </Badge>
             </div>
@@ -309,8 +314,8 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                  <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-surface rounded-full flex items-center justify-center shrink-0">
+                  <User className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium truncate">
@@ -325,7 +330,7 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
               <div className="space-y-3 text-xs sm:text-sm">
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Employee ID:</span>
-                  <span className="font-medium truncate text-right">{employee.id}</span>
+                  <span className="font-mono text-[13px] font-medium truncate text-right">{employee.id}</span>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Client:</span>
@@ -341,13 +346,13 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Joining Date:</span>
-                  <span className="font-medium truncate text-right">
+                  <span className="font-mono text-[13px] font-medium truncate text-right">
                     {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.joiningDate || "Not specified"}
                   </span>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Salary:</span>
-                  <span className="font-medium truncate text-right">
+                  <span className="font-mono text-[13px] font-medium truncate text-right">
                     {(() => {
                       // First check employment history for salaryType
                       const activeHistory = employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")
@@ -410,7 +415,7 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
             <CardContent>
               <div className="space-y-2 text-xs sm:text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full shrink-0"></div>
+                  <div className="w-2 h-2 bg-success rounded-full shrink-0"></div>
                   <span className="text-muted-foreground">All sections saved</span>
                 </div>
                 <p className="text-xs text-muted-foreground">

@@ -237,7 +237,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                <Alert>
+                <Alert variant="info">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-sm">
                     <strong>Important:</strong> Employee must not have any active employment. This will create a new active employment record.
@@ -252,7 +252,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Building2 className="h-4 w-4" />
-                          Client <span className="text-red-500">*</span>
+                          Client <span className="text-destructive">*</span>
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
@@ -285,7 +285,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Briefcase className="h-4 w-4" />
-                          Job Role <span className="text-red-500">*</span>
+                          Job Role <span className="text-destructive">*</span>
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
@@ -317,7 +317,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Users className="h-4 w-4" />
-                          Department <span className="text-red-500">*</span>
+                          Department <span className="text-destructive">*</span>
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
@@ -349,7 +349,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                       <FormItem className="flex flex-col md:col-span-2">
                         <FormLabel className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          Joining Date <span className="text-red-500">*</span>
+                          Joining Date <span className="text-destructive">*</span>
                         </FormLabel>
                         <DatePicker
                           date={field.value}

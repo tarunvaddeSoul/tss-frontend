@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Eye, Download, Upload, X, FileText, ImageIcon, AlertCircle } from "lucide-react"
+import { Eye, Download, Upload, X, FileText, ImageIcon, AlertCircle, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -253,7 +253,7 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
       </Card>
@@ -270,7 +270,7 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
               <Button onClick={handleUploadDocuments} disabled={isUploading} size="sm">
                 {isUploading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Uploading...
                   </>
                 ) : (
@@ -284,7 +284,7 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Alert>
+          <Alert variant="info">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>File Requirements</AlertTitle>
             <AlertDescription>
@@ -377,7 +377,7 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
                 {documentFields.map((field) => (
                   <div key={field.key} className="flex items-center gap-2 text-sm">
                     {getFileIcon(field.label)}
-                    <span className={hasDocument(field.key) ? "text-green-600" : "text-muted-foreground"}>
+                    <span className={hasDocument(field.key) ? "text-success" : "text-muted-foreground"}>
                       {field.label}
                     </span>
                     {hasDocument(field.key) && (

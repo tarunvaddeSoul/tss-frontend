@@ -4,9 +4,11 @@ import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Upload, User, Phone, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, DollarSign, Info } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-import { format } from "date-fns"
+import { Upload, User, Briefcase, CreditCard, FileText, Building2, CheckCircle2, ChevronLeft, ChevronRight, X, AlertCircle, DollarSign, Info, Save, RotateCcw, Trash2 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { toast as sonnerToast } from "sonner"
+import { label } from "@/lib/labels"
+import { format, formatDistanceToNow } from "date-fns"
 import { SalaryCategory, SalarySubCategory } from "@/types/salary"
 import { salaryRateScheduleService } from "@/services/salaryRateScheduleService"
 import { Switch } from "@/components/ui/switch"
@@ -30,9 +32,218 @@ interface EmployeeFormProps {
   onSubmit: (values: EmployeeFormValues) => void
   designations: { value: string; label: string }[]
   employeeDepartments: { value: string; label: string }[]
-  companies: { value: string; label: string }[]
+  clients: { value: string; label: string }[]
   isLoading?: boolean
   onChange?: () => void
+  enableDrafts?: boolean
+  draftStorageKey?: string
+}
+
+export const EMPLOYEE_FORM_DRAFT_STORAGE_KEY = "employee-form-draft"
+
+const DATE_FIELDS = new Set([
+  "dateOfBirth",
+  "employeeOnboardingDate",
+  "policeVerificationDate",
+  "trainingCertificateDate",
+  "medicalCertificateDate",
+  "currentClientJoiningDate",
+] as (keyof EmployeeFormValues)[])
+
+const SECTION_FIELD_MAP = {
+  basic: [
+    "title",
+    "firstName",
+    "lastName",
+    "gender",
+    "dateOfBirth",
+    "mobileNumber",
+    "fatherName",
+    "motherName",
+    "husbandName",
+    "category",
+    "bloodGroup",
+    "permanentAddress",
+    "presentAddress",
+    "city",
+    "district",
+    "state",
+    "pincode",
+    "recruitedBy",
+    "employeeOnboardingDate",
+    "status",
+    "highestEducationQualification",
+    "aadhaarNumber",
+  ],
+  salary: [
+    "salaryCategory",
+    "salarySubCategory",
+    "salaryPerDay",
+    "monthlySalary",
+    "pfEnabled",
+    "esicEnabled",
+  ],
+  employment: [
+    "currentClientJoiningDate",
+    "currentClientDesignationId",
+    "currentClientDepartmentId",
+    "currentClientId",
+  ],
+  bank: [
+    "bankAccountNumber",
+    "ifscCode",
+    "bankName",
+    "bankCity",
+  ],
+  additional: [
+    "pfUanNumber",
+    "esicNumber",
+    "policeVerificationNumber",
+    "policeVerificationDate",
+    "trainingCertificateNumber",
+    "trainingCertificateDate",
+    "medicalCertificateNumber",
+    "medicalCertificateDate",
+  ],
+  reference: [
+    "referenceName",
+    "referenceAddress",
+    "referenceNumber",
+  ],
+  documents: ["otherDocumentRemarks"],
+} as const
+
+type SectionId = keyof typeof SECTION_FIELD_MAP
+
+type SectionDraftRecord = {
+  values: Partial<EmployeeFormValues>
+  updatedAt: number
+}
+
+type SectionSaveStatus = "idle" | "saving" | "saved" | "error"
+
+interface SectionStep {
+  id: SectionId
+  title: string
+  description: string
+  icon: LucideIcon
+  optional?: boolean
+  fields: readonly (keyof EmployeeFormValues)[]
+}
+
+const steps: SectionStep[] = [
+  {
+    id: "basic",
+    title: "Basic Information",
+    icon: User,
+    description: "Enter personal details and contact information",
+    fields: SECTION_FIELD_MAP.basic,
+  },
+  {
+    id: "salary",
+    title: "Salary",
+    icon: DollarSign,
+    description: "Configure employee salary category and settings",
+    fields: SECTION_FIELD_MAP.salary,
+  },
+  {
+    id: "employment",
+    title: "Employment",
+    icon: Briefcase,
+    description: "Employment information can be added later if not available now",
+    optional: true,
+    fields: SECTION_FIELD_MAP.employment,
+  },
+  {
+    id: "bank",
+    title: "Bank Details",
+    icon: CreditCard,
+    description: "Enter banking information for salary processing",
+    fields: SECTION_FIELD_MAP.bank,
+  },
+  {
+    id: "additional",
+    title: "Additional Details",
+    icon: FileText,
+    description: "Provide PF, ESIC, and certificate information",
+    fields: SECTION_FIELD_MAP.additional,
+  },
+  {
+    id: "reference",
+    title: "Reference",
+    icon: Building2,
+    description: "Provide reference person information",
+    fields: SECTION_FIELD_MAP.reference,
+  },
+  {
+    id: "documents",
+    title: "Documents",
+    icon: FileText,
+    description: "Upload required documents and certificates",
+    optional: true,
+    fields: SECTION_FIELD_MAP.documents,
+  },
+]
+
+const FIELD_TO_SECTION_MAP: Record<string, SectionId> = Object.entries(SECTION_FIELD_MAP).reduce(
+  (acc, [sectionId, fields]) => {
+    fields.forEach((field) => {
+      acc[field] = sectionId as SectionId
+    })
+    return acc
+  },
+  {} as Record<string, SectionId>
+)
+
+const encodeDraftValue = (value: unknown) => {
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  return value
+}
+
+const decodeDraftValue = (field: string, value: unknown) => {
+  if (DATE_FIELDS.has(field as keyof EmployeeFormValues) && typeof value === "string" && value) {
+    return new Date(value)
+  }
+  return value
+}
+
+const readDraftStore = (storageKey: string) => {
+  if (typeof window === "undefined") {
+    return {} as Partial<Record<SectionId, SectionDraftRecord>>
+  }
+
+  const raw = window.localStorage.getItem(storageKey)
+  if (!raw) return {}
+
+  try {
+    return JSON.parse(raw)
+  } catch (error) {
+    console.error("Unable to parse employee form draft", error)
+    return {}
+  }
+}
+
+const writeDraftStore = (storageKey: string, payload: Partial<Record<SectionId, SectionDraftRecord>>) => {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(storageKey, JSON.stringify(payload))
+}
+
+export const clearEmployeeFormDraft = (storageKey = EMPLOYEE_FORM_DRAFT_STORAGE_KEY) => {
+  if (typeof window === "undefined") return
+  window.localStorage.removeItem(storageKey)
+}
+
+const mergeDraftValues = (store: Partial<Record<SectionId, SectionDraftRecord>>) => {
+  const merged: Partial<EmployeeFormValues> = {}
+  Object.values(store).forEach((sectionDraft) => {
+    if (!sectionDraft?.values) return
+    Object.entries(sectionDraft.values).forEach(([field, value]) => {
+      merged[field as keyof EmployeeFormValues] = decodeDraftValue(field, value) as any
+    })
+  })
+  return merged
 }
 
 // Create a schema for form validation - Employment Details are now optional
@@ -41,10 +252,10 @@ const employeeFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   // Employment Details - all optional
-  currentCompanyDesignationId: z.string().optional(),
-  currentCompanyDepartmentId: z.string().optional(),
-  currentCompanyJoiningDate: z.date().optional(),
-  currentCompanyId: z.string().optional(),
+  currentClientDesignationId: z.string().optional(),
+  currentClientDepartmentId: z.string().optional(),
+  currentClientJoiningDate: z.date().optional(),
+  currentClientId: z.string().optional(),
   mobileNumber: z.string().regex(/^\d{10}$/, "Invalid mobile number"),
   recruitedBy: z.string().min(1, "Recruiter name is required"),
   gender: z.string().min(1, "Gender is required"),
@@ -53,8 +264,8 @@ const employeeFormSchema = z.object({
   motherName: z.string().min(1, "Mother's name is required"),
   husbandName: z.string().optional(),
   category: z.string().min(1, "Category is required"),
-  dateOfBirth: z.date(),
-  employeeOnboardingDate: z.date(),
+  dateOfBirth: z.date({ required_error: "Date of birth is required" }).max(new Date(), "Date of birth cannot be in the future"),
+  employeeOnboardingDate: z.date({ required_error: "Onboarding date is required" }),
   highestEducationQualification: z.string().min(1, "Education qualification is required"),
   bloodGroup: z.string().min(1, "Blood group is required"),
   permanentAddress: z.string().min(1, "Permanent address is required"),
@@ -62,22 +273,22 @@ const employeeFormSchema = z.object({
   city: z.string().min(1, "City is required"),
   district: z.string().min(1, "District is required"),
   state: z.string().min(1, "State is required"),
-  pincode: z.number().min(1, "Pincode is required"),
-  referenceName: z.string().min(1, "Reference name is required"),
-  referenceAddress: z.string().min(1, "Reference address is required"),
-  referenceNumber: z.string().min(1, "Reference number is required"),
-  bankAccountNumber: z.string().min(1, "Bank account number is required"),
-  ifscCode: z.string().min(1, "IFSC code is required"),
-  bankCity: z.string().min(1, "Bank city is required"),
-  bankName: z.string().min(1, "Bank name is required"),
-  pfUanNumber: z.string().min(1, "PF UAN number is required"),
-  esicNumber: z.string().min(1, "ESIC number is required"),
-  policeVerificationNumber: z.string().min(1, "Police verification number is required"),
-  policeVerificationDate: z.date(),
-  trainingCertificateNumber: z.string().min(1, "Training certificate number is required"),
-  trainingCertificateDate: z.date(),
-  medicalCertificateNumber: z.string().min(1, "Medical certificate number is required"),
-  medicalCertificateDate: z.date(),
+  pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6 digit pincode"),
+  referenceName: z.string().optional(),
+  referenceAddress: z.string().optional(),
+  referenceNumber: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  ifscCode: z.string().optional(),
+  bankCity: z.string().optional(),
+  bankName: z.string().optional(),
+  pfUanNumber: z.string().optional(),
+  esicNumber: z.string().optional(),
+  policeVerificationNumber: z.string().optional(),
+  policeVerificationDate: z.date().optional(),
+  trainingCertificateNumber: z.string().optional(),
+  trainingCertificateDate: z.date().optional(),
+  medicalCertificateNumber: z.string().optional(),
+  medicalCertificateDate: z.date().optional(),
   photo: z.any().optional(),
   aadhaar: z.any().optional(),
   panCard: z.any().optional(),
@@ -141,36 +352,41 @@ const parseDateFromDDMMYYYY = (dateString: string) => {
   return new Date(year, month - 1, day)
 }
 
-// Add localStorage key constant
-const FORM_STORAGE_KEY = "employee_form_data"
-
 export function EmployeeForm({
   initialValues,
   onSubmit,
   designations,
   employeeDepartments,
-  companies,
+  clients,
   isLoading = false,
   onChange,
+  enableDrafts = false,
+  draftStorageKey = EMPLOYEE_FORM_DRAFT_STORAGE_KEY,
 }: EmployeeFormProps) {
-  const { toast } = useToast()
   const [gender, setGender] = useState(initialValues?.gender || "")
   const [sameAsPermanent, setSameAsPermanent] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [stepsWithErrors, setStepsWithErrors] = useState<Set<number>>(new Set())
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [isExplicitSubmit, setIsExplicitSubmit] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
-
-  // Define form steps
-  const steps = [
-    { id: "basic", title: "Basic Information", icon: User, description: "Personal details and contact information" },
-    { id: "salary", title: "Salary", icon: DollarSign, description: "Salary configuration" },
-    { id: "employment", title: "Employment", icon: Briefcase, description: "Employment details (optional)", optional: true },
-    { id: "bank", title: "Bank Details", icon: CreditCard, description: "Banking information" },
-    { id: "additional", title: "Additional Details", icon: FileText, description: "PF, ESIC, and certificates" },
-    { id: "reference", title: "Reference", icon: Building2, description: "Reference information" },
-    { id: "documents", title: "Documents", icon: FileText, description: "Upload documents" },
-  ]
+  const [sectionSaveStatus, setSectionSaveStatus] = useState<Record<SectionId, SectionSaveStatus>>(() =>
+    steps.reduce((acc, step) => {
+      acc[step.id] = "idle"
+      return acc
+    }, {} as Record<SectionId, SectionSaveStatus>),
+  )
+  const [sectionLastSaved, setSectionLastSaved] = useState<Record<SectionId, number | null>>(() =>
+    steps.reduce((acc, step) => {
+      acc[step.id] = null
+      return acc
+    }, {} as Record<SectionId, number | null>),
+  )
+  const autosaveTimersRef = useRef<Record<SectionId, ReturnType<typeof setTimeout>>>(
+    {} as Record<SectionId, ReturnType<typeof setTimeout>>,
+  )
+  const skipAutosaveRef = useRef(false)
+  const [pendingDraft, setPendingDraft] = useState<Partial<Record<SectionId, SectionDraftRecord>> | null>(null)
 
   // Initialize the form with default values
   const form = useForm<z.infer<typeof employeeFormSchema>>({
@@ -180,13 +396,13 @@ export function EmployeeForm({
       title: initialValues?.title || "",
       firstName: initialValues?.firstName || "",
       lastName: initialValues?.lastName || "",
-      currentCompanyDesignationId: initialValues?.currentCompanyDesignationId || "",
-      currentCompanyDepartmentId: initialValues?.currentCompanyDepartmentId || "",
-      currentCompanyJoiningDate: initialValues?.currentCompanyJoiningDate
-        ? new Date(initialValues.currentCompanyJoiningDate)
-        : new Date(),
+      currentClientDesignationId: initialValues?.currentClientDesignationId || "",
+      currentClientDepartmentId: initialValues?.currentClientDepartmentId || "",
+      currentClientJoiningDate: initialValues?.currentClientJoiningDate
+        ? new Date(initialValues.currentClientJoiningDate)
+        : undefined,
       mobileNumber: initialValues?.mobileNumber || "",
-      currentCompanyId: initialValues?.currentCompanyId || "",
+      currentClientId: initialValues?.currentClientId || "",
       recruitedBy: initialValues?.recruitedBy || "",
       gender: initialValues?.gender || "",
       status: initialValues?.status || "ACTIVE",
@@ -194,10 +410,10 @@ export function EmployeeForm({
       motherName: initialValues?.motherName || "",
       husbandName: initialValues?.husbandName || "",
       category: initialValues?.category || "",
-      dateOfBirth: initialValues?.dateOfBirth ? new Date(initialValues.dateOfBirth) : new Date(),
+      dateOfBirth: initialValues?.dateOfBirth ? new Date(initialValues.dateOfBirth) : undefined,
       employeeOnboardingDate: initialValues?.employeeOnboardingDate
         ? new Date(initialValues.employeeOnboardingDate)
-        : new Date(),
+        : undefined,
       highestEducationQualification: initialValues?.highestEducationQualification || "",
       bloodGroup: initialValues?.bloodGroup || "",
       permanentAddress: initialValues?.permanentAddress || "",
@@ -205,7 +421,7 @@ export function EmployeeForm({
       city: initialValues?.city || "",
       district: initialValues?.district || "",
       state: initialValues?.state || "",
-      pincode: initialValues?.pincode || 0,
+      pincode: initialValues?.pincode ? String(initialValues.pincode) : "",
       referenceName: initialValues?.referenceName || "",
       referenceAddress: initialValues?.referenceAddress || "",
       referenceNumber: initialValues?.referenceNumber || "",
@@ -218,15 +434,15 @@ export function EmployeeForm({
       policeVerificationNumber: initialValues?.policeVerificationNumber || "",
       policeVerificationDate: initialValues?.policeVerificationDate
         ? new Date(initialValues.policeVerificationDate)
-        : new Date(),
+        : undefined,
       trainingCertificateNumber: initialValues?.trainingCertificateNumber || "",
       trainingCertificateDate: initialValues?.trainingCertificateDate
         ? new Date(initialValues.trainingCertificateDate)
-        : new Date(),
+        : undefined,
       medicalCertificateNumber: initialValues?.medicalCertificateNumber || "",
       medicalCertificateDate: initialValues?.medicalCertificateDate
         ? new Date(initialValues.medicalCertificateDate)
-        : new Date(),
+        : undefined,
       photo: initialValues?.photo || null,
       aadhaar: initialValues?.aadhaar || null,
       panCard: initialValues?.panCard || null,
@@ -244,6 +460,113 @@ export function EmployeeForm({
       esicEnabled: initialValues?.esicEnabled ?? false,
     },
   })
+
+  const gatherSectionValues = (sectionId: SectionId) => {
+    const values: Partial<EmployeeFormValues> = {}
+    SECTION_FIELD_MAP[sectionId].forEach((field) => {
+      const value = form.getValues(field)
+      if (value !== undefined) {
+        values[field] = encodeDraftValue(value) as any
+      }
+    })
+    return values
+  }
+
+  const saveSectionDraft = async (sectionId: SectionId) => {
+    if (!enableDrafts) return
+
+    const sectionValues = gatherSectionValues(sectionId)
+    setSectionSaveStatus((prev) => ({ ...prev, [sectionId]: "saving" }))
+
+    try {
+      const currentStore = readDraftStore(draftStorageKey)
+      const updatedStore = { ...currentStore }
+
+      updatedStore[sectionId] = {
+        values: sectionValues,
+        updatedAt: Date.now(),
+      }
+
+      writeDraftStore(draftStorageKey, updatedStore)
+
+      setSectionSaveStatus((prev) => ({ ...prev, [sectionId]: "saved" }))
+      setSectionLastSaved((prev) => ({
+        ...prev,
+        [sectionId]: updatedStore[sectionId]?.updatedAt ?? prev[sectionId],
+      }))
+    } catch (error) {
+      console.error("Unable to save employee draft:", error)
+      setSectionSaveStatus((prev) => ({ ...prev, [sectionId]: "error" }))
+    }
+  }
+
+  const scheduleAutosave = (sectionId: SectionId, immediate = false) => {
+    if (!enableDrafts) return
+    const delay = immediate ? 0 : 1200
+    const currentTimer = autosaveTimersRef.current[sectionId]
+    if (currentTimer) {
+      clearTimeout(currentTimer)
+    }
+    autosaveTimersRef.current[sectionId] = setTimeout(() => {
+      saveSectionDraft(sectionId)
+      delete autosaveTimersRef.current[sectionId]
+    }, delay)
+  }
+
+  const getSectionStatusMessage = (sectionId: SectionId) => {
+    if (!enableDrafts) {
+      return "Draft saving disabled"
+    }
+
+    const status = sectionSaveStatus[sectionId]
+    if (status === "saving") {
+      return "Saving draft..."
+    }
+
+    if (status === "error") {
+      return "Draft save failed"
+    }
+
+    const lastSaved = sectionLastSaved[sectionId]
+    if (lastSaved) {
+      return `Saved ${formatDistanceToNow(new Date(lastSaved), { addSuffix: true })}`
+    }
+
+    return "Not saved yet"
+  }
+
+  const renderSectionHeaderActions = (sectionId: SectionId) => {
+    const statusText = getSectionStatusMessage(sectionId)
+    if (!enableDrafts) {
+      return <span className="text-xs text-muted-foreground">{statusText}</span>
+    }
+
+    const isSaving = sectionSaveStatus[sectionId] === "saving"
+
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col items-end text-[11px] text-muted-foreground">
+          <span>{statusText}</span>
+          {sectionId === "documents" && (
+            <span className="text-[10px] text-muted-foreground/80">
+              File uploads must be reattached after saving
+            </span>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isSaving}
+          onClick={() => saveSectionDraft(sectionId)}
+          className="flex items-center gap-1"
+        >
+          <Save className="h-4 w-4" />
+          Save Section
+        </Button>
+      </div>
+    )
+  }
 
   // State for active rate loading
   const [loadingActiveRate, setLoadingActiveRate] = useState(false)
@@ -303,55 +626,6 @@ export function EmployeeForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [salaryCategory, salarySubCategory, employeeOnboardingDate])
 
-  // Load saved form data on component mount
-  useEffect(() => {
-    const savedFormData = localStorage.getItem(FORM_STORAGE_KEY)
-    if (savedFormData) {
-      try {
-        const parsedData = JSON.parse(savedFormData)
-        // Convert string dates back to Date objects
-        const formDataWithDates = {
-          ...parsedData,
-          dateOfBirth: parsedData.dateOfBirth ? new Date(parsedData.dateOfBirth) : new Date(),
-          employeeOnboardingDate: parsedData.employeeOnboardingDate ? new Date(parsedData.employeeOnboardingDate) : new Date(),
-          policeVerificationDate: parsedData.policeVerificationDate ? new Date(parsedData.policeVerificationDate) : new Date(),
-          trainingCertificateDate: parsedData.trainingCertificateDate ? new Date(parsedData.trainingCertificateDate) : new Date(),
-          medicalCertificateDate: parsedData.medicalCertificateDate ? new Date(parsedData.medicalCertificateDate) : new Date(),
-          currentCompanyJoiningDate: parsedData.currentCompanyJoiningDate ? new Date(parsedData.currentCompanyJoiningDate) : new Date(),
-        }
-        form.reset(formDataWithDates)
-        setGender(formDataWithDates.gender)
-        setSameAsPermanent(formDataWithDates.presentAddress === formDataWithDates.permanentAddress)
-        
-        toast({
-          title: "Form Data Restored",
-          description: "Your previous form data has been restored.",
-        })
-      } catch (error) {
-        console.error("Error restoring form data:", error)
-        localStorage.removeItem(FORM_STORAGE_KEY)
-      }
-    }
-  }, [])
-
-  // Save form data as user types
-  useEffect(() => {
-    const subscription = form.watch((value) => {
-      // Don't save file inputs
-      const formDataToSave = {
-        ...value,
-        photo: null,
-        aadhaar: null,
-        panCard: null,
-        bankPassbook: null,
-        markSheet: null,
-        otherDocument: null,
-      }
-      localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formDataToSave))
-    })
-    return () => subscription.unsubscribe()
-  }, [form])
-
   useEffect(() => {
     const subscription = form.watch(() => {
       onChange?.()
@@ -359,37 +633,80 @@ export function EmployeeForm({
     return () => subscription.unsubscribe()
   }, [form, onChange])
 
+  useEffect(() => {
+    if (!enableDrafts) return
+    const storedDraft = readDraftStore(draftStorageKey)
+    if (!Object.keys(storedDraft).length) return
+    setPendingDraft(storedDraft)
+  }, [draftStorageKey, enableDrafts])
+
+  const applyDraft = () => {
+    if (!pendingDraft) return
+
+    skipAutosaveRef.current = true
+    const mergedValues = mergeDraftValues(pendingDraft)
+    form.reset({
+      ...form.getValues(),
+      ...mergedValues,
+    } as any)
+
+    const statusUpdates: Record<SectionId, SectionSaveStatus> = {} as Record<SectionId, SectionSaveStatus>
+    const lastSavedUpdates: Record<SectionId, number | null> = {} as Record<SectionId, number | null>
+    Object.entries(pendingDraft).forEach(([sectionId, record]) => {
+      statusUpdates[sectionId as SectionId] = "saved"
+      lastSavedUpdates[sectionId as SectionId] = record?.updatedAt ?? null
+    })
+    setSectionSaveStatus((prev) => ({ ...prev, ...statusUpdates }))
+    setSectionLastSaved((prev) => ({ ...prev, ...lastSavedUpdates }))
+    setPendingDraft(null)
+
+    setTimeout(() => {
+      skipAutosaveRef.current = false
+    }, 0)
+  }
+
+  const discardDraft = () => {
+    clearEmployeeFormDraft(draftStorageKey)
+    setPendingDraft(null)
+  }
+
+  const latestDraftTimestamp = pendingDraft
+    ? Math.max(...Object.values(pendingDraft).map((record) => record?.updatedAt ?? 0))
+    : 0
+
+  useEffect(() => {
+    if (!enableDrafts) return
+    const subscription = form.watch((_, meta) => {
+      if (skipAutosaveRef.current) return
+      if (!meta?.name) return
+      const sectionId = FIELD_TO_SECTION_MAP[meta.name]
+      if (!sectionId) return
+      scheduleAutosave(sectionId)
+    })
+    return () => subscription.unsubscribe()
+  }, [enableDrafts, form])
+
+  useEffect(() => {
+    return () => {
+      Object.values(autosaveTimersRef.current).forEach((timer) => clearTimeout(timer))
+    }
+  }, [])
+
   // Validate all steps and identify which steps have errors
   const validateAllSteps = () => {
     const errors = form.formState.errors
     const errorSteps = new Set<number>()
-    
-    // Define which fields belong to which step
-    const stepFields: Record<number, (keyof z.infer<typeof employeeFormSchema>)[]> = {
-      0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'], // Basic Information
-      1: ['salaryCategory', 'salarySubCategory', 'salaryPerDay', 'monthlySalary', 'pfEnabled', 'esicEnabled'], // Salary Configuration
-      2: [], // Employment (optional)
-      3: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'], // Bank Details
-      4: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'], // Additional Details
-      5: ['referenceName', 'referenceAddress', 'referenceNumber'], // Reference
-      6: [], // Documents (optional)
-    }
-    
-    // Check each step for errors
-    Object.keys(stepFields).forEach((stepIndex) => {
-      const stepNum = parseInt(stepIndex)
-      const fields = stepFields[stepNum]
-      
-      // Skip optional steps (employment, documents)
-      if (stepNum === 2 || stepNum === 6) return
-      
-      const hasError = fields.some((field) => errors[field])
+
+    steps.forEach((step, index) => {
+      if (step.optional) return
+      const hasError = step.fields.some((field) => errors[field])
       if (hasError) {
-        errorSteps.add(stepNum)
+        errorSteps.add(index)
       }
     })
-    
+
     setStepsWithErrors(errorSteps)
+    setCompletedSteps((prev) => new Set([...prev].filter((i) => !errorSteps.has(i))))
     return errorSteps.size === 0
   }
 
@@ -397,36 +714,26 @@ export function EmployeeForm({
   const scrollToFirstError = () => {
     const errors = form.formState.errors
     const fieldNames = Object.keys(errors) as (keyof typeof errors)[]
-    
+
     if (fieldNames.length > 0) {
       const firstErrorField = fieldNames[0]
-      
-      // Find which step contains this field
-      const stepFields: Record<number, string[]> = {
-        0: ['title', 'firstName', 'lastName', 'gender', 'dateOfBirth', 'mobileNumber', 'fatherName', 'motherName', 'category', 'bloodGroup', 'highestEducationQualification', 'permanentAddress', 'presentAddress', 'city', 'district', 'state', 'pincode', 'recruitedBy', 'employeeOnboardingDate', 'aadhaarNumber'],
-        1: ['salaryCategory', 'salarySubCategory', 'salaryPerDay', 'monthlySalary', 'pfEnabled', 'esicEnabled'],
-        3: ['bankAccountNumber', 'ifscCode', 'bankName', 'bankCity'],
-        4: ['pfUanNumber', 'esicNumber', 'policeVerificationNumber', 'policeVerificationDate', 'trainingCertificateNumber', 'trainingCertificateDate', 'medicalCertificateNumber', 'medicalCertificateDate'],
-        5: ['referenceName', 'referenceAddress', 'referenceNumber'],
-      }
-      
-      let targetStep = 0
-      for (const [stepIndex, fields] of Object.entries(stepFields)) {
-        if (fields.includes(firstErrorField)) {
-          targetStep = parseInt(stepIndex)
-          break
-        }
-      }
-      
-      // Navigate to step with error
+
+      const fieldToStepIndex: Record<string, number> = {}
+      steps.forEach((step, index) => {
+        step.fields.forEach((field) => {
+          fieldToStepIndex[field] = index
+        })
+      })
+
+      const targetStep = fieldToStepIndex[firstErrorField as string] ?? 0
+
       setCurrentStep(targetStep)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      
-      // Try to scroll to the actual field
+      window.scrollTo({ top: 0, behavior: "smooth" })
+
       setTimeout(() => {
         const errorElement = document.querySelector(`[name="${firstErrorField}"]`)
         if (errorElement) {
-          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          errorElement.scrollIntoView({ behavior: "smooth", block: "center" })
           ;(errorElement as HTMLElement).focus()
         }
       }, 300)
@@ -443,12 +750,8 @@ export function EmployeeForm({
       validateAllSteps()
       
       // Show error toast
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description: "Please fill in all required fields. Check the highlighted steps for errors.",
-      })
-      
+      sonnerToast.error("Please fill in all required fields. Check the highlighted steps for errors.")
+
       // Scroll to first error
       scrollToFirstError()
       
@@ -465,21 +768,24 @@ export function EmployeeForm({
         ...restValues,
         dateOfBirth: formatDateToDDMMYYYY(values.dateOfBirth),
         employeeOnboardingDate: formatDateToDDMMYYYY(values.employeeOnboardingDate),
-        policeVerificationDate: formatDateToDDMMYYYY(values.policeVerificationDate),
-        trainingCertificateDate: formatDateToDDMMYYYY(values.trainingCertificateDate),
-        medicalCertificateDate: formatDateToDDMMYYYY(values.medicalCertificateDate),
-        currentCompanyJoiningDate: values.currentCompanyJoiningDate 
-          ? formatDateToDDMMYYYY(values.currentCompanyJoiningDate)
+        policeVerificationDate: values.policeVerificationDate
+          ? formatDateToDDMMYYYY(values.policeVerificationDate)
+          : undefined,
+        trainingCertificateDate: values.trainingCertificateDate
+          ? formatDateToDDMMYYYY(values.trainingCertificateDate)
+          : undefined,
+        medicalCertificateDate: values.medicalCertificateDate
+          ? formatDateToDDMMYYYY(values.medicalCertificateDate)
+          : undefined,
+        currentClientJoiningDate: values.currentClientJoiningDate
+          ? formatDateToDDMMYYYY(values.currentClientJoiningDate)
           : undefined,
         // Only include monthlySalary if category is SPECIALIZED
         ...(values.salaryCategory === SalaryCategory.SPECIALIZED && monthlySalary ? { monthlySalary } : {}),
       }
 
       await onSubmit(formattedValues as unknown as EmployeeFormValues)
-      
-      // Clear saved form data on successful submission
-      localStorage.removeItem(FORM_STORAGE_KEY)
-      
+
       // Clear error indicators
       setStepsWithErrors(new Set())
     } catch (error) {
@@ -496,11 +802,7 @@ export function EmployeeForm({
         errorMessage = String(error.message)
       }
 
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: errorMessage,
-      })
+      sonnerToast.error(errorMessage)
     }
   }
   
@@ -540,11 +842,31 @@ export function EmployeeForm({
     form.setValue("gender", value || "")
   }
 
+  // Steps earn their check only when their fields validate on leave
+  const validateStepOnLeave = (stepIndex: number) => {
+    const fields = steps[stepIndex].fields as unknown as Parameters<typeof form.trigger>[0]
+    void form.trigger(fields, { shouldFocus: false }).then((valid) => {
+      setCompletedSteps((prev) => {
+        const next = new Set(prev)
+        if (valid) next.add(stepIndex)
+        else next.delete(stepIndex)
+        return next
+      })
+      setStepsWithErrors((prev) => {
+        const next = new Set(prev)
+        if (valid) next.delete(stepIndex)
+        else next.add(stepIndex)
+        return next
+      })
+    })
+  }
+
   // Navigation handlers
   const handleNext = (e?: React.MouseEvent<HTMLButtonElement>) => {
     e?.preventDefault()
     e?.stopPropagation()
     if (currentStep < steps.length - 1) {
+      validateStepOnLeave(currentStep)
       setCurrentStep(currentStep + 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
@@ -554,12 +876,16 @@ export function EmployeeForm({
     e?.preventDefault()
     e?.stopPropagation()
     if (currentStep > 0) {
+      validateStepOnLeave(currentStep)
       setCurrentStep(currentStep - 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
     }
   }
 
   const handleStepClick = (stepIndex: number) => {
+    if (stepIndex !== currentStep) {
+      validateStepOnLeave(currentStep)
+    }
     setCurrentStep(stepIndex)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -623,7 +949,7 @@ export function EmployeeForm({
       <FormItem className="flex flex-col">
         <FormLabel>
           {typeof label === 'string' ? label : label}
-          {required && <span className="text-red-500">*</span>}
+          {required && <span className="text-destructive">*</span>}
         </FormLabel>
         <DatePicker 
           key={`date-${dateValue ? dateValue.getTime() : 'null'}`}
@@ -636,35 +962,37 @@ export function EmployeeForm({
   }
 
   const titleOptions = [
-    { value: "MR", label: "MR" },
-    { value: "MS", label: "MS" },
+    { value: "MR", label: label.title("MR") },
+    { value: "MS", label: label.title("MS") },
   ]
 
   const statusOptions = [
-    { value: "ACTIVE", label: "ACTIVE" },
-    { value: "INACTIVE", label: "INACTIVE" },
+    { value: "ACTIVE", label: label.status("ACTIVE") },
+    { value: "INACTIVE", label: label.status("INACTIVE") },
   ]
 
   const genderOptions = [
-    { value: "MALE", label: "MALE" },
-    { value: "FEMALE", label: "FEMALE" },
+    { value: "MALE", label: label.gender("MALE") },
+    { value: "FEMALE", label: label.gender("FEMALE") },
   ]
 
   const categoryOptions = [
-    { value: "SC", label: "SC" },
-    { value: "ST", label: "ST" },
-    { value: "OBC", label: "OBC" },
-    { value: "GENERAL", label: "GENERAL" },
+    { value: "SC", label: label.category("SC") },
+    { value: "ST", label: label.category("ST") },
+    { value: "OBC", label: label.category("OBC") },
+    { value: "GENERAL", label: label.category("GENERAL") },
   ]
 
   const educationQualificationOptions = [
-    { value: "UNDER_8", label: "UNDER 8" },
-    { value: "EIGHT", label: "8TH" },
-    { value: "TEN", label: "10TH" },
-    { value: "TWELVE", label: "12TH" },
-    { value: "GRADUATE", label: "GRADUATE" },
-    { value: "POST_GRADUATE", label: "POST GRADUATE" },
+    { value: "UNDER_8", label: label.education("UNDER_8") },
+    { value: "EIGHT", label: label.education("EIGHT") },
+    { value: "TEN", label: label.education("TEN") },
+    { value: "TWELVE", label: label.education("TWELVE") },
+    { value: "GRADUATE", label: label.education("GRADUATE") },
+    { value: "POST_GRADUATE", label: label.education("POST_GRADUATE") },
   ]
+
+  const bloodGroupOptions = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
   // Calculate form completion progress
   const [progress, setProgress] = useState(0)
@@ -672,54 +1000,33 @@ export function EmployeeForm({
   useEffect(() => {
     const calculateProgress = () => {
       const formValues = form.getValues()
-      const totalFields = 40 // Approximate total required fields
-      let completedFields = 0
 
-      // Basic Details
-      if (formValues.firstName && formValues.lastName && formValues.title) completedFields += 3
-      if (formValues.dateOfBirth) completedFields++
-      if (formValues.gender) completedFields++
-      if (formValues.fatherName) completedFields++
-      if (formValues.motherName) completedFields++
-      if (formValues.bloodGroup) completedFields++
-      if (formValues.employeeOnboardingDate) completedFields++
-      if (formValues.status) completedFields++
-      if (formValues.recruitedBy) completedFields++
-      if (formValues.highestEducationQualification) completedFields++
-      if (formValues.category) completedFields++
+      const checks = [
+        Boolean(formValues.title),
+        Boolean(formValues.firstName),
+        Boolean(formValues.lastName),
+        Boolean(formValues.dateOfBirth),
+        Boolean(formValues.gender),
+        Boolean(formValues.fatherName),
+        Boolean(formValues.motherName),
+        Boolean(formValues.bloodGroup),
+        Boolean(formValues.employeeOnboardingDate),
+        Boolean(formValues.status),
+        Boolean(formValues.recruitedBy),
+        Boolean(formValues.highestEducationQualification),
+        Boolean(formValues.category),
+        Boolean(formValues.mobileNumber && formValues.mobileNumber.length === 10),
+        Boolean(formValues.aadhaarNumber && formValues.aadhaarNumber.length === 12),
+        Boolean(formValues.permanentAddress),
+        Boolean(formValues.presentAddress),
+        Boolean(formValues.city),
+        Boolean(formValues.district),
+        Boolean(formValues.state),
+        Boolean(formValues.pincode && /^\d{6}$/.test(String(formValues.pincode))),
+      ]
 
-      // Contact Details
-      if (formValues.mobileNumber && formValues.mobileNumber.length === 10) completedFields++
-      if (formValues.aadhaarNumber && formValues.aadhaarNumber.length === 12) completedFields++
-      if (formValues.permanentAddress) completedFields++
-      if (formValues.presentAddress) completedFields++
-      if (formValues.city) completedFields++
-      if (formValues.district) completedFields++
-      if (formValues.state) completedFields++
-      if (formValues.pincode) completedFields++
-
-      // Bank Details
-      if (formValues.bankAccountNumber) completedFields++
-      if (formValues.ifscCode) completedFields++
-      if (formValues.bankName) completedFields++
-      if (formValues.bankCity) completedFields++
-
-      // Additional Details
-      if (formValues.pfUanNumber) completedFields++
-      if (formValues.esicNumber) completedFields++
-      if (formValues.policeVerificationNumber) completedFields++
-      if (formValues.policeVerificationDate) completedFields++
-      if (formValues.trainingCertificateNumber) completedFields++
-      if (formValues.trainingCertificateDate) completedFields++
-      if (formValues.medicalCertificateNumber) completedFields++
-      if (formValues.medicalCertificateDate) completedFields++
-
-      // Reference Details
-      if (formValues.referenceName) completedFields++
-      if (formValues.referenceAddress) completedFields++
-      if (formValues.referenceNumber) completedFields++
-
-      return Math.round((completedFields / totalFields) * 100)
+      const completedFields = checks.filter(Boolean).length
+      return Math.round((completedFields / checks.length) * 100)
     }
 
     const subscription = form.watch(() => {
@@ -737,7 +1044,7 @@ export function EmployeeForm({
 
   return (
     <Form {...form}>
-      <form 
+      <form noValidate 
         id="employee-form" 
         ref={formRef} 
         onSubmit={(e) => {
@@ -775,9 +1082,38 @@ export function EmployeeForm({
         }}
         className="space-y-6"
       >
+        {/* Saved Draft Banner */}
+        {pendingDraft && (
+          <Alert variant="info">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Unsaved draft found</AlertTitle>
+            <AlertDescription>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  A saved draft from{" "}
+                  {latestDraftTimestamp
+                    ? formatDistanceToNow(new Date(latestDraftTimestamp), { addSuffix: true })
+                    : "earlier"}{" "}
+                  is available. Restore it or start a new employee.
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={applyDraft} className="flex items-center gap-1">
+                    <RotateCcw className="h-4 w-4" />
+                    Restore draft
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={discardDraft} className="flex items-center gap-1">
+                    <Trash2 className="h-4 w-4" />
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Validation Error Alert */}
         {totalErrors > 0 && (
-          <Alert variant="destructive" className="border-destructive">
+          <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Validation Errors</AlertTitle>
             <AlertDescription>
@@ -790,19 +1126,19 @@ export function EmployeeForm({
         )}
 
         {/* Progress Indicator */}
-        <Card className="border-primary/20">
+        <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Form Completion</span>
-                <span className="text-muted-foreground">{progress}%</span>
+                <span className="registry-eyebrow">Form completion</span>
+                <span className="font-mono text-[13px] text-muted-foreground">{progress}%</span>
               </div>
               <Progress value={progress} className="h-2" />
-              
+
               {/* Step Indicator */}
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
-                  <CurrentStepIcon className="h-4 w-4 text-primary" />
+                  <CurrentStepIcon className="h-4 w-4 text-brand" />
                   <span className="text-sm font-medium">
                     Step {currentStep + 1} of {steps.length}: {steps[currentStep]?.title}
                   </span>
@@ -815,12 +1151,11 @@ export function EmployeeForm({
               {/* Visual Stepper */}
               <div className="flex items-center justify-between pt-2">
                 {steps.map((step, index) => {
-                  const StepIcon = step.icon
                   const isActive = index === currentStep
-                  const isCompleted = index < currentStep
+                  const isCompleted = completedSteps.has(index) && !isActive
                   // All steps are always clickable to allow free navigation
                   const isClickable = true
-                  
+
                   return (
                     <div key={step.id} className="flex items-center flex-1">
                       <div
@@ -830,29 +1165,31 @@ export function EmployeeForm({
                           "hover:opacity-80"
                         )}
                       >
-                        {/* Icon Container with Optional Badge Overlay */}
+                        {/* Ordinal Container with Optional Badge Overlay */}
                         <div className="relative mb-2">
                           <div
                             className={cn(
-                              "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all relative",
-                              isActive && "border-primary bg-primary text-primary-foreground",
-                              isCompleted && !stepsWithErrors.has(index) && "border-green-500 bg-green-500 text-white",
-                              stepsWithErrors.has(index) && "border-destructive bg-destructive/10 text-destructive border-2",
-                              !isActive && !isCompleted && !stepsWithErrors.has(index) && "border-muted bg-background"
+                              "flex items-center justify-center w-10 h-10 rounded-sm border font-mono text-[13px] transition-all relative",
+                              isActive && "border-brand bg-brand/10 text-brand font-semibold",
+                              isCompleted && !stepsWithErrors.has(index) && "border-success/40 bg-success/10 text-success",
+                              stepsWithErrors.has(index) && "border-destructive bg-destructive/10 text-destructive",
+                              !isActive && !isCompleted && !stepsWithErrors.has(index) && "border-border bg-background text-muted-foreground"
                             )}
                           >
                             {stepsWithErrors.has(index) ? (
                               <AlertCircle className="h-5 w-5" />
+                            ) : isCompleted ? (
+                              <CheckCircle2 className="h-5 w-5" />
                             ) : (
-                              <StepIcon className="h-5 w-5" />
+                              String(index + 1).padStart(2, "0")
                             )}
                           </div>
-                          {/* Optional Badge as Overlay on Icon */}
+                          {/* Optional Badge as Overlay on Ordinal */}
                           {step.optional && (
                             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2">
-                              <Badge 
-                                variant="outline" 
-                                className="text-[10px] px-1.5 py-0 h-4 bg-background/95 backdrop-blur-sm border-primary/30"
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 h-4 bg-background"
                               >
                                 Opt
                               </Badge>
@@ -869,8 +1206,8 @@ export function EmployeeForm({
                         <div className="text-center min-h-[2.5rem] flex flex-col items-center justify-start">
                           <div className={cn(
                             "text-xs font-medium leading-tight",
-                            isActive && "text-primary",
-                            isCompleted && !stepsWithErrors.has(index) && "text-green-600",
+                            isActive && "text-brand",
+                            isCompleted && !stepsWithErrors.has(index) && "text-success",
                             stepsWithErrors.has(index) && "text-destructive font-semibold",
                             !isActive && !isCompleted && !stepsWithErrors.has(index) && "text-muted-foreground"
                           )}>
@@ -884,8 +1221,8 @@ export function EmployeeForm({
                       {index < steps.length - 1 && (
                         <div
                           className={cn(
-                            "h-0.5 mx-2 flex-1 transition-all",
-                            isCompleted ? "bg-green-500" : "bg-muted"
+                            "h-px mx-2 flex-1 transition-all",
+                            isCompleted ? "bg-success" : "bg-border"
                           )}
                         />
                       )}
@@ -901,24 +1238,33 @@ export function EmployeeForm({
         {currentStep === 0 && (
           /* Step 1: Basic Information (merged Basic + Contact) */
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+                <User className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Basic Information</CardTitle>
               </div>
-              <CardDescription>Enter personal details and contact information</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <CardDescription className="text-sm text-muted-foreground flex-1">
+                  Enter personal details and contact information
+                </CardDescription>
+                <div className="flex-shrink-0">
+                  {renderSectionHeaderActions("basic")}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Personal Details Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Personal Details</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Personal details</h3>
+                </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Title <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select title">
                       {titleOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -935,7 +1281,7 @@ export function EmployeeForm({
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>First Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter first name" {...field} />
                     </FormControl>
@@ -948,7 +1294,7 @@ export function EmployeeForm({
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Last Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter last name" {...field} />
                     </FormControl>
@@ -968,7 +1314,7 @@ export function EmployeeForm({
                 name="gender"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Gender <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Gender <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Select
                         value={field.value && field.value !== "" ? field.value : undefined}
@@ -1022,7 +1368,7 @@ export function EmployeeForm({
                 name="fatherName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Father's Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Father's Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter father's name" {...field} />
                     </FormControl>
@@ -1035,7 +1381,7 @@ export function EmployeeForm({
                 name="motherName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mother's Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Mother's Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter mother's name" {...field} />
                     </FormControl>
@@ -1063,10 +1409,14 @@ export function EmployeeForm({
                 name="bloodGroup"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Blood Group <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter blood group" {...field} />
-                    </FormControl>
+                    <FormLabel>Blood Group <span className="text-destructive">*</span></FormLabel>
+                    <ClearableSelect field={field} placeholder="Select blood group">
+                      {bloodGroupOptions.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </ClearableSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1083,7 +1433,7 @@ export function EmployeeForm({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Status <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select status">
                       {statusOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -1100,7 +1450,7 @@ export function EmployeeForm({
                 name="recruitedBy"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Recruited By <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Recruited By <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter recruiter name" {...field} />
                     </FormControl>
@@ -1113,7 +1463,7 @@ export function EmployeeForm({
                 name="highestEducationQualification"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Highest Education Qualification <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Highest Education Qualification <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select qualification">
                       {educationQualificationOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -1130,7 +1480,7 @@ export function EmployeeForm({
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Category <span className="text-destructive">*</span></FormLabel>
                     <ClearableSelect field={field} placeholder="Select category">
                       {categoryOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -1147,14 +1497,16 @@ export function EmployeeForm({
               
               {/* Contact Details Section */}
               <div className="space-y-4 pt-6 border-t">
-                <h3 className="text-lg font-semibold">Contact Details</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Contact details</h3>
+                </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
                 name="mobileNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Mobile Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Mobile Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter mobile number" {...field} />
                     </FormControl>
@@ -1167,7 +1519,7 @@ export function EmployeeForm({
                 name="aadhaarNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Aadhaar Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Aadhaar Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter Aadhaar number" {...field} />
                     </FormControl>
@@ -1181,7 +1533,7 @@ export function EmployeeForm({
               name="permanentAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Permanent Address <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Permanent Address <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter permanent address" {...field} />
                   </FormControl>
@@ -1203,7 +1555,7 @@ export function EmployeeForm({
               name="presentAddress"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Present Address <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Present Address <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter present address" {...field} disabled={sameAsPermanent} />
                   </FormControl>
@@ -1217,7 +1569,7 @@ export function EmployeeForm({
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>City <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter city" {...field} />
                     </FormControl>
@@ -1230,7 +1582,7 @@ export function EmployeeForm({
                 name="district"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>District <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>District <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter district" {...field} />
                     </FormControl>
@@ -1243,7 +1595,7 @@ export function EmployeeForm({
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>State <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>State <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter state" {...field} />
                     </FormControl>
@@ -1256,13 +1608,13 @@ export function EmployeeForm({
                 name="pincode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pincode <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Pincode <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
+                        inputMode="numeric"
+                        maxLength={6}
                         placeholder="Enter pincode"
                         {...field}
-                        onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1278,12 +1630,19 @@ export function EmployeeForm({
         {currentStep === 1 && (
           /* Step 2: Salary Configuration */
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-primary" />
+                <DollarSign className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Salary Configuration</CardTitle>
               </div>
-              <CardDescription>Configure employee salary category and settings</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <CardDescription className="text-sm text-muted-foreground flex-1">
+                  Configure employee salary category and settings
+                </CardDescription>
+                <div className="flex-shrink-0">
+                  {renderSectionHeaderActions("salary")}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -1311,9 +1670,9 @@ export function EmployeeForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={SalaryCategory.CENTRAL}>CENTRAL</SelectItem>
-                        <SelectItem value={SalaryCategory.STATE}>STATE</SelectItem>
-                        <SelectItem value={SalaryCategory.SPECIALIZED}>SPECIALIZED</SelectItem>
+                        <SelectItem value={SalaryCategory.CENTRAL}>{label.salaryCategory(SalaryCategory.CENTRAL)}</SelectItem>
+                        <SelectItem value={SalaryCategory.STATE}>{label.salaryCategory(SalaryCategory.STATE)}</SelectItem>
+                        <SelectItem value={SalaryCategory.SPECIALIZED}>{label.salaryCategory(SalaryCategory.SPECIALIZED)}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -1343,10 +1702,10 @@ export function EmployeeForm({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={SalarySubCategory.SKILLED}>SKILLED</SelectItem>
-                            <SelectItem value={SalarySubCategory.UNSKILLED}>UNSKILLED</SelectItem>
-                            <SelectItem value={SalarySubCategory.HIGHSKILLED}>HIGHSKILLED</SelectItem>
-                            <SelectItem value={SalarySubCategory.SEMISKILLED}>SEMISKILLED</SelectItem>
+                            <SelectItem value={SalarySubCategory.SKILLED}>{label.salarySubCategory(SalarySubCategory.SKILLED)}</SelectItem>
+                            <SelectItem value={SalarySubCategory.UNSKILLED}>{label.salarySubCategory(SalarySubCategory.UNSKILLED)}</SelectItem>
+                            <SelectItem value={SalarySubCategory.HIGHSKILLED}>{label.salarySubCategory(SalarySubCategory.HIGHSKILLED)}</SelectItem>
+                            <SelectItem value={SalarySubCategory.SEMISKILLED}>{label.salarySubCategory(SalarySubCategory.SEMISKILLED)}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1362,10 +1721,10 @@ export function EmployeeForm({
                   )}
 
                   {activeRate && !loadingActiveRate && (
-                    <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                      <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <AlertDescription className="text-blue-800 dark:text-blue-200">
-                        Active rate for {salaryCategory} - {salarySubCategory}: ₹{activeRate.toLocaleString()}/day
+                    <Alert variant="info">
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString()}/day
                         {form.getValues("salaryPerDay") !== activeRate && (
                           <span className="ml-2 text-xs">(You can override this value manually)</span>
                         )}
@@ -1483,26 +1842,33 @@ export function EmployeeForm({
         {currentStep === 2 && (
           /* Step 3: Employment Details - Optional */
           <Card className="border-dashed">
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Briefcase className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Employment Details</CardTitle>
                   <Badge variant="outline" className="ml-2">Optional</Badge>
                 </div>
-                <CardDescription>Employment information can be added later if not available now</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Employment information can be added later if not available now
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("employment")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
-                name="currentCompanyJoiningDate"
+                name="currentClientJoiningDate"
                 render={({ field }) => (
-                  <ClearableDatePicker field={field} label="Company Date of Joining" />
+                  <ClearableDatePicker field={field} label="Client Date of Joining" />
                 )}
               />
               <FormField
                 control={form.control}
-                name="currentCompanyDesignationId"
+                name="currentClientDesignationId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Designation</FormLabel>
@@ -1519,7 +1885,7 @@ export function EmployeeForm({
               />
               <FormField
                 control={form.control}
-                name="currentCompanyDepartmentId"
+                name="currentClientDepartmentId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employee Department</FormLabel>
@@ -1536,12 +1902,12 @@ export function EmployeeForm({
               />
               <FormField
                 control={form.control}
-                name="currentCompanyId"
+                name="currentClientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company</FormLabel>
-                    <ClearableSelect field={field} placeholder="Select company">
-                      {companies.map((option) => (
+                    <FormLabel>Client</FormLabel>
+                    <ClearableSelect field={field} placeholder="Select client">
+                      {clients.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -1559,12 +1925,19 @@ export function EmployeeForm({
         {currentStep === 3 && (
           /* Step 4: Bank Details */
           <Card>
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-primary" />
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Bank Details</CardTitle>
                 </div>
-                <CardDescription>Enter banking information for salary processing</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Enter banking information for salary processing
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("bank")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1573,7 +1946,7 @@ export function EmployeeForm({
                 name="bankAccountNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank Account Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Bank Account Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank account number" {...field} />
                     </FormControl>
@@ -1586,7 +1959,7 @@ export function EmployeeForm({
                 name="ifscCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>IFSC Code <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>IFSC Code <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter IFSC code" {...field} />
                     </FormControl>
@@ -1599,7 +1972,7 @@ export function EmployeeForm({
                 name="bankName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Bank Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank name" {...field} />
                     </FormControl>
@@ -1612,7 +1985,7 @@ export function EmployeeForm({
                 name="bankCity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Bank City <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Bank City <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter bank city" {...field} />
                     </FormControl>
@@ -1628,12 +2001,19 @@ export function EmployeeForm({
         {currentStep === 4 && (
           /* Step 5: Additional Details */
           <Card>
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
+                  <FileText className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Additional Details</CardTitle>
                 </div>
-                <CardDescription>Provide PF, ESIC, and certificate information</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Provide PF, ESIC, and certificate information
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("additional")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1642,7 +2022,7 @@ export function EmployeeForm({
                 name="pfUanNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>PF UAN Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>PF UAN Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter PF UAN number" {...field} />
                     </FormControl>
@@ -1655,7 +2035,7 @@ export function EmployeeForm({
                 name="esicNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ESIC Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>ESIC Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter ESIC number" {...field} />
                     </FormControl>
@@ -1668,7 +2048,7 @@ export function EmployeeForm({
                 name="policeVerificationNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Police Verification Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Police Verification Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter police verification number" {...field} />
                     </FormControl>
@@ -1688,7 +2068,7 @@ export function EmployeeForm({
                 name="trainingCertificateNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Training Certificate Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Training Certificate Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter training certificate number" {...field} />
                     </FormControl>
@@ -1708,7 +2088,7 @@ export function EmployeeForm({
                 name="medicalCertificateNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Medical Certificate Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Medical Certificate Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter medical certificate number" {...field} />
                     </FormControl>
@@ -1731,12 +2111,19 @@ export function EmployeeForm({
         {currentStep === 5 && (
           /* Step 5: Reference Details */
           <Card>
-              <CardHeader>
+              <CardHeader className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" />
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
                   <CardTitle>Reference Details</CardTitle>
                 </div>
-                <CardDescription>Provide reference person information</CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <CardDescription className="text-sm text-muted-foreground flex-1">
+                    Provide reference person information
+                  </CardDescription>
+                  <div className="flex-shrink-0">
+                    {renderSectionHeaderActions("reference")}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1745,7 +2132,7 @@ export function EmployeeForm({
                 name="referenceName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Name <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Reference Name <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference name" {...field} />
                     </FormControl>
@@ -1758,7 +2145,7 @@ export function EmployeeForm({
                 name="referenceAddress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Address <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Reference Address <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference address" {...field} />
                     </FormControl>
@@ -1771,7 +2158,7 @@ export function EmployeeForm({
                 name="referenceNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Number <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Reference Number <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Enter reference number" {...field} />
                     </FormControl>
@@ -1787,12 +2174,20 @@ export function EmployeeForm({
         {currentStep === 6 && (
           /* Step 7: Documents */
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-2">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
+                <FileText className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>Document Uploads</CardTitle>
+                <Badge variant="outline" className="ml-2">Optional</Badge>
               </div>
-              <CardDescription>Upload required documents and certificates</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <CardDescription className="text-sm text-muted-foreground flex-1">
+                  Upload required documents and certificates
+                </CardDescription>
+                <div className="flex-shrink-0">
+                  {renderSectionHeaderActions("documents")}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1961,7 +2356,7 @@ export function EmployeeForm({
         )}
 
         {/* Navigation Buttons */}
-        <Card className="border-primary/20">
+        <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <Button
@@ -1981,12 +2376,12 @@ export function EmployeeForm({
               
               <div className="text-sm text-muted-foreground text-center">
                 {progress === 100 && currentStep === steps.length - 1 ? (
-                  <div className="flex items-center gap-2 text-green-600">
+                  <div className="flex items-center gap-2 text-success">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Ready to submit!</span>
                   </div>
                 ) : (
-                  <span>Step {currentStep + 1} of {steps.length}</span>
+                  <span className="font-mono text-xs">Step {currentStep + 1} of {steps.length}</span>
                 )}
               </div>
               
@@ -2005,10 +2400,11 @@ export function EmployeeForm({
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button 
-                  type="submit" 
-                  disabled={isLoading} 
-                  size="lg" 
+                <Button
+                  type="submit"
+                  variant="brand"
+                  disabled={isLoading}
+                  size="lg"
                   className="min-w-[120px]"
                   onClick={(e) => {
                     // Mark as explicit submit when button is clicked

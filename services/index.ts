@@ -1,7 +1,7 @@
 import api from "./api"
-import { authService } from "./auth"
+import authService from "./auth"
 import { employeeService } from "./employeeService"
-import { companyService } from "./companyService"
+import { clientService } from "./clientService"
 import { attendanceService } from "./attendanceService"
 import { payrollService } from "./payrollService"
 import { dashboardService } from "./dashboardService"
@@ -12,7 +12,7 @@ export const services = {
   api,
   auth: authService,
   employees: employeeService,
-  companies: companyService,
+  clients: clientService,
   attendance: attendanceService,
   payroll: payrollService,
   dashboard: dashboardService,

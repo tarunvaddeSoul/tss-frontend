@@ -31,9 +31,11 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-import { useCompany } from "@/hooks/use-company"
+import { PageHeader } from "@/components/layout/page-header"
+import { useClient } from "@/hooks/use-client"
 import { attendanceService } from "@/services/attendanceService"
-import type { Company } from "@/types/company"
+import { getErrorMessage } from "@/services/api"
+import type { Client } from "@/types/client"
 import type { AttendanceReportResponse } from "@/types/attendance"
 import dynamic from "next/dynamic"
 import {
@@ -63,7 +65,7 @@ const DynamicPdfPreviewDialog = dynamic(
 
 // Form validation schema
 const reportsSchema = z.object({
-  companyId: z.string().min(1, "Please select a company"),
+  clientId: z.string().min(1, "Please select a client"),
   month: z.string().min(1, "Please select a month"),
 })
 
@@ -83,37 +85,37 @@ export function AttendanceReportsComponent() {
   const [loadingExcel, setLoadingExcel] = useState(false)
 
   const { toast } = useToast()
-  const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
+  const { data, isLoading: clientsLoading, fetchClients } = useClient()
 
   useEffect(() => {
-    fetchCompanies()
+    fetchClients()
   }, [])
 
   const form = useForm<ReportsFormValues>({
     resolver: zodResolver(reportsSchema),
     defaultValues: {
-      companyId: "",
+      clientId: "",
       month: "",
     },
   })
 
-  const companies: Company[] = data?.companies || []
+  const clients: Client[] = data?.clients || []
 
-  // Fetch available months when company is selected
-  const handleCompanyChange = async (companyId: string) => {
-    form.setValue("companyId", companyId)
+  // Fetch available months when client is selected
+  const handleClientChange = async (clientId: string) => {
+    form.setValue("clientId", clientId)
     form.setValue("month", "") // Reset month selection
     setReportGenerated(false)
     setReportData(null)
 
-    if (!companyId) {
+    if (!clientId) {
       setAvailableMonths([])
       return
     }
 
     try {
       setLoadingMonths(true)
-      const response = await attendanceService.getAttendanceByCompanyId(companyId)
+      const response = await attendanceService.getAttendanceByClientId(clientId)
       // Extract unique months from the response
       const months = response.data?.map((record) => record.month) || []
       const uniqueMonths = [...new Set(months)].sort().reverse() // Sort in descending order (newest first)
@@ -122,7 +124,7 @@ export function AttendanceReportsComponent() {
       console.error("Error fetching available months:", error)
       toast({
         title: "Error",
-        description: "Failed to fetch available months for this company.",
+        description: "Failed to fetch available months for this client.",
         variant: "destructive",
       })
       setAvailableMonths([])
@@ -134,46 +136,50 @@ export function AttendanceReportsComponent() {
   const onSubmit = async (data: ReportsFormValues) => {
     try {
       setLoading(true)
-      const response = await attendanceService.getAttendanceReport(data.companyId, data.month)
-      
-      if (response.statusCode === 200 && response.data) {
-        setReportData(response.data)
-        setReportGenerated(true)
-        
-        // Fetch Excel file for this company and month
-        try {
-          setLoadingExcel(true)
-          const excelResponse = await attendanceService.getAttendanceExcelFiles({
-            companyId: data.companyId,
-            month: data.month,
-          })
-          if (excelResponse.data && typeof excelResponse.data === "object" && "attendanceExcelUrl" in excelResponse.data) {
-            setExcelFile({
-              id: excelResponse.data.id,
-              attendanceExcelUrl: excelResponse.data.attendanceExcelUrl,
-            })
-          } else {
-            setExcelFile(null)
-          }
-        } catch (error) {
-          console.error("Error fetching Excel file:", error)
-          setExcelFile(null)
-        } finally {
-          setLoadingExcel(false)
-        }
-        
-        toast({
-          title: "Report Generated",
-          description: `Found ${response.data.records.length} attendance records for ${response.data.company.name} - ${format(parse(response.data.month, "yyyy-MM", new Date()), "MMMM yyyy")}.`,
-        })
-      } else {
-        throw new Error(response.message || "Failed to generate report")
+      const response = await attendanceService.getAttendanceReport(data.clientId, data.month)
+
+      if (!response.data) {
+        throw new Error("Failed to generate report")
       }
+
+      setReportData(response.data)
+      setReportGenerated(true)
+
+      // Fetch Excel file for this client and month
+      try {
+        setLoadingExcel(true)
+        const excelResponse = await attendanceService.getAttendanceExcelFiles({
+          clientId: data.clientId,
+          month: data.month,
+        })
+        if (
+          excelResponse.data &&
+          !Array.isArray(excelResponse.data) &&
+          "attendanceExcelUrl" in excelResponse.data
+        ) {
+          setExcelFile({
+            id: excelResponse.data.id,
+            attendanceExcelUrl: excelResponse.data.attendanceExcelUrl,
+          })
+        } else {
+          setExcelFile(null)
+        }
+      } catch (error) {
+        console.error("Error fetching Excel file:", error)
+        setExcelFile(null)
+      } finally {
+        setLoadingExcel(false)
+      }
+
+      toast({
+        title: "Report Generated",
+        description: `Found ${response.data.records.length} attendance records for ${response.data.client.name} - ${format(parse(response.data.month, "yyyy-MM", new Date()), "MMMM yyyy")}.`,
+      })
     } catch (error: any) {
       console.error("Error generating report:", error)
       toast({
         title: "Error",
-        description: error.message || "Failed to generate report. Please try again.",
+        description: getErrorMessage(error),
         variant: "destructive",
       })
       setReportData(null)
@@ -188,15 +194,16 @@ export function AttendanceReportsComponent() {
   const generateCSV = () => {
     if (!reportData?.records.length) return ""
 
+    const csvCell = (value: unknown): string => `"${String(value ?? "").replace(/"/g, '""')}"`
     const headers = ["Employee ID", "Employee Name", "Department", "Designation", "Present Days"]
     const csvContent = [
       headers.join(","),
       ...reportData.records.map((record) =>
         [
-          record.employeeID,
-          `"${record.employeeName}"`,
-          `"${record.departmentName}"`,
-          `"${record.designationName}"`,
+          csvCell(record.employeeID),
+          csvCell(record.employeeName),
+          csvCell(record.departmentName),
+          csvCell(record.designationName),
           record.presentCount,
         ].join(","),
       ),
@@ -226,7 +233,7 @@ export function AttendanceReportsComponent() {
       const monthDisplay = reportData?.month
         ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
         : "report"
-      link.setAttribute("download", `attendance-report-${reportData?.company.name || "report"}-${monthDisplay}.csv`)
+      link.setAttribute("download", `attendance-report-${reportData?.client.name || "report"}-${monthDisplay}.csv`)
       link.style.visibility = "hidden"
       document.body.appendChild(link)
       link.click()
@@ -245,8 +252,8 @@ export function AttendanceReportsComponent() {
     setPdfOpen(true)
   }
 
-  const getSelectedCompanyName = () => {
-    return reportData?.company.name || ""
+  const getSelectedClientName = () => {
+    return reportData?.client.name || ""
   }
 
   const getSelectedMonthDisplay = () => {
@@ -347,7 +354,7 @@ export function AttendanceReportsComponent() {
       const monthDisplay = reportData.month
         ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
         : "sheet"
-      const filename = `attendance-sheet-${reportData.company.name}-${monthDisplay}${extension}`
+      const filename = `attendance-sheet-${reportData.client.name}-${monthDisplay}${extension}`
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -383,7 +390,7 @@ export function AttendanceReportsComponent() {
       const monthDisplay = reportData?.month
         ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
         : "excel"
-      const filename = `attendance-excel-${reportData?.company.name || "file"}-${monthDisplay}.xlsx`
+      const filename = `attendance-excel-${reportData?.client.name || "file"}-${monthDisplay}.xlsx`
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -408,13 +415,12 @@ export function AttendanceReportsComponent() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance Reports</h1>
-          <p className="text-muted-foreground">Generate and download comprehensive attendance reports</p>
-        </div>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Attendance Reports"
+        description="Generate and download comprehensive attendance reports."
+      />
 
       {/* Form */}
       <Card>
@@ -423,40 +429,40 @@ export function AttendanceReportsComponent() {
             <BarChart3 className="w-5 h-5" />
             Generate Report
           </CardTitle>
-          <CardDescription>Select a company and month to generate attendance report</CardDescription>
+          <CardDescription>Select a client and month to generate attendance report</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="companyId"
+                  name="clientId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company *</FormLabel>
-                      <Select onValueChange={handleCompanyChange} value={field.value} disabled={companiesLoading}>
+                      <FormLabel>Client *</FormLabel>
+                      <Select onValueChange={handleClientChange} value={field.value} disabled={clientsLoading}>
                         <FormControl>
                           <SelectTrigger className="h-12">
-                            <SelectValue placeholder="Select a company" />
+                            <SelectValue placeholder="Select a client" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {companies.map((company) => (
-                            <SelectItem key={company.id} value={company.id ?? ""}>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id ?? ""}>
                               <div className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-gray-500" />
-                                {company.name}
+                                <Building2 className="w-4 h-4 text-muted-foreground" />
+                                {client.name}
                               </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                      {companiesLoading && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                      {clientsLoading && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading companies...
+                          Loading clients...
                         </div>
                       )}
                     </FormItem>
@@ -472,14 +478,14 @@ export function AttendanceReportsComponent() {
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
-                        disabled={!form.watch("companyId") || loadingMonths}
+                        disabled={!form.watch("clientId") || loadingMonths}
                       >
                         <FormControl>
                           <SelectTrigger className="h-12">
                             <SelectValue
                               placeholder={
-                                !form.watch("companyId")
-                                  ? "Select company first"
+                                !form.watch("clientId")
+                                  ? "Select client first"
                                   : loadingMonths
                                     ? "Loading months..."
                                     : "Select month"
@@ -491,7 +497,7 @@ export function AttendanceReportsComponent() {
                           {availableMonths.map((month) => (
                             <SelectItem key={month} value={month}>
                               <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-gray-500" />
+                                <Calendar className="w-4 h-4 text-muted-foreground" />
                                 {format(parse(month, "yyyy-MM", new Date()), "MMMM yyyy")}
                               </div>
                             </SelectItem>
@@ -500,13 +506,13 @@ export function AttendanceReportsComponent() {
                       </Select>
                       <FormMessage />
                       {loadingMonths && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Loading available months...
                         </div>
                       )}
-                      {form.watch("companyId") && !loadingMonths && availableMonths.length === 0 && (
-                        <p className="text-sm text-gray-500">No attendance data found for this company</p>
+                      {form.watch("clientId") && !loadingMonths && availableMonths.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No attendance data found for this client</p>
                       )}
                     </FormItem>
                   )}
@@ -516,7 +522,7 @@ export function AttendanceReportsComponent() {
               <div className="flex justify-center">
                 <Button
                   type="submit"
-                  disabled={loading || !form.watch("companyId") || !form.watch("month")}
+                  disabled={loading || !form.watch("clientId") || !form.watch("month")}
                   size="lg"
                   className="min-w-48"
                 >
@@ -542,26 +548,26 @@ export function AttendanceReportsComponent() {
       {reportGenerated && reportData && (
         <div className="space-y-6">
           {/* Report Header with Sheet Info */}
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-success/30 bg-success/[0.04]">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-green-800">Report Generated Successfully</h3>
-                  <p className="text-green-700">
-                    {reportData.company.name} - {getSelectedMonthDisplay()}
+                  <h3 className="text-lg font-semibold text-success">Report Generated Successfully</h3>
+                  <p className="text-foreground">
+                    {reportData.client.name} - {getSelectedMonthDisplay()}
                   </p>
-                  {reportData.company.address && (
-                    <p className="text-sm text-green-600 mt-1">{reportData.company.address}</p>
+                  {reportData.client.address && (
+                    <p className="text-sm text-muted-foreground mt-1">{reportData.client.address}</p>
                   )}
                 </div>
-                <CheckCircle2 className="w-8 h-8 text-green-600" />
+                <CheckCircle2 className="w-8 h-8 text-success" />
               </div>
               <div className="mt-4 space-y-3">
                 {/* Attendance Sheet Section */}
                 <div className="flex items-center gap-2">
                   {reportData.attendanceSheet ? (
                     <>
-                      <Badge variant="outline" className="bg-white">
+                      <Badge variant="outline" className="bg-card">
                         <FileText className="h-3 w-3 mr-1" />
                         Sheet attached
                       </Badge>
@@ -591,7 +597,7 @@ export function AttendanceReportsComponent() {
                     </div>
                   ) : excelFile ? (
                     <>
-                      <Badge variant="outline" className="bg-white">
+                      <Badge variant="outline" className="bg-card">
                         <FileSpreadsheet className="h-3 w-3 mr-1" />
                         Excel attached
                       </Badge>
@@ -618,10 +624,10 @@ export function AttendanceReportsComponent() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Total Employees</p>
-                      <p className="text-2xl font-bold text-blue-600">{reportData.totals.totalEmployees}</p>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total Employees</p>
+                      <p className="font-display text-2xl font-bold tabular-nums text-brand">{reportData.totals.totalEmployees}</p>
                     </div>
-                    <Users className="w-8 h-8 text-blue-500" />
+                    <Users className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -630,10 +636,10 @@ export function AttendanceReportsComponent() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Minimum Present</p>
-                      <p className="text-2xl font-bold text-orange-600">{reportData.totals.minPresent}</p>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Minimum Present</p>
+                      <p className="font-display text-2xl font-bold tabular-nums">{reportData.totals.minPresent}</p>
                     </div>
-                    <Minus className="w-8 h-8 text-orange-500" />
+                    <Minus className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -642,10 +648,10 @@ export function AttendanceReportsComponent() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Maximum Present</p>
-                      <p className="text-2xl font-bold text-indigo-600">{reportData.totals.maxPresent}</p>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Maximum Present</p>
+                      <p className="font-display text-2xl font-bold tabular-nums">{reportData.totals.maxPresent}</p>
                     </div>
-                    <Maximize2 className="w-8 h-8 text-indigo-500" />
+                    <Maximize2 className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -717,7 +723,7 @@ export function AttendanceReportsComponent() {
           {reportData.records.length === 0 && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>No attendance records found for the selected company and month.</AlertDescription>
+              <AlertDescription>No attendance records found for the selected client and month.</AlertDescription>
             </Alert>
           )}
         </div>
@@ -728,16 +734,16 @@ export function AttendanceReportsComponent() {
         <DynamicPdfPreviewDialog
           open={pdfOpen}
           onOpenChange={setPdfOpen}
-          title={`${reportData.company.name} - Attendance Report`}
+          title={`${reportData.client.name} - Attendance Report`}
           description={getSelectedMonthDisplay()}
-          fileName={`attendance-report-${reportData.company.name}-${reportData.month}`}
+          fileName={`attendance-report-${reportData.client.name}-${reportData.month}`}
           renderDocument={async () => {
             // Dynamically import the component to ensure it's loaded
             const { default: AttendanceReportPDF } = await import("@/components/pdf/attendance-report-pdf")
             const records = reportData.records.map((r) => ({
               employeeID: r.employeeID,
               employeeName: r.employeeName,
-              companyName: reportData.company.name,
+              clientName: reportData.client.name,
               designationName: r.designationName,
               departmentName: r.departmentName,
               presentCount: r.presentCount,
@@ -745,7 +751,7 @@ export function AttendanceReportsComponent() {
             }))
             return (
               <AttendanceReportPDF
-                title={`${reportData.company.name} Attendance`}
+                title={`${reportData.client.name} Attendance`}
                 month={getSelectedMonthDisplay()}
                 records={records}
               />
@@ -760,7 +766,7 @@ export function AttendanceReportsComponent() {
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle className="flex items-center justify-between">
               <span>
-                Attendance Sheet - {getSelectedCompanyName()} - {getSelectedMonthDisplay()}
+                Attendance Sheet - {getSelectedClientName()} - {getSelectedMonthDisplay()}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -775,7 +781,7 @@ export function AttendanceReportsComponent() {
             <DialogDescription>Attendance sheet document preview</DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
-            <div className="border rounded-md overflow-hidden bg-white">
+            <div className="border rounded-md overflow-hidden bg-card">
               {sheetPreviewType === "loading" ? (
                 <div className="flex items-center justify-center h-[70vh]">
                   <div className="text-center space-y-2">
@@ -790,7 +796,7 @@ export function AttendanceReportsComponent() {
                   key={sheetPreviewUrl}
                 />
               ) : sheetPreviewType === "image" ? (
-                <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                   <img
                     src={sheetPreviewUrl || ""}
                     alt="Attendance Sheet"

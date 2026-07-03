@@ -4,61 +4,63 @@ import { useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Label } from "@/components/ui/label"
-import { AlertCircle, RefreshCw, Calendar } from "lucide-react"
+import { PageHeader } from "@/components/layout/page-header"
+import { AlertCircle, RefreshCw } from "lucide-react"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { StatCards } from "@/components/dashboard/stat-cards"
-import { DashboardCharts } from "@/components/dashboard/dashboard-charts"
-import { SpecialDates } from "@/components/dashboard/special-dates"
+import { MonthPulse } from "@/components/dashboard/month-pulse"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
+import { Deployment } from "@/components/dashboard/deployment"
+import { GrowthCharts } from "@/components/dashboard/growth-charts"
+import { ClientTenure } from "@/components/dashboard/client-tenure"
+import { EmployeeDistribution } from "@/components/dashboard/employee-distribution"
+import { SpecialDates } from "@/components/dashboard/special-dates"
 
 export default function DashboardPage() {
   const [daysAhead, setDaysAhead] = useState<number>(30)
-  const { data, companyEmployeeCounts, loading, error, refetch } = useDashboard(daysAhead)
+  const { data, clientEmployeeCounts, monthPayroll, currentMonth, loading, error, refetch } = useDashboard(daysAhead)
 
   const handleDaysChange = (value: string) => {
-    const days = parseInt(value, 10)
-    setDaysAhead(days)
-    // Refetch with new days value
-    refetch(days)
+    setDaysAhead(parseInt(value, 10))
   }
 
   if (loading) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Header Skeleton */}
+      <div className="space-y-6">
         <div className="space-y-2">
+          <Skeleton className="h-4 w-48" />
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-96" />
         </div>
 
-        {/* Stats Cards Skeleton */}
+        <Skeleton className="h-40" />
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
 
-        {/* Charts Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-80" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
         </div>
 
-        {/* Activity Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-96" />
-          <Skeleton className="h-96" />
+          <Skeleton className="h-80" />
+          <Skeleton className="h-80" />
         </div>
+
+        <Skeleton className="h-96" />
+
+        <Skeleton className="h-64" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="py-6">
         <Alert variant="destructive" className="max-w-2xl mx-auto">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Dashboard</AlertTitle>
@@ -76,7 +78,7 @@ export default function DashboardPage() {
 
   if (!data) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="py-6">
         <Alert className="max-w-2xl mx-auto">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data Available</AlertTitle>
@@ -87,53 +89,39 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-tss-primary to-purple-600 bg-clip-text text-transparent">
-            Dashboard Overview
-          </h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening with your organization today.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="days-select" className="text-sm text-muted-foreground whitespace-nowrap">
-              Period:
-            </Label>
-            <Select value={daysAhead.toString()} onValueChange={handleDaysChange}>
-              <SelectTrigger id="days-select" className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="15">Last 15 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="60">Last 60 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="180">Last 180 days</SelectItem>
-                <SelectItem value="365">Last year</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="space-y-8">
+      <PageHeader
+        no="01"
+        eyebrow="Dashboard register"
+        title="Dashboard Overview"
+        description="Money, coverage and changes at a glance."
+        actions={
           <Button variant="outline" size="sm" onClick={() => refetch(daysAhead)}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Stats Cards */}
-      <StatCards data={data} companyEmployeeCounts={companyEmployeeCounts} />
+      <MonthPulse
+        records={monthPayroll}
+        monthLabel={new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+        activeClients={data.summary.activeClients}
+      />
 
-      {/* Charts */}
-      <DashboardCharts data={data} companyEmployeeCounts={companyEmployeeCounts} />
+      <StatCards data={data} clientEmployeeCounts={clientEmployeeCounts} />
 
-      {/* Special Dates */}
-      <SpecialDates data={data} />
-
-      {/* Recent Activity */}
       <RecentActivity data={data} />
+
+      <Deployment clientEmployeeCounts={clientEmployeeCounts} summary={data.summary} />
+
+      <GrowthCharts data={data} />
+
+      <EmployeeDistribution data={data} />
+
+      <ClientTenure data={data} />
+
+      <SpecialDates data={data} daysAhead={daysAhead} onDaysChange={handleDaysChange} />
     </div>
   )
 }

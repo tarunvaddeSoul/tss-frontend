@@ -5,7 +5,7 @@ import { Building2, Calendar as CalendarIcon, Eye, Loader2, Trash2, Download, Fi
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { format } from "date-fns"
+import { format, parse, isValid } from "date-fns"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,9 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { MonthPicker } from "@/components/ui/month-picker"
 import { Badge } from "@/components/ui/badge"
-import { useCompany } from "@/hooks/use-company"
+import { useClient } from "@/hooks/use-client"
 import { attendanceSheetService, type AttendanceSheet, type AttendanceSheetListParams } from "@/services/attendanceSheetService"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
 import {
   Dialog,
   DialogContent,
@@ -37,11 +37,14 @@ import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PageHeader } from "@/components/layout/page-header"
 import { attendanceService } from "@/services/attendanceService"
+import { getErrorMessage } from "@/services/api"
 import type { AttendanceExcelRecord, AttendanceExcelListParams } from "@/types/attendance"
+import { formatDate } from "@/lib/labels"
 
 const schema = z.object({
-  companyId: z.string().optional(),
+  clientId: z.string().optional(),
   month: z.date().optional(),
   startMonth: z.date().optional(),
   endMonth: z.date().optional(),
@@ -61,8 +64,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function AttendanceRecordsPage() {
-  const { data: companiesData, isLoading: companiesLoading, fetchCompanies } = useCompany()
-  const companies: Company[] = companiesData?.companies || []
+  const { data: clientsData, isLoading: clientsLoading, fetchClients } = useClient()
+  const clients: Client[] = clientsData?.clients || []
   const { toast } = useToast()
 
   const [loading, setLoading] = useState(false)
@@ -80,7 +83,7 @@ export default function AttendanceRecordsPage() {
   const [excelLimit, setExcelLimit] = useState(20)
   const [excelTotalPages, setExcelTotalPages] = useState(1)
   const [excelTotalCount, setExcelTotalCount] = useState(0)
-  const [excelSortBy, setExcelSortBy] = useState<"month" | "companyId" | "createdAt">("month")
+  const [excelSortBy, setExcelSortBy] = useState<"month" | "clientId" | "createdAt">("month")
   const [excelSortOrder, setExcelSortOrder] = useState<"asc" | "desc">("desc")
   const [previewExcel, setPreviewExcel] = useState<AttendanceExcelRecord | null>(null)
 
@@ -89,13 +92,13 @@ export default function AttendanceRecordsPage() {
   const [limit, setLimit] = useState(20)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const [sortBy, setSortBy] = useState<"month" | "companyId" | "createdAt">("month")
+  const [sortBy, setSortBy] = useState<"month" | "clientId" | "createdAt">("month")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      companyId: undefined,
+      clientId: undefined,
       month: undefined,
       startMonth: undefined,
       endMonth: undefined,
@@ -103,7 +106,7 @@ export default function AttendanceRecordsPage() {
   })
 
   useEffect(() => {
-    fetchCompanies()
+    fetchClients()
   }, [])
 
   // Fetch records when filters change
@@ -114,7 +117,7 @@ export default function AttendanceRecordsPage() {
       fetchExcelRecords()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit, sortBy, sortOrder, excelPage, excelLimit, excelSortBy, excelSortOrder, activeTab, form.watch("companyId"), form.watch("month"), form.watch("startMonth"), form.watch("endMonth")])
+  }, [page, limit, sortBy, sortOrder, excelPage, excelLimit, excelSortBy, excelSortOrder, activeTab, form.watch("clientId"), form.watch("month"), form.watch("startMonth"), form.watch("endMonth")])
 
   const fetchRecords = async () => {
     try {
@@ -128,8 +131,8 @@ export default function AttendanceRecordsPage() {
         sortOrder,
       }
 
-      if (values.companyId) {
-        params.companyId = values.companyId
+      if (values.clientId) {
+        params.clientId = values.clientId
       }
 
       if (values.month) {
@@ -140,15 +143,16 @@ export default function AttendanceRecordsPage() {
       }
 
       const response = await attendanceSheetService.list(params)
-      
+
       // Handle response - can be list or single record
-      if (response.data && Array.isArray((response.data as any).data)) {
+      if (Array.isArray(response.data)) {
         // List response
-        const listData = response.data as { data: AttendanceSheet[]; pagination: any }
-        setRecords(listData.data || [])
-        setTotalCount(listData.pagination?.total || 0)
-        setTotalPages(listData.pagination?.totalPages || 1)
-      } else if (response.data && !Array.isArray(response.data) && (response.data as any).id) {
+        const items = response.data as AttendanceSheet[]
+        const total = response.meta?.total ?? items.length
+        setRecords(items)
+        setTotalCount(total)
+        setTotalPages(Math.max(1, Math.ceil(total / limit)))
+      } else if (response.data && (response.data as any).id) {
         // Single record response (backward compatibility)
         setRecords([response.data as AttendanceSheet])
         setTotalCount(1)
@@ -161,7 +165,7 @@ export default function AttendanceRecordsPage() {
     } catch (e: any) {
       toast({
         title: "Error",
-        description: e?.message || "Failed to load records",
+        description: getErrorMessage(e),
         variant: "destructive",
       })
       setRecords([])
@@ -184,8 +188,8 @@ export default function AttendanceRecordsPage() {
         sortOrder: excelSortOrder,
       }
 
-      if (values.companyId) {
-        params.companyId = values.companyId
+      if (values.clientId) {
+        params.clientId = values.clientId
       }
 
       if (values.month) {
@@ -196,15 +200,16 @@ export default function AttendanceRecordsPage() {
       }
 
       const response = await attendanceService.getAttendanceExcelFiles(params)
-      
+
       // Handle response - can be list or single record
-      if (response.data && Array.isArray((response.data as any).data)) {
+      if (Array.isArray(response.data)) {
         // List response
-        const listData = response.data as { data: AttendanceExcelRecord[]; pagination: any }
-        setExcelRecords(listData.data || [])
-        setExcelTotalCount(listData.pagination?.total || 0)
-        setExcelTotalPages(listData.pagination?.totalPages || 1)
-      } else if (response.data && !Array.isArray(response.data) && (response.data as any).id) {
+        const items = response.data as AttendanceExcelRecord[]
+        const total = response.meta?.total ?? items.length
+        setExcelRecords(items)
+        setExcelTotalCount(total)
+        setExcelTotalPages(Math.max(1, Math.ceil(total / excelLimit)))
+      } else if (response.data && (response.data as any).id) {
         // Single record response
         setExcelRecords([response.data as AttendanceExcelRecord])
         setExcelTotalCount(1)
@@ -217,7 +222,7 @@ export default function AttendanceRecordsPage() {
     } catch (e: any) {
       toast({
         title: "Error",
-        description: e?.message || "Failed to load Excel records",
+        description: getErrorMessage(e),
         variant: "destructive",
       })
       setExcelRecords([])
@@ -240,7 +245,7 @@ export default function AttendanceRecordsPage() {
 
   const handleClearFilters = () => {
     form.reset({
-      companyId: undefined,
+      clientId: undefined,
       month: undefined,
       startMonth: undefined,
       endMonth: undefined,
@@ -254,7 +259,7 @@ export default function AttendanceRecordsPage() {
     }
   }
 
-  const handleSort = (column: "month" | "companyId" | "createdAt") => {
+  const handleSort = (column: "month" | "clientId" | "createdAt") => {
     if (sortBy === column) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc")
     } else {
@@ -265,7 +270,7 @@ export default function AttendanceRecordsPage() {
   }
 
   const handleDelete = async (record: AttendanceSheet) => {
-    if (!confirm(`Are you sure you want to delete the attendance sheet for ${record.companyName || "company"} - ${format(new Date(`${record.month}-01`), "MMMM yyyy")}?`)) {
+    if (!confirm(`Are you sure you want to delete the attendance sheet for ${record.clientName || "client"} - ${format(parse(record.month, "yyyy-MM", new Date()), "MMMM yyyy")}?`)) {
       return
     }
 
@@ -277,7 +282,7 @@ export default function AttendanceRecordsPage() {
     } catch (e: any) {
       toast({
         title: "Delete failed",
-        description: e?.message || "Unable to delete",
+        description: getErrorMessage(e),
         variant: "destructive",
       })
     } finally {
@@ -365,7 +370,7 @@ export default function AttendanceRecordsPage() {
         else extension = ".jpg"
       }
 
-      const filename = `attendance-sheet-${sheet.companyName || "sheet"}-${sheet.month}${extension}`
+      const filename = `attendance-sheet-${sheet.clientName || "sheet"}-${sheet.month}${extension}`
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -390,7 +395,7 @@ export default function AttendanceRecordsPage() {
 
   // Excel handlers
   const handleDeleteExcel = async (record: AttendanceExcelRecord) => {
-    if (!confirm(`Are you sure you want to delete the Excel file for ${record.companyName || "company"} - ${format(new Date(`${record.month}-01`), "MMMM yyyy")}?`)) {
+    if (!confirm(`Are you sure you want to delete the Excel file for ${record.clientName || "client"} - ${format(parse(record.month, "yyyy-MM", new Date()), "MMMM yyyy")}?`)) {
       return
     }
 
@@ -401,7 +406,7 @@ export default function AttendanceRecordsPage() {
     } catch (e: any) {
       toast({
         title: "Delete failed",
-        description: e?.message || "Unable to delete",
+        description: getErrorMessage(e),
         variant: "destructive",
       })
     }
@@ -413,7 +418,7 @@ export default function AttendanceRecordsPage() {
       if (!response.ok) throw new Error("Failed to download")
 
       const blob = await response.blob()
-      const filename = `attendance-excel-${record.companyName || "file"}-${record.month}.xlsx`
+      const filename = `attendance-excel-${record.clientName || "file"}-${record.month}.xlsx`
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -436,17 +441,16 @@ export default function AttendanceRecordsPage() {
     }
   }
 
-  const hasActiveFilters = form.watch("companyId") || form.watch("month") || form.watch("startMonth") || form.watch("endMonth")
+  const hasActiveFilters = form.watch("clientId") || form.watch("month") || form.watch("startMonth") || form.watch("endMonth")
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance Records</h1>
-          <p className="text-muted-foreground">View and manage all uploaded attendance sheets</p>
-        </div>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Attendance Records"
+        description="View and manage all uploaded attendance sheets."
+      />
 
       {/* Search and Filters */}
       <Card>
@@ -455,34 +459,34 @@ export default function AttendanceRecordsPage() {
             <Filter className="h-5 w-5" />
             Search & Filters
           </CardTitle>
-          <CardDescription>Filter attendance sheets by company and month</CardDescription>
+          <CardDescription>Filter attendance sheets by client and month</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField
                   control={form.control}
-                  name="companyId"
+                  name="clientId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <Building2 className="h-4 w-4" />
-                        Company
+                        Client
                       </FormLabel>
                       <Select
                         onValueChange={(value) => field.onChange(value === "all" ? undefined : value)}
                         value={field.value || "all"}
-                        disabled={companiesLoading}
+                        disabled={clientsLoading}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="All Companies" />
+                            <SelectValue placeholder="All Clients" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="all">All Companies</SelectItem>
-                          {companies.map((c) => (
+                          <SelectItem value="all">All Clients</SelectItem>
+                          {clients.map((c) => (
                             <SelectItem key={c.id} value={c.id ?? ""}>
                               {c.name}
                             </SelectItem>
@@ -663,6 +667,9 @@ export default function AttendanceRecordsPage() {
           ) : records.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+                No sheets on file
+              </p>
               <h3 className="text-lg font-semibold mb-2">No Attendance Sheets Found</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 {hasActiveFilters
@@ -686,9 +693,9 @@ export default function AttendanceRecordsPage() {
                           variant="ghost"
                           size="sm"
                           className="h-8 gap-2"
-                          onClick={() => handleSort("companyId")}
+                          onClick={() => handleSort("clientId")}
                         >
-                          Company
+                          Client
                           <ArrowUpDown className="h-4 w-4" />
                         </Button>
                       </TableHead>
@@ -720,29 +727,27 @@ export default function AttendanceRecordsPage() {
                   </TableHeader>
                   <TableBody>
                     {records.map((record) => {
-                      const monthDate = new Date(`${record.month}-01`)
+                      const monthDate = parse(record.month, "yyyy-MM", new Date())
                       const isPDF = record.attendanceSheetUrl.toLowerCase().includes(".pdf") ||
                         record.attendanceSheetUrl.toLowerCase().endsWith(".pdf")
 
                       return (
                         <TableRow key={record.id}>
                           <TableCell className="font-medium">
-                            {record.companyName || "—"}
+                            {record.clientName || "-"}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {format(monthDate, "MMM yyyy")}
+                              {isValid(monthDate) ? format(monthDate, "MMM yyyy") : (record.month || "-")}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={isPDF ? "destructive" : "secondary"}>
+                            <Badge variant={isPDF ? "info" : "secondary"}>
                               {isPDF ? "PDF" : "Image"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {record.createdAt
-                              ? format(new Date(record.createdAt), "MMM dd, yyyy")
-                              : "—"}
+                          <TableCell className="font-mono text-[13px] text-muted-foreground">
+                            {formatDate(record.createdAt)}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -836,6 +841,9 @@ export default function AttendanceRecordsPage() {
               ) : excelRecords.length === 0 ? (
                 <div className="text-center py-12">
                   <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-2">
+                    No excel files on record
+                  </p>
                   <h3 className="text-lg font-semibold mb-2">No Excel Files Found</h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     {hasActiveFilters
@@ -860,15 +868,15 @@ export default function AttendanceRecordsPage() {
                               size="sm"
                               className="h-8 gap-2"
                               onClick={() => {
-                                if (excelSortBy === "companyId") {
+                                if (excelSortBy === "clientId") {
                                   setExcelSortOrder(excelSortOrder === "asc" ? "desc" : "asc")
                                 } else {
-                                  setExcelSortBy("companyId")
+                                  setExcelSortBy("clientId")
                                   setExcelSortOrder("asc")
                                 }
                               }}
                             >
-                              Company
+                              Client
                               <ArrowUpDown className="h-4 w-4" />
                             </Button>
                           </TableHead>
@@ -914,16 +922,16 @@ export default function AttendanceRecordsPage() {
                       </TableHeader>
                       <TableBody>
                         {excelRecords.map((record) => {
-                          const monthDate = new Date(`${record.month}-01`)
+                          const monthDate = parse(record.month, "yyyy-MM", new Date())
 
                           return (
                             <TableRow key={record.id}>
                               <TableCell className="font-medium">
-                                {record.companyName || "—"}
+                                {record.clientName || "-"}
                               </TableCell>
                               <TableCell>
                                 <Badge variant="outline">
-                                  {format(monthDate, "MMM yyyy")}
+                                  {isValid(monthDate) ? format(monthDate, "MMM yyyy") : (record.month || "-")}
                                 </Badge>
                               </TableCell>
                               <TableCell>
@@ -932,10 +940,8 @@ export default function AttendanceRecordsPage() {
                                   Excel
                                 </Badge>
                               </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {record.createdAt
-                                  ? format(new Date(record.createdAt), "MMM dd, yyyy")
-                                  : "—"}
+                              <TableCell className="font-mono text-[13px] text-muted-foreground">
+                                {formatDate(record.createdAt)}
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-2">
@@ -987,9 +993,9 @@ export default function AttendanceRecordsPage() {
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle className="flex items-center justify-between">
               <span>
-                Attendance Sheet - {previewSheet?.companyName || "Sheet"} -{" "}
+                Attendance Sheet - {previewSheet?.clientName || "Sheet"} -{" "}
                 {previewSheet?.month
-                  ? format(new Date(`${previewSheet.month}-01`), "MMMM yyyy")
+                  ? format(parse(previewSheet.month, "yyyy-MM", new Date()), "MMMM yyyy")
                   : ""}
               </span>
               <div className="flex gap-2">
@@ -1005,7 +1011,7 @@ export default function AttendanceRecordsPage() {
             <DialogDescription>Attendance sheet document preview</DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
-            <div className="border rounded-md overflow-hidden bg-white">
+            <div className="border rounded-md overflow-hidden bg-card">
               {previewType === "loading" ? (
                 <div className="flex items-center justify-center h-[70vh]">
                   <div className="text-center space-y-2">
@@ -1020,7 +1026,7 @@ export default function AttendanceRecordsPage() {
                   key={previewUrl}
                 />
               ) : previewType === "image" ? (
-                <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                   <img
                     src={previewUrl || ""}
                     alt="Attendance Sheet"

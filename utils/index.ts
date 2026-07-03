@@ -9,24 +9,27 @@ export function handleApiError(error: any): string {
     const responseData = error.response.data
 
     if (statusCode === 401) {
-      return "Unauthorized. Please login again."
+      return "Your session has expired. Please log in again."
     } else if (statusCode === 403) {
-      return "You don't have permission to access this resource."
+      return "You do not have permission to do this."
     } else if (statusCode === 404) {
-      return "The requested resource was not found."
+      return "We could not find what you were looking for."
     } else if (statusCode === 429) {
-      return "Too many requests. Please try again later."
+      return "Too many requests. Please wait a minute and try again."
     } else if (responseData && responseData.message) {
       return responseData.message
     } else {
-      return "An error occurred. Please try again."
+      return "Something went wrong. Please try again."
     }
+  } else if (error.code === "ECONNABORTED") {
+    // The request timed out
+    return "The request took too long. Please try again."
   } else if (error.request) {
     // The request was made but no response was received
-    return "No response from server. Please check your internet connection."
+    return "Cannot reach the server. Please check your connection and try again."
   } else {
     // Something happened in setting up the request that triggered an Error
-    return error.message || "An unexpected error occurred. Please try again."
+    return error.message || "Something went wrong. Please try again."
   }
 }
 

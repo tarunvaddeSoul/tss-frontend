@@ -2,22 +2,23 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
-import { EmployeeForm } from "@/components/employees/employee-form"
+import { EmployeeForm, EMPLOYEE_FORM_DRAFT_STORAGE_KEY, clearEmployeeFormDraft } from "@/components/employees/employee-form"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 import type { EmployeeFormValues } from "@/types/employee"
 import { useEffect } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { PageHeader } from "@/components/layout/page-header"
 import { getErrorMessage } from "@/services/api"
 
 export default function AddEmployeePage() {
     const [designations, setDesignations] = useState<{ value: string; label: string }[]>([])
     const [departments, setDepartments] = useState<{ value: string; label: string }[]>([])
-    const [companies, setCompanies] = useState<{ value: string; label: string }[]>([])
+    const [clients, setClients] = useState<{ value: string; label: string }[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [isDataLoading, setIsDataLoading] = useState(true)
 
@@ -47,21 +48,17 @@ export default function AddEmployeePage() {
                     })),
                 )
 
-                // Fetch companies
-                const companiesData = await companyService.getCompanies()
-                setCompanies(
-                    companiesData.data?.companies?.map((company) => ({
-                        value: company.id ?? "",
-                        label: company.name,
+                // Fetch clients
+                const clientsData = await clientService.getClients()
+                setClients(
+                    clientsData.data?.clients?.map((client) => ({
+                        value: client.id ?? "",
+                        label: client.name,
                     })) ?? []
                 )
             } catch (error) {
                 console.error("Error fetching form data:", getErrorMessage(error))
-                toast({
-                    title: "Error",
-                    description: getErrorMessage(error) || "Failed to load form data. Please try again.",
-                    variant: "destructive",
-                })
+                toast.error(getErrorMessage(error) || "Failed to load form data. Please try again.")
             } finally {
                 setIsDataLoading(false)
             }
@@ -75,13 +72,9 @@ export default function AddEmployeePage() {
         try {
             const createEmployeeResponse = await employeeService.createEmployee(values)
             console.log("(handleSubmit) Employee created successfully:", JSON.stringify(createEmployeeResponse, null, 2))
-            
-            // Show success toast with improved message
-            toast({
-                title: "Success! 🎉",
-                description: "Employee created successfully. Redirecting to employee list...",
-                variant: "default",
-            })
+            clearEmployeeFormDraft()
+
+            toast.success("Employee created successfully. Redirecting to employee list...")
 
             // Delay redirect to ensure toast is visible
             setTimeout(() => {
@@ -89,21 +82,19 @@ export default function AddEmployeePage() {
             }, 1500)
         } catch (error) {
             console.error("Error creating employee:", getErrorMessage(error))
-            toast({
-                title: "Error",
-                description: getErrorMessage(error) || "Failed to create employee. Please try again.",
-                variant: "destructive",
-            })
+            toast.error(getErrorMessage(error) || "Failed to create employee. Please try again.")
             setIsLoading(false)
         }
     }
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Add New Employee</h1>
-                <p className="text-muted-foreground">Create a new employee record</p>
-            </div>
+            <PageHeader
+                no="04"
+                eyebrow="Employee register"
+                title="Add New Employee"
+                description="Create a new employee record."
+            />
 
             {isDataLoading ? (
                 <Card>
@@ -119,8 +110,10 @@ export default function AddEmployeePage() {
                         onSubmit={handleSubmit}
                         designations={designations}
                         employeeDepartments={departments}
-                        companies={companies}
+                        clients={clients}
                         isLoading={isLoading}
+                        enableDrafts
+                        draftStorageKey={EMPLOYEE_FORM_DRAFT_STORAGE_KEY}
                     />
                 </ScrollArea>
             )}

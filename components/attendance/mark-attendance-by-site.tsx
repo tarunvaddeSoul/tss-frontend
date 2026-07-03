@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -55,33 +54,56 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { PageHeader } from "@/components/layout/page-header"
 
 import { attendanceService } from "@/services/attendanceService"
-import { companyService } from "@/services/companyService"
-import type { Company, CompanyEmployee } from "@/types/company"
+import { getErrorMessage } from "@/services/api"
+import { clientService } from "@/services/clientService"
+import type { Client, ClientEmployee } from "@/types/client"
 import type { BulkMarkAttendanceDto, ActiveEmployee } from "@/types/attendance"
 import { MonthPicker } from "../ui/month-picker"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import { attendanceSheetService } from "@/services/attendanceSheetService"
 import { useRouter } from "next/navigation"
 import * as XLSX from "xlsx"
+import { formatDate } from "@/lib/labels"
+
+const daysInMonth = (month: Date): number => new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+
+const SHEET_ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg"]
+const SHEET_ACCEPTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"]
+
 // Updated schema with proper validation for each step
-const formSchema = z.object({
-  companyId: z.string().min(1, "Please select a company"),
-  month: z.date({
-    required_error: "Please select a month",
-  }),
-  employees: z
-    .array(
-      z.object({
-        employeeId: z.string(),
-        selected: z.boolean(),
-        presentCount: z.number().min(0, "Present count cannot be negative").max(31, "Present count cannot exceed 31"),
-      }),
-    )
-    .optional(),
-  attendanceFile: z.any().optional(),
-})
+const formSchema = z
+  .object({
+    clientId: z.string().min(1, "Please select a client"),
+    month: z.date({
+      required_error: "Please select a month",
+    }),
+    employees: z
+      .array(
+        z.object({
+          employeeId: z.string(),
+          selected: z.boolean(),
+          presentCount: z.number().min(0, "Present count cannot be negative"),
+        }),
+      )
+      .optional(),
+    attendanceFile: z.any().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.month || !data.employees) return
+    const maxDays = daysInMonth(data.month)
+    data.employees.forEach((emp, index) => {
+      if (emp.selected && emp.presentCount > maxDays) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Present count cannot exceed ${maxDays} for ${format(data.month, "MMMM yyyy")}`,
+          path: ["employees", index, "presentCount"],
+        })
+      }
+    })
+  })
 
 type FormValues = z.infer<typeof formSchema>
 
@@ -90,27 +112,24 @@ interface StepStatus {
   title: string
   description: string
   status: "pending" | "current" | "completed" | "error"
-  icon: React.ReactNode
   validation?: string[]
 }
 
 interface SubmissionResult {
-  success: boolean
   created: number
-  failed: number
   fileUploaded: boolean
   timestamp: Date
 }
 
 // Note: Frontend validation is simplified since backend now validates eligibility
 // This helper is kept for display purposes only
-const getEmployeeDisplayInfo = (employee: ActiveEmployee, companyId?: string) => {
-  // Try to find the employment history that matches the company, or use the first one
+const getEmployeeDisplayInfo = (employee: ActiveEmployee, clientId?: string) => {
+  // Try to find the employment history that matches the client, or use the first one
   let employmentHistory = employee.employmentHistories?.[0]
   
-  if (companyId && employee.employmentHistories) {
+  if (clientId && employee.employmentHistories) {
     const matchingHistory = employee.employmentHistories.find(
-      (hist) => hist.companyId === companyId
+      (hist) => hist.clientId === clientId
     )
     if (matchingHistory) {
       employmentHistory = matchingHistory
@@ -165,7 +184,7 @@ const getEmployeeDisplayInfo = (employee: ActiveEmployee, companyId?: string) =>
 
 export function MarkAttendanceBySite() {
   const [currentStep, setCurrentStep] = useState(0)
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [employees, setEmployees] = useState<ActiveEmployee[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -185,12 +204,13 @@ export function MarkAttendanceBySite() {
   const [excelUploading, setExcelUploading] = useState(false)
   const [excelValidating, setExcelValidating] = useState(false)
   const [excelValidationErrors, setExcelValidationErrors] = useState<string[]>([])
+  const [excelValidationWarnings, setExcelValidationWarnings] = useState<string[]>([])
   const [existingExcelFile, setExistingExcelFile] = useState<string | null>(null)
   const [checkingExcelFile, setCheckingExcelFile] = useState(false)
   const [excelParsed, setExcelParsed] = useState(false)
   const [excelPreviewOpen, setExcelPreviewOpen] = useState(false)
   const [excelDataToMerge, setExcelDataToMerge] = useState<Array<{ employeeId: string; selected: boolean; presentCount: number }> | null>(null)
-  const [existingAttendanceRecords, setExistingAttendanceRecords] = useState<Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string; createdAt?: string }>>([])
+  const [existingAttendanceRecords, setExistingAttendanceRecords] = useState<Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string }>>([])
   const [loadingExistingAttendance, setLoadingExistingAttendance] = useState(false)
 
   const router = useRouter()
@@ -198,7 +218,7 @@ export function MarkAttendanceBySite() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      companyId: "",
+      clientId: "",
       month: undefined,
       employees: [],
       attendanceFile: undefined,
@@ -209,18 +229,16 @@ export function MarkAttendanceBySite() {
   const steps: StepStatus[] = [
     {
       step: 0,
-      title: "Select Company",
-      description: "Choose the company/site",
+      title: "Select Client",
+      description: "Choose the client/site",
       status: currentStep === 0 ? "current" : currentStep > 0 ? "completed" : "pending",
-      icon: <Building2 className="h-4 w-4" />,
-      validation: ["companyId"],
+      validation: ["clientId"],
     },
     {
       step: 1,
       title: "Select Month",
       description: "Choose attendance month",
       status: currentStep === 1 ? "current" : currentStep > 1 ? "completed" : "pending",
-      icon: <Calendar className="h-4 w-4" />,
       validation: ["month"],
     },
     {
@@ -228,52 +246,47 @@ export function MarkAttendanceBySite() {
       title: "Upload Excel File",
       description: "Upload pre-finalized attendance Excel",
       status: currentStep === 2 ? "current" : currentStep > 2 ? "completed" : "pending",
-      icon: <FileText className="h-4 w-4" />,
     },
     {
       step: 3,
       title: "Mark Attendance",
       description: "Select employees and mark attendance",
       status: currentStep === 3 ? "current" : currentStep > 3 ? "completed" : "pending",
-      icon: <Users className="h-4 w-4" />,
     },
     {
       step: 4,
       title: "Upload File (Optional)",
       description: "Upload attendance sheet if available",
       status: currentStep === 4 ? "current" : currentStep > 4 ? "completed" : "pending",
-      icon: <Upload className="h-4 w-4" />,
     },
     {
       step: 5,
       title: "Review & Submit",
       description: "Review and submit attendance",
       status: currentStep === 5 ? "current" : currentStep > 5 ? "completed" : "pending",
-      icon: <CheckCircle2 className="h-4 w-4" />,
     },
     {
       step: 6,
       title: "Success",
       description: "Attendance submitted successfully",
       status: currentStep === 6 ? "current" : "pending",
-      icon: <Check className="h-4 w-4" />,
     },
   ]
 
-  // Fetch companies on component mount
+  // Fetch clients on component mount
   useEffect(() => {
-    fetchCompanies()
+    fetchClients()
   }, [])
 
-  const fetchCompanies = async () => {
+  const fetchClients = async () => {
     try {
       setLoading(true)
       setErrors([])
 
-      const response = await companyService.getCompanies()
+      const response = await clientService.getClients()
 
-      if (!response.data?.companies || response.data.companies.length === 0) {
-        const errorMsg = "No companies found. Please add companies first."
+      if (!response.data?.clients || response.data.clients.length === 0) {
+        const errorMsg = "No clients found. Please add clients first."
         setErrors([errorMsg])
         toast({
           variant: "destructive",
@@ -283,20 +296,20 @@ export function MarkAttendanceBySite() {
         return
       }
 
-      setCompanies(response.data.companies)
+      setClients(response.data.clients)
       toast({
         title: "Success",
-        description: `Loaded ${response.data.companies.length} companies`,
+        description: `Loaded ${response.data.clients.length} clients`,
       })
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || "Failed to fetch companies. Please try again."
+      const errorMsg = getErrorMessage(error)
       setErrors([errorMsg])
       toast({
         variant: "destructive",
         title: "Error",
         description: errorMsg,
       })
-      console.error("Error fetching companies:", error)
+      console.error("Error fetching clients:", error)
     } finally {
       setLoading(false)
     }
@@ -332,17 +345,17 @@ export function MarkAttendanceBySite() {
     console.log("✅ Merged Excel data with employees:", mergedData.filter(emp => emp.selected && emp.presentCount > 0).length, "employees with data")
   }
 
-  // Fetch active employees for company and month using new API
-  const fetchActiveEmployees = async (companyId: string, month: Date) => {
+  // Fetch active employees for client and month using new API
+  const fetchActiveEmployees = async (clientId: string, month: Date) => {
     try {
       setLoading(true)
       setErrors([])
 
       const monthString = format(month, "yyyy-MM")
-      console.log("📞 Calling /attendance/active-employees API with:", { companyId, month: monthString })
+      console.log("📞 Calling /attendance/active-employees API with:", { clientId, month: monthString })
       
       // Fetch active employees
-      const response = await attendanceService.getActiveEmployeesForMonth(companyId, monthString)
+      const response = await attendanceService.getActiveEmployeesForMonth(clientId, monthString)
       
       console.log("✅ Response from /attendance/active-employees:", response)
       
@@ -357,7 +370,7 @@ export function MarkAttendanceBySite() {
       }
 
       if (!response.data || !response.data.employees || response.data.employees.length === 0) {
-        const errorMsg = `No active employees found for ${response.data?.companyName || "this company"} in ${format(month, "MMMM yyyy")}.`
+        const errorMsg = `No active employees found for ${response.data?.clientName || "this client"} in ${format(month, "MMMM yyyy")}.`
         setErrors([errorMsg])
         toast({
           title: "Warning",
@@ -374,22 +387,22 @@ export function MarkAttendanceBySite() {
 
       // Fetch existing attendance data to pre-fill and display
       let existingAttendance: Record<string, number> = {}
-      const attendanceRecords: Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string; createdAt?: string }> = []
-      
+      const attendanceRecords: Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string }> = []
+
       try {
         setLoadingExistingAttendance(true)
-        const attendanceResponse = await attendanceService.getAttendanceByCompanyAndMonth({
-          companyId,
+        const attendanceResponse = await attendanceService.getAttendanceByClientAndMonth({
+          clientId,
           month: monthString,
         })
-        
+
         if (attendanceResponse.data && Array.isArray(attendanceResponse.data)) {
           attendanceResponse.data.forEach((record: any) => {
             // API returns employeeID (uppercase D), not employeeId
             const empId = record.employeeID || record.employeeId
             if (empId && typeof record.presentCount === "number" && record.presentCount >= 0) {
               existingAttendance[empId] = record.presentCount
-              
+
               // Store full record for display
               attendanceRecords.push({
                 employeeId: empId,
@@ -397,7 +410,6 @@ export function MarkAttendanceBySite() {
                 presentCount: record.presentCount,
                 designation: record.designationName || record.designation?.name,
                 department: record.departmentName || record.department?.name,
-                createdAt: record.createdAt,
               })
             }
           })
@@ -451,7 +463,7 @@ export function MarkAttendanceBySite() {
         console.log(`📊 Pre-filled attendance for ${existingCount} employees`)
       }
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || "Failed to fetch active employees. Please try again."
+      const errorMsg = getErrorMessage(error)
       console.error("❌ Error fetching active employees:", {
         error,
         response: error?.response?.data,
@@ -471,8 +483,8 @@ export function MarkAttendanceBySite() {
     }
   }
 
-  const handleCompanyChange = (companyId: string) => {
-    form.setValue("companyId", companyId)
+  const handleClientChange = (clientId: string) => {
+    form.setValue("clientId", clientId)
     setErrors([])
     setEmployees([])
     form.setValue("employees", [])
@@ -480,21 +492,21 @@ export function MarkAttendanceBySite() {
     // Don't fetch employees until month is also selected - month change will trigger fetch
   }
 
-  // Fetch active employees when both company and month are selected
+  // Fetch active employees when both client and month are selected
   // Use form.watch subscription inside useEffect to properly react to changes
   useEffect(() => {
     let isMounted = true
 
     const subscription = form.watch((value, { name, type }) => {
-      // Only react to month or companyId changes (not on blur or other events)
-      if (type === "change" && (name === "month" || name === "companyId")) {
-        const companyId = value.companyId
+      // Only react to month or clientId changes (not on blur or other events)
+      if (type === "change" && (name === "month" || name === "clientId")) {
+        const clientId = value.clientId
         const month = value.month
 
-        if (companyId && month && isMounted) {
-          console.log("🔄 Fetching active employees for:", { companyId, month: format(month, "yyyy-MM") })
-          fetchActiveEmployees(companyId, month)
-        } else if (!month && companyId && isMounted) {
+        if (clientId && month && isMounted) {
+          console.log("🔄 Fetching active employees for:", { clientId, month: format(month, "yyyy-MM") })
+          fetchActiveEmployees(clientId, month)
+        } else if (!month && clientId && isMounted) {
           // Clear employees when month is cleared
           console.log("🧹 Clearing employees - month cleared")
           setEmployees([])
@@ -505,11 +517,11 @@ export function MarkAttendanceBySite() {
     })
 
     // Also check initial values on mount
-    const initialCompanyId = form.getValues("companyId")
+    const initialClientId = form.getValues("clientId")
     const initialMonth = form.getValues("month")
-    if (initialCompanyId && initialMonth && isMounted) {
-      console.log("🚀 Initial fetch for:", { companyId: initialCompanyId, month: format(initialMonth, "yyyy-MM") })
-      fetchActiveEmployees(initialCompanyId, initialMonth)
+    if (initialClientId && initialMonth && isMounted) {
+      console.log("🚀 Initial fetch for:", { clientId: initialClientId, month: format(initialMonth, "yyyy-MM") })
+      fetchActiveEmployees(initialClientId, initialMonth)
     }
 
     return () => {
@@ -535,9 +547,10 @@ export function MarkAttendanceBySite() {
   }
 
   const handlePresentCountChange = (employeeId: string, presentCount: number) => {
-    // Ensure presentCount is >= 0
-    const validCount = Math.max(0, presentCount)
-    
+    const month = form.getValues("month")
+    const monthMax = month ? daysInMonth(month) : 31
+    const validCount = Math.min(monthMax, Math.max(0, presentCount))
+
     const currentEmployees = form.getValues("employees") || []
     const updatedEmployees = currentEmployees.map((emp) =>
       emp.employeeId === employeeId 
@@ -597,9 +610,9 @@ export function MarkAttendanceBySite() {
     try {
       switch (currentStep) {
         case 0:
-          const companyId = form.getValues("companyId")
-          if (!companyId) {
-            const error = "Please select a company"
+          const clientId = form.getValues("clientId")
+          if (!clientId) {
+            const error = "Please select a client"
             setErrors([error])
             toast({
               variant: "destructive",
@@ -657,11 +670,11 @@ export function MarkAttendanceBySite() {
           // Note: Eligibility validation is now handled by backend
           // All employees in the list are already eligible (API filters them)
 
-          // Validate present counts (ensure >= 0 and <= 31)
-          const invalidCounts = selectedEmps.filter((emp) => emp.presentCount < 0 || emp.presentCount > 31)
+          const maxDays = selectedMonth ? daysInMonth(selectedMonth) : 31
+          const invalidCounts = selectedEmps.filter((emp) => emp.presentCount < 0 || emp.presentCount > maxDays)
 
           if (invalidCounts.length > 0) {
-            const error = "Present count must be between 0 and 31"
+            const error = `Present count must be between 0 and ${maxDays} for ${selectedMonth ? format(selectedMonth, "MMMM yyyy") : "the selected month"}`
             setErrors([error])
             toast({
               variant: "destructive",
@@ -710,7 +723,7 @@ export function MarkAttendanceBySite() {
     let excelFormData: Array<{ employeeId: string; selected: boolean; presentCount: number }> = []
     let hasExcelData = false
     
-    if (isMovingFromExcelStep && selectedCompany && selectedCompany.id && selectedMonth) {
+    if (isMovingFromExcelStep && selectedClient && selectedClient.id && selectedMonth) {
       // Save current form data before fetching (this contains Excel data)
       excelFormData = form.getValues("employees") || []
       hasExcelData = excelFormData.length > 0 && excelFormData.some(emp => emp.presentCount > 0)
@@ -722,7 +735,7 @@ export function MarkAttendanceBySite() {
       
       // Only fetch if employees aren't already loaded
       if (employees.length === 0) {
-        await fetchActiveEmployees(selectedCompany.id, selectedMonth)
+        await fetchActiveEmployees(selectedClient.id, selectedMonth)
       }
     }
 
@@ -796,7 +809,7 @@ export function MarkAttendanceBySite() {
       // Prepare bulk attendance data
       const attendanceRecords = selectedEmployeesData.map((emp) => ({
         employeeId: emp.employeeId,
-        companyId: data.companyId,
+        clientId: data.clientId,
         month: format(data.month, "yyyy-MM"),
         presentCount: emp.presentCount,
       }))
@@ -807,184 +820,57 @@ export function MarkAttendanceBySite() {
 
       let fileUploaded = false
 
-      // Mark attendance
+      // The bulk endpoint is atomic: it saves every record or throws, so treat any
+      // success as all-created and any error as none-saved (stay on the review step).
       try {
-        console.log("📤 Sending bulk attendance request:", {
-          recordCount: bulkData.records.length,
-          records: bulkData.records,
-        })
-        
-        const response = await attendanceService.bulkMarkAttendance(bulkData)
-        
-        console.log("📥 Bulk attendance response:", response)
-        console.log("📥 Response structure:", {
-          statusCode: response.statusCode,
-          message: response.message,
-          data: response.data,
-          hasData: !!response.data,
-          created: response.data?.created,
-          failed: response.data?.failed,
-          errors: response.data?.errors,
-        })
+        await attendanceService.bulkMarkAttendance(bulkData)
 
-        // Handle backend validation errors
-        if (response.statusCode === 400 && response.data === null) {
-          // Backend rejected some or all records
-          const errorMessage = response.message || "Some employees are not eligible for attendance in the selected month."
-          setErrors([errorMessage])
-          toast({
-            variant: "destructive",
-            title: "Validation Error",
-            description: errorMessage,
-          })
-          setSubmitting(false)
-          return
-        }
-
-        // Handle successful or partial success response
-        // Backend might return success with data, or the created count might be in a different structure
-        if (response.statusCode === 200 || response.statusCode === 201 || response.data) {
-          // Try multiple ways to get the count
-          let createdCount = 0
-          let failedCount = 0
-          
-          if (response.data) {
-            // Check if data is an array (legacy format) or object with created/failed
-            if (Array.isArray(response.data)) {
-              // If data is an array, use array length as created count
-              createdCount = response.data.length
-              failedCount = selectedEmployeesData.length - createdCount
-              console.log("📊 Response data is array, using length:", createdCount)
-            } else if (typeof response.data === 'object' && response.data !== null) {
-              // Backend should return created and failed counts
-              createdCount = response.data.created ?? 0
-              failedCount = response.data.failed ?? 0
-              
-              // Fallback: If created is 0 but status is 200/201 and no errors, assume all succeeded
-              if (createdCount === 0 && (response.statusCode === 200 || response.statusCode === 201) && (!response.data.errors || response.data.errors.length === 0)) {
-                console.log("⚠️ Backend returned created: 0, but status is", response.statusCode, ". Assuming all records succeeded.")
-                createdCount = selectedEmployeesData.length
-              }
-              
-              // If we still have 0 created but have errors, calculate from errors
-              if (createdCount === 0 && response.data.errors && response.data.errors.length > 0) {
-                createdCount = selectedEmployeesData.length - response.data.errors.length
-                failedCount = response.data.errors.length
-              }
-            }
-          } else {
-            // If no data object but status 200/201, assume all succeeded
-            if (response.statusCode === 200 || response.statusCode === 201) {
-              createdCount = selectedEmployeesData.length
-              failedCount = 0
-              console.log("📊 No data in response, assuming all succeeded based on status code:", response.statusCode)
-            }
-          }
-          
-          // Final fallback: If still 0 but we have success status, use submitted count
-          if (createdCount === 0 && (response.statusCode === 200 || response.statusCode === 201)) {
-            console.log("⚠️ Final fallback: Using submitted count as created count")
-            createdCount = selectedEmployeesData.length
-          }
-          
-          console.log("✅ Calculated counts:", { createdCount, failedCount, selectedCount: selectedEmployeesData.length })
-          
-          const result: SubmissionResult = {
-            success: true,
-            created: createdCount,
-            failed: failedCount,
-            fileUploaded,
-            timestamp: new Date(),
-          }
-
-          // Show errors if any failed
-          if (response.data?.errors && response.data.errors.length > 0) {
-            const errorMessages = response.data.errors
-            setErrors(errorMessages)
+        if (data.attendanceFile) {
+          try {
+            await attendanceService.uploadAttendanceSheet(
+              {
+                clientId: data.clientId,
+                month: format(data.month, "yyyy-MM"),
+              },
+              data.attendanceFile,
+            )
+            fileUploaded = true
+          } catch (uploadError: any) {
+            const uploadErrorMsg = getErrorMessage(uploadError)
             toast({
               variant: "destructive",
-              title: "Some Records Failed",
-              description: errorMessages.join("\n"),
-              duration: 10000, // Show longer for multiple errors
+              title: "Upload Error",
+              description: uploadErrorMsg,
             })
+            setErrors((prev) => [...prev, uploadErrorMsg])
           }
-          
-          // Also check if there are errors in the message for bulk operations
-          if (response.data?.failed && response.data.failed > 0 && response.message) {
-            // Message might contain error details
-            if (response.message.includes("Validation failed") || response.message.includes("failed")) {
-              setErrors([response.message])
-            }
-          }
-
-          // Upload file if provided
-          if (data.attendanceFile) {
-            try {
-              await attendanceService.uploadAttendanceSheet(
-                {
-                  companyId: data.companyId,
-                  month: format(data.month, "yyyy-MM"),
-                },
-                data.attendanceFile,
-              )
-              fileUploaded = true
-              result.fileUploaded = true
-            } catch (uploadError: any) {
-              const uploadErrorMsg = uploadError?.response?.data?.message || "Failed to upload attendance file"
-              toast({
-                variant: "destructive",
-                title: "Upload Error",
-                description: uploadErrorMsg,
-              })
-              setErrors((prev) => [...prev, uploadErrorMsg])
-            }
-          }
-
-          setSubmissionResult(result)
-          setIsSubmitted(true)
-
-          // Show success message
-          if (result.failed > 0) {
-            toast({
-              title: "Partial Success",
-              description: `Attendance partially completed: ${result.created} created, ${result.failed} failed. Check errors above.`,
-              duration: 8000,
-            })
-          } else {
-            toast({
-              title: "Success",
-              description: `Attendance marked successfully for ${result.created} employee(s)!`,
-            })
-          }
-
-          if (result.fileUploaded) {
-            toast({
-              title: "File Upload Success",
-              description: "Attendance file uploaded successfully!",
-            })
-          }
-
-          // Move to success step
-          setCurrentStep(6)
-          setProgress(100)
-        } else {
-          // Unexpected response format
-          throw new Error("Invalid response from server")
         }
+
+        setSubmissionResult({
+          created: selectedEmployeesData.length,
+          fileUploaded,
+          timestamp: new Date(),
+        })
+        setIsSubmitted(true)
+
+        toast({
+          title: "Success",
+          description: `Attendance marked successfully for ${selectedEmployeesData.length} employee(s)!`,
+        })
+
+        if (fileUploaded) {
+          toast({
+            title: "File Upload Success",
+            description: "Attendance file uploaded successfully!",
+          })
+        }
+
+        setCurrentStep(6)
+        setProgress(100)
       } catch (markingError: any) {
-        // Handle API errors
-        const errorResponse = markingError?.response?.data
-        let errorMessage = "Failed to mark attendance"
-        
-        if (errorResponse) {
-          // Backend validation error
-          if (errorResponse.statusCode === 400) {
-            errorMessage = errorResponse.message || "Some employees are not eligible for attendance in the selected month."
-          } else {
-            errorMessage = errorResponse.message || errorMessage
-          }
-        }
-
+        const errorMessage =
+          markingError?.response?.data?.error?.message ||
+          "Failed to mark attendance. No records were saved. Please review the details and try again."
         setErrors([errorMessage])
         toast({
           variant: "destructive",
@@ -994,7 +880,7 @@ export function MarkAttendanceBySite() {
         })
       }
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || "An unexpected error occurred"
+      const errorMsg = getErrorMessage(error)
       setErrors([errorMsg])
       toast({
         variant: "destructive",
@@ -1021,6 +907,7 @@ export function MarkAttendanceBySite() {
     setPreviewUrl(null)
     setExcelFile(null)
     setExcelValidationErrors([])
+    setExcelValidationWarnings([])
     setExcelParsed(false)
     setExistingExcelFile(null)
     setExcelDataToMerge(null)
@@ -1029,7 +916,7 @@ export function MarkAttendanceBySite() {
     // Reset form after state is cleared to prevent subscription triggers
     setTimeout(() => {
       form.reset({
-        companyId: "",
+        clientId: "",
         month: undefined,
         employees: [],
         attendanceFile: undefined,
@@ -1042,8 +929,9 @@ export function MarkAttendanceBySite() {
     })
   }
 
-  const selectedCompany = companies.find((c) => c.id === form.watch("companyId"))
+  const selectedClient = clients.find((c) => c.id === form.watch("clientId"))
   const selectedMonth = form.watch("month")
+  const maxDays = selectedMonth ? daysInMonth(selectedMonth) : 31
   const formEmployees = form.watch("employees") || []
 
   // Merge Excel data when employees are loaded and we're on step 3
@@ -1056,18 +944,18 @@ export function MarkAttendanceBySite() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employees, currentStep, excelDataToMerge])
 
-  // Fetch attachment status when company or month changes
+  // Fetch attachment status when client or month changes
   useEffect(() => {
     const fetchSheet = async () => {
-      const companyId = selectedCompany?.id || form.getValues("companyId")
+      const clientId = selectedClient?.id || form.getValues("clientId")
       const month = selectedMonth || form.getValues("month")
       
       setSheetUrl(null)
-      if (!companyId || !month) return
+      if (!clientId || !month) return
       
       try {
         setSheetLoading(true)
-        const res = await attendanceSheetService.get(companyId, format(month, "yyyy-MM"))
+        const res = await attendanceSheetService.get(clientId, format(month, "yyyy-MM"))
         setSheetUrl(res.data?.attendanceSheetUrl || null)
       } catch (e) {
         setSheetUrl(null)
@@ -1077,21 +965,21 @@ export function MarkAttendanceBySite() {
     }
     fetchSheet()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompany?.id, selectedMonth])
+  }, [selectedClient?.id, selectedMonth])
 
-  // Check for existing Excel file when company or month changes
+  // Check for existing Excel file when client or month changes
   useEffect(() => {
     const checkExistingExcel = async () => {
-      const companyId = selectedCompany?.id || form.getValues("companyId")
+      const clientId = selectedClient?.id || form.getValues("clientId")
       const month = selectedMonth || form.getValues("month")
       
       setExistingExcelFile(null)
-      if (!companyId || !month) return
+      if (!clientId || !month) return
       
       try {
         setCheckingExcelFile(true)
         const res = await attendanceService.getAttendanceExcelFiles({
-          companyId,
+          clientId,
           month: format(month, "yyyy-MM"),
         })
         
@@ -1108,32 +996,32 @@ export function MarkAttendanceBySite() {
     }
     checkExistingExcel()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompany?.id, selectedMonth])
+  }, [selectedClient?.id, selectedMonth])
 
   // Generate Excel template
   const generateExcelTemplate = async () => {
-    if (!selectedCompany || !selectedMonth) {
+    if (!selectedClient || !selectedMonth) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please select company and month first",
+        description: "Please select client and month first",
       })
       return
     }
 
     // Ensure employees are loaded
     if (employees.length === 0) {
-      if (!selectedCompany.id) {
+      if (!selectedClient.id) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Invalid company selected",
+          description: "Invalid client selected",
         })
         return
       }
       try {
         setLoading(true)
-        await fetchActiveEmployees(selectedCompany.id, selectedMonth)
+        await fetchActiveEmployees(selectedClient.id, selectedMonth)
         // Wait a bit for state to update
         await new Promise((resolve) => setTimeout(resolve, 100))
       } catch (error) {
@@ -1152,7 +1040,7 @@ export function MarkAttendanceBySite() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No employees found for the selected company and month.",
+        description: "No employees found for the selected client and month.",
       })
       return
     }
@@ -1185,7 +1073,7 @@ export function MarkAttendanceBySite() {
       XLSX.utils.book_append_sheet(wb, ws, "Attendance")
 
       // Generate filename
-      const filename = `Attendance_Template_${selectedCompany.name}_${format(selectedMonth, "yyyy-MM")}.xlsx`
+      const filename = `Attendance_Template_${selectedClient.name}_${format(selectedMonth, "yyyy-MM")}.xlsx`
 
       // Write file
       XLSX.writeFile(wb, filename)
@@ -1205,8 +1093,11 @@ export function MarkAttendanceBySite() {
   }
 
   // Validate Excel file
-  const validateExcelFile = async (file: File): Promise<{ valid: boolean; errors: string[]; data?: any[] }> => {
+  const validateExcelFile = async (
+    file: File,
+  ): Promise<{ valid: boolean; errors: string[]; warnings?: string[]; data?: any[] }> => {
     const errors: string[] = []
+    const warnings: string[] = []
 
     // Check file extension
     const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."))
@@ -1265,22 +1156,45 @@ export function MarkAttendanceBySite() {
       const employeeNameIndex = headers.indexOf("employee name")
       const presentDaysIndex = headers.indexOf("present days count")
 
-      // Parse data rows
+      // Parse data rows without silently rewriting bad numbers; collect them for review.
+      const maxDays = selectedMonth ? daysInMonth(selectedMonth) : 31
       const parsedData: Array<{ employeeId: string; employeeName: string; presentDays: number }> = []
-      
+      const invalidRows: string[] = []
+
       for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i] || []
         const employeeId = String(row[employeeIdIndex] || "").trim()
         const employeeName = String(row[employeeNameIndex] || "").trim()
-        const presentDays = Number(row[presentDaysIndex]) || 0
+        const rawValue = row[presentDaysIndex]
 
-        if (employeeId && employeeName) {
-          parsedData.push({
-            employeeId,
-            employeeName,
-            presentDays: Math.max(0, Math.min(31, Math.floor(presentDays))), // Clamp between 0-31
-          })
+        if (!employeeId && !employeeName) continue
+
+        const rowLabel = `Row ${i + 1} (${employeeName || employeeId || "unknown"})`
+        const presentDays = Number(rawValue)
+
+        if (rawValue === undefined || rawValue === null || String(rawValue).trim() === "" || Number.isNaN(presentDays)) {
+          invalidRows.push(`${rowLabel}: present days "${rawValue ?? ""}" is not a number.`)
+          continue
         }
+        if (!Number.isInteger(presentDays)) {
+          invalidRows.push(`${rowLabel}: present days ${presentDays} must be a whole number.`)
+          continue
+        }
+        if (presentDays < 0 || presentDays > maxDays) {
+          invalidRows.push(`${rowLabel}: present days ${presentDays} must be between 0 and ${maxDays}.`)
+          continue
+        }
+
+        parsedData.push({ employeeId, employeeName, presentDays })
+      }
+
+      if (invalidRows.length > 0) {
+        errors.push("Some rows have invalid present-day values. Fix them in the sheet and re-upload:")
+        errors.push(...invalidRows.slice(0, 10))
+        if (invalidRows.length > 10) {
+          errors.push(`and ${invalidRows.length - 10} more row(s).`)
+        }
+        return { valid: false, errors }
       }
 
       if (parsedData.length === 0) {
@@ -1310,34 +1224,29 @@ export function MarkAttendanceBySite() {
         }
       })
 
-      // Build comprehensive error message
-      if (parsedData.length !== employees.length || invalidEmployees.length > 0 || missingEmployees.length > 0) {
-        const errorParts: string[] = []
-        errorParts.push(
-          `Employee count mismatch. Excel contains ${parsedData.length} employee(s), but ${employees.length} employee(s) are active for this company and month.`,
+      // Import the intersection; a changing roster (new joiners, leavers) should warn, not block.
+      const matchedRows = parsedData.filter((row) => employeeIds.has(row.employeeId))
+
+      if (matchedRows.length === 0) {
+        errors.push(
+          `None of the employees in the Excel file are active for this client and month. Please download a fresh template.`,
         )
-
-        if (invalidEmployees.length > 0) {
-          const extraList = invalidEmployees.slice(0, 5).join(", ")
-          const extraCount = invalidEmployees.length > 5 ? ` and ${invalidEmployees.length - 5} more` : ""
-          errorParts.push(
-            `Extra employees in Excel (not active): ${extraList}${extraCount}.`,
-          )
-        }
-
-        if (missingEmployees.length > 0) {
-          const missingList = missingEmployees.slice(0, 5).join(", ")
-          const missingCount = missingEmployees.length > 5 ? ` and ${missingEmployees.length - 5} more` : ""
-          errorParts.push(
-            `Missing employees from Excel (active but not included): ${missingList}${missingCount}.`,
-          )
-        }
-
-        errors.push(errorParts.join(" "))
         return { valid: false, errors }
       }
 
-      return { valid: true, errors: [], data: parsedData }
+      if (invalidEmployees.length > 0) {
+        const extraList = invalidEmployees.slice(0, 5).join(", ")
+        const extraCount = invalidEmployees.length > 5 ? ` and ${invalidEmployees.length - 5} more` : ""
+        warnings.push(`Skipped ${invalidEmployees.length} employee(s) in the sheet who are not active: ${extraList}${extraCount}.`)
+      }
+
+      if (missingEmployees.length > 0) {
+        const missingList = missingEmployees.slice(0, 5).join(", ")
+        const missingCount = missingEmployees.length > 5 ? ` and ${missingEmployees.length - 5} more` : ""
+        warnings.push(`${missingEmployees.length} active employee(s) are not in the sheet and stay at 0: ${missingList}${missingCount}.`)
+      }
+
+      return { valid: true, errors: [], warnings, data: matchedRows }
     } catch (error) {
       console.error("Error validating Excel file:", error)
       errors.push("Failed to read Excel file. Please ensure it's a valid Excel file.")
@@ -1349,15 +1258,16 @@ export function MarkAttendanceBySite() {
   const handleExcelFileChange = async (file: File | null) => {
     setExcelFile(file)
     setExcelValidationErrors([])
+    setExcelValidationWarnings([])
     setExcelParsed(false)
 
     if (!file) return
 
-    if (!selectedCompany || !selectedCompany.id || !selectedMonth) {
+    if (!selectedClient || !selectedClient.id || !selectedMonth) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please select company and month first",
+        description: "Please select client and month first",
       })
       setExcelFile(null)
       return
@@ -1378,27 +1288,29 @@ export function MarkAttendanceBySite() {
       return
     }
 
+    setExcelValidationWarnings(validation.warnings || [])
+
     // Parse and populate form
     if (validation.data) {
       try {
         // Fetch existing attendance to check what's already marked
         const monthString = format(selectedMonth, "yyyy-MM")
         let existingAttendance: Record<string, number> = {}
-        const attendanceRecords: Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string; createdAt?: string }> = []
-        
+        const attendanceRecords: Array<{ employeeId: string; employeeName: string; presentCount: number; designation?: string; department?: string }> = []
+
         try {
           setLoadingExistingAttendance(true)
-          const attendanceResponse = await attendanceService.getAttendanceByCompanyAndMonth({
-            companyId: selectedCompany.id, // TypeScript now knows this is defined due to the check above
+          const attendanceResponse = await attendanceService.getAttendanceByClientAndMonth({
+            clientId: selectedClient.id, // TypeScript now knows this is defined due to the check above
             month: monthString,
           })
-          
+
           if (attendanceResponse.data && Array.isArray(attendanceResponse.data)) {
             attendanceResponse.data.forEach((record: any) => {
               const empId = record.employeeID || record.employeeId
               if (empId) {
                 existingAttendance[empId] = record.presentCount || 0
-                
+
                 // Store full record for display
                 attendanceRecords.push({
                   employeeId: empId,
@@ -1406,7 +1318,6 @@ export function MarkAttendanceBySite() {
                   presentCount: record.presentCount || 0,
                   designation: record.designationName || record.designation?.name,
                   department: record.departmentName || record.department?.name,
-                  createdAt: record.createdAt,
                 })
               }
             })
@@ -1465,7 +1376,7 @@ export function MarkAttendanceBySite() {
           
           const result = await attendanceService.uploadAttendanceExcel(
             {
-              companyId: selectedCompany.id!, // Already validated above
+              clientId: selectedClient.id!, // Already validated above
               month: monthString,
             },
             file,
@@ -1479,7 +1390,7 @@ export function MarkAttendanceBySite() {
           })
         } catch (uploadError: any) {
           // Don't fail the whole process if upload fails, just warn
-          const errorMsg = uploadError?.response?.data?.message || uploadError?.message || "Failed to upload Excel file"
+          const errorMsg = getErrorMessage(uploadError)
           console.warn("Excel upload failed:", errorMsg)
           toast({
             variant: "destructive",
@@ -1502,7 +1413,7 @@ export function MarkAttendanceBySite() {
 
   // Upload Excel file
   const handleUploadExcel = async () => {
-    if (!excelFile || !selectedCompany || !selectedCompany.id || !selectedMonth) {
+    if (!excelFile || !selectedClient || !selectedClient.id || !selectedMonth) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -1532,7 +1443,7 @@ export function MarkAttendanceBySite() {
       
       const result = await attendanceService.uploadAttendanceExcel(
         {
-          companyId: selectedCompany.id, // TypeScript now knows this is defined due to the check above
+          clientId: selectedClient.id, // TypeScript now knows this is defined due to the check above
           month: monthString,
         },
         excelFile,
@@ -1545,7 +1456,7 @@ export function MarkAttendanceBySite() {
         description: "Pre-finalized Excel file has been uploaded successfully.",
       })
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || "Failed to upload Excel file"
+      const errorMsg = getErrorMessage(error)
       toast({
         variant: "destructive",
         title: "Upload Failed",
@@ -1558,44 +1469,51 @@ export function MarkAttendanceBySite() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Mark Attendance by Site</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Mark attendance for employees at specific company locations with our streamlined process
-        </p>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Mark Attendance by Site"
+        description="Mark attendance for employees at a client site, step by step."
+      />
 
       {/* Submission Status Alert */}
       {isSubmitted && submissionResult && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-800">Attendance Successfully Submitted</AlertTitle>
-          <AlertDescription className="text-green-700">
+        <Alert variant="success">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertTitle>Attendance Successfully Submitted</AlertTitle>
+          <AlertDescription>
             <div className="space-y-1">
-              <div>✅ {submissionResult.created} employees attendance marked</div>
-              {submissionResult.failed > 0 && <div>❌ {submissionResult.failed} failed submissions</div>}
-              {submissionResult.fileUploaded && <div>📁 Attendance file uploaded successfully</div>}
-              <div className="text-xs mt-2">Submitted at: {submissionResult.timestamp.toLocaleString()}</div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                {submissionResult.created} employees attendance marked
+              </div>
+              {submissionResult.fileUploaded && (
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Attendance file uploaded successfully
+                </div>
+              )}
+              <div className="text-xs mt-2">Submitted at: {formatDate(submissionResult.timestamp)}</div>
             </div>
           </AlertDescription>
         </Alert>
       )}
 
       {/* Attachment Status */}
-      {selectedCompany && selectedMonth && (
+      {selectedClient && selectedMonth && (
         <Card>
           <CardContent className="pt-6 flex items-center justify-between gap-4">
             <div className="text-sm">
               {sheetLoading ? (
                 <span className="text-muted-foreground">Checking attachment...</span>
               ) : sheetUrl ? (
-                <span>
-                  📎 Sheet attached for <strong>{selectedCompany.name}</strong> — {format(selectedMonth, "MMMM yyyy")} ·
+                <span className="inline-flex items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  Sheet attached for <strong>{selectedClient.name}</strong>, {format(selectedMonth, "MMMM yyyy")} ·
                   <Button
                     variant="link"
                     size="sm"
-                    className="h-auto p-0 text-blue-600 ml-1"
+                    className="h-auto p-0 ml-1"
                     onClick={async () => {
                       if (!sheetUrl) return
                       setPreviewUrl(sheetUrl)
@@ -1660,7 +1578,7 @@ export function MarkAttendanceBySite() {
                 </span>
               ) : (
                 <span className="text-muted-foreground">
-                  No sheet attached for this month. <a href="/attendance/upload" className="text-blue-600">Upload now</a>
+                  No sheet attached for this month. <a href="/attendance/upload" className="text-info underline-offset-4 hover:underline">Upload now</a>
                 </span>
               )}
             </div>
@@ -1674,10 +1592,10 @@ export function MarkAttendanceBySite() {
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="text-lg md:text-xl font-semibold flex items-center gap-3">
-              <Clock className="h-5 w-5 text-primary" />
+              <Clock className="h-5 w-5 text-muted-foreground" />
               Progress Tracker
             </CardTitle>
-            <Badge variant="outline" className="text-sm px-3 py-1 w-fit">
+            <Badge variant="outline" className="w-fit">
               {Math.round(progress)}% Complete
             </Badge>
           </div>
@@ -1689,52 +1607,43 @@ export function MarkAttendanceBySite() {
       <Card>
         <CardContent className="pt-6">
           {/* Desktop Stepper */}
-          <div className="hidden lg:block">
-            <div className="flex items-center justify-between mb-6">
-              {steps.map((step, index) => (
-                <div key={step.step} className="flex items-center flex-1">
-                  <div
-                    className={cn(
-                      "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300",
-                      step.status === "completed"
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : step.status === "current"
-                          ? "border-primary text-primary bg-primary/10"
-                          : "border-muted-foreground/30 text-muted-foreground",
-                    )}
-                  >
-                    {step.status === "completed" ? <Check className="h-4 w-4" /> : step.icon}
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div
-                      className={cn(
-                        "flex-1 h-0.5 mx-4 transition-all duration-300",
-                        step.status === "completed" ? "bg-primary" : "bg-muted",
-                      )}
-                    />
+          <div className="hidden lg:grid grid-cols-7 gap-3">
+            {steps.map((step) => (
+              <div
+                key={step.step}
+                className={cn(
+                  "border-t-2 pt-3 text-center transition-colors duration-150",
+                  step.status === "completed"
+                    ? "border-t-success"
+                    : step.status === "current"
+                      ? "border-t-brand"
+                      : "border-t-border",
+                )}
+              >
+                <p
+                  className={cn(
+                    "mb-1 flex items-center justify-center gap-1 font-mono text-[11px] font-semibold tracking-[0.14em]",
+                    step.status === "completed"
+                      ? "text-success"
+                      : step.status === "current"
+                        ? "text-brand"
+                        : "text-muted-foreground",
                   )}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {steps.map((step) => (
-                <div key={step.step} className="text-center">
-                  <p
-                    className={cn(
-                      "text-xs font-medium mb-1",
-                      step.status === "current"
-                        ? "text-primary"
-                        : step.status === "completed"
-                          ? "text-primary"
-                          : "text-muted-foreground",
-                    )}
-                  >
-                    {step.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{step.description}</p>
-                </div>
-              ))}
-            </div>
+                >
+                  {step.status === "completed" && <Check className="h-3 w-3" />}
+                  {String(step.step + 1).padStart(2, "0")}
+                </p>
+                <p
+                  className={cn(
+                    "text-xs font-medium mb-1",
+                    step.status === "pending" ? "text-muted-foreground" : "text-foreground",
+                  )}
+                >
+                  {step.title}
+                </p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{step.description}</p>
+              </div>
+            ))}
           </div>
 
           {/* Mobile/Tablet Stepper */}
@@ -1745,21 +1654,21 @@ export function MarkAttendanceBySite() {
                   <div
                     key={step.step}
                     className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300",
+                      "flex h-8 w-8 items-center justify-center rounded-sm border font-mono text-[11px] font-semibold transition-colors duration-150",
                       step.status === "completed"
-                        ? "bg-primary text-primary-foreground"
+                        ? "border-success/40 bg-success/10 text-success"
                         : step.status === "current"
-                          ? "border-2 border-primary text-primary bg-primary/10"
-                          : "border border-muted-foreground/30 text-muted-foreground",
+                          ? "border-brand/40 bg-brand/10 text-brand"
+                          : "border-border text-muted-foreground",
                     )}
                   >
-                    {step.status === "completed" ? <Check className="h-3 w-3" /> : index + 1}
+                    {step.status === "completed" ? <Check className="h-3 w-3" /> : String(index + 1).padStart(2, "0")}
                   </div>
                 ))}
               </div>
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-primary">{steps[currentStep]?.title}</p>
+              <p className="text-sm font-medium text-brand">{steps[currentStep]?.title}</p>
               <p className="text-xs text-muted-foreground">{steps[currentStep]?.description}</p>
             </div>
           </div>
@@ -1785,7 +1694,7 @@ export function MarkAttendanceBySite() {
 
       {/* Main Form */}
       <Form {...form}>
-        <form 
+        <form noValidate 
           onSubmit={(e) => {
             e.preventDefault()
             // Only allow form submission on step 5 (Review & Submit)
@@ -1803,41 +1712,41 @@ export function MarkAttendanceBySite() {
           }} 
           className="space-y-6"
         >
-          {/* Step 0: Select Company */}
+          {/* Step 0: Select Client */}
           {currentStep === 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Select Company
+                  Select Client
                 </CardTitle>
-                <CardDescription>Choose the company or site where you want to mark attendance</CardDescription>
+                <CardDescription>Choose the client or site where you want to mark attendance</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="companyId"
+                  name="clientId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company</FormLabel>
-                      <Select onValueChange={handleCompanyChange} value={field.value} disabled={loading || isSubmitted}>
+                      <FormLabel>Client</FormLabel>
+                      <Select onValueChange={handleClientChange} value={field.value} disabled={loading || isSubmitted}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a company" />
+                            <SelectValue placeholder="Select a client" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {companies.map((company) => (
-                            <SelectItem key={company.id} value={company.id ?? ""}>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id ?? ""}>
                               <div className="flex items-center gap-2">
                                 <Building2 className="h-4 w-4" />
-                                {company.name}
+                                {client.name}
                               </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>Select the company where employees work</FormDescription>
+                      <FormDescription>Select the client where employees work</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1846,16 +1755,16 @@ export function MarkAttendanceBySite() {
                 {loading && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading companies...
+                    Loading clients...
                   </div>
                 )}
 
-                {selectedCompany && (
+                {selectedClient && (
                   <Alert>
                     <CheckCircle2 className="h-4 w-4" />
-                    <AlertTitle>Company Selected</AlertTitle>
+                    <AlertTitle>Client Selected</AlertTitle>
                     <AlertDescription>
-                      <strong>{selectedCompany.name}</strong> has been selected for attendance marking.
+                      <strong>{selectedClient.name}</strong> has been selected for attendance marking.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -1892,14 +1801,14 @@ export function MarkAttendanceBySite() {
                   )}
                 />
 
-                {selectedCompany && selectedMonth && (
+                {selectedClient && selectedMonth && (
                   <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>Selection Summary</AlertTitle>
                     <AlertDescription>
                       <div className="space-y-1">
                         <div>
-                          <strong>Company:</strong> {selectedCompany.name}
+                          <strong>Client:</strong> {selectedClient.name}
                         </div>
                         <div>
                           <strong>Month:</strong> {format(selectedMonth, "MMMM yyyy")}
@@ -1926,7 +1835,7 @@ export function MarkAttendanceBySite() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Template Download Section */}
-                <div className="border rounded-lg p-4 bg-muted/30">
+                <div className="border rounded-md p-4 bg-surface">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-1">
                       <h4 className="font-medium flex items-center gap-2">
@@ -1941,7 +1850,7 @@ export function MarkAttendanceBySite() {
                       type="button"
                       variant="outline"
                       onClick={generateExcelTemplate}
-                      disabled={!selectedCompany || !selectedMonth || employees.length === 0 || loading}
+                      disabled={!selectedClient || !selectedMonth || employees.length === 0 || loading}
                       className="w-full sm:w-auto"
                     >
                       <Download className="mr-2 h-4 w-4" />
@@ -1957,13 +1866,13 @@ export function MarkAttendanceBySite() {
                     <AlertTitle>Checking for existing Excel file...</AlertTitle>
                   </Alert>
                 ) : existingExcelFile ? (
-                  <Alert className="border-blue-200 bg-blue-50">
-                    <Info className="h-4 w-4 text-blue-600" />
-                    <AlertTitle className="text-blue-800">Excel File Already Uploaded</AlertTitle>
-                    <AlertDescription className="text-blue-700">
+                  <Alert variant="info">
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Excel File Already Uploaded</AlertTitle>
+                    <AlertDescription>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <span>
-                          An Excel file has already been uploaded for this company and month. Uploading a new file will
+                          An Excel file has already been uploaded for this client and month. Uploading a new file will
                           replace the existing one.
                         </span>
                         <Button
@@ -2033,11 +1942,28 @@ export function MarkAttendanceBySite() {
                     </Alert>
                   )}
 
+                  {excelValidationWarnings.length > 0 && (
+                    <Alert variant="warning">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Some rows were skipped</AlertTitle>
+                      <AlertDescription>
+                        <p className="text-sm">The matched employees were loaded. Please review these before continuing:</p>
+                        <ul className="list-disc list-inside space-y-1 mt-2">
+                          {excelValidationWarnings.map((warning, index) => (
+                            <li key={index} className="text-sm">
+                              {warning}
+                            </li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {excelParsed && excelFile && (
-                    <Alert className="border-green-200 bg-green-50">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      <AlertTitle className="text-green-800">Excel File Processed Successfully</AlertTitle>
-                      <AlertDescription className="text-green-700">
+                    <Alert variant="success">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertTitle>Excel File Processed Successfully</AlertTitle>
+                      <AlertDescription>
                         {excelUploading ? (
                           "Uploading Excel file to server..."
                         ) : existingExcelFile ? (
@@ -2104,52 +2030,42 @@ export function MarkAttendanceBySite() {
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-4">
-                      <Card className="border-blue-200 bg-blue-50/30">
+                      <Card>
                         <CardHeader className="pb-3">
-                          <CardTitle className="text-sm font-medium text-blue-900">
+                          <CardTitle className="text-sm font-medium">
                             Attendance Already Marked
                           </CardTitle>
-                          <CardDescription className="text-xs text-blue-700">
+                          <CardDescription className="text-xs">
                             The following employees already have attendance marked for this month. You can update their attendance below.
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <div className="border rounded-lg overflow-x-auto scrollbar-sleek">
-                            <Table className="min-w-[600px]">
+                          <div className="rounded-md border overflow-x-auto scrollbar-sleek">
+                            <Table className="min-w-[500px]">
                               <TableHeader>
                                 <TableRow>
                                   <TableHead className="min-w-[200px]">Employee</TableHead>
                                   <TableHead className="min-w-[120px]">Department</TableHead>
                                   <TableHead className="min-w-[120px]">Designation</TableHead>
                                   <TableHead className="w-32 text-center">Present Days</TableHead>
-                                  <TableHead className="min-w-[150px]">Marked On</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {existingAttendanceRecords.map((record) => {
                                   return (
-                                    <TableRow key={record.employeeId} className="bg-blue-50/50">
+                                    <TableRow key={record.employeeId} className="bg-info/5">
                                       <TableCell>
                                         <div>
                                           <p className="font-medium">{record.employeeName}</p>
-                                          <p className="text-xs text-muted-foreground">{record.employeeId}</p>
+                                          <p className="font-mono text-xs text-muted-foreground">{record.employeeId}</p>
                                         </div>
                                       </TableCell>
                                       <TableCell>{record.department || "N/A"}</TableCell>
                                       <TableCell>{record.designation || "N/A"}</TableCell>
                                       <TableCell className="text-center">
-                                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                                        <Badge variant="info">
                                           {record.presentCount} day{record.presentCount !== 1 ? "s" : ""}
                                         </Badge>
-                                      </TableCell>
-                                      <TableCell>
-                                        {record.createdAt ? (
-                                          <span className="text-xs text-muted-foreground">
-                                            {format(new Date(record.createdAt), "MMM dd, yyyy HH:mm")}
-                                          </span>
-                                        ) : (
-                                          <span className="text-xs text-muted-foreground">N/A</span>
-                                        )}
                                       </TableCell>
                                     </TableRow>
                                   )
@@ -2185,9 +2101,84 @@ export function MarkAttendanceBySite() {
                           {selectedEmployees.size} of {employees.length} selected
                         </Badge>
                       </div>
+                      {selectedMonth && (
+                        <p className="text-xs text-muted-foreground">
+                          Max {maxDays} days for {format(selectedMonth, "MMMM yyyy")}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="border rounded-lg overflow-x-auto">
+                    {/* Mobile: stacked cards */}
+                    <div className="space-y-3 md:hidden">
+                      {employees.map((employee) => {
+                        const employeeData = formEmployees.find((emp) => emp.employeeId === employee.id)
+                        const selectedClientId = form.watch("clientId")
+                        const displayInfo = getEmployeeDisplayInfo(employee, selectedClientId)
+                        const hasExistingAttendance = employeeData?.presentCount && employeeData.presentCount > 0 && employeeData.selected
+
+                        return (
+                          <div
+                            key={employee.id}
+                            className={cn(
+                              "border rounded-md p-4 space-y-3",
+                              employeeData?.selected && "bg-muted/50",
+                              hasExistingAttendance && "bg-info/5 border-l-2 border-l-info",
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3">
+                                <Checkbox
+                                  checked={employeeData?.selected || false}
+                                  onCheckedChange={(checked) => handleEmployeeSelection(employee.id, checked as boolean)}
+                                  disabled={isSubmitted}
+                                  className="mt-1"
+                                />
+                                <div>
+                                  <p className="font-medium">
+                                    {employee.firstName} {employee.lastName}
+                                  </p>
+                                  <p className="font-mono text-xs text-muted-foreground">{employee.id}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {displayInfo.designation} · {displayInfo.department}
+                                  </p>
+                                </div>
+                              </div>
+                              {hasExistingAttendance && (
+                                <Badge variant="info">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Marked
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <label className="text-sm text-muted-foreground">Present days</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max={maxDays}
+                                value={employeeData?.presentCount || 0}
+                                onChange={(e) => {
+                                  const value = Number.parseInt(e.target.value) || 0
+                                  handlePresentCountChange(employee.id, value)
+                                }}
+                                onBlur={(e) => {
+                                  const value = Math.max(0, Number.parseInt(e.target.value) || 0)
+                                  if (value !== (employeeData?.presentCount || 0)) {
+                                    handlePresentCountChange(employee.id, value)
+                                  }
+                                }}
+                                disabled={isSubmitted}
+                                className="w-24 font-mono text-[13px] tabular-nums"
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Desktop: table */}
+                    <div className="hidden md:block rounded-md border overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2201,9 +2192,9 @@ export function MarkAttendanceBySite() {
                         <TableBody>
                           {employees.map((employee) => {
                             const employeeData = formEmployees.find((emp) => emp.employeeId === employee.id)
-                            const selectedCompanyId = form.watch("companyId")
-                            const displayInfo = getEmployeeDisplayInfo(employee, selectedCompanyId)
-                            
+                            const selectedClientId = form.watch("clientId")
+                            const displayInfo = getEmployeeDisplayInfo(employee, selectedClientId)
+
                             // Check if employee has existing attendance (was pre-filled from API or Excel)
                             const hasExistingAttendance = employeeData?.presentCount && employeeData.presentCount > 0 && employeeData.selected
 
@@ -2212,7 +2203,7 @@ export function MarkAttendanceBySite() {
                                 key={employee.id}
                                 className={cn(
                                   employeeData?.selected && "bg-muted/50",
-                                  hasExistingAttendance && "bg-blue-50/50 border-l-2 border-l-blue-500"
+                                  hasExistingAttendance && "bg-info/5 border-l-2 border-l-info"
                                 )}
                               >
                                 <TableCell>
@@ -2228,13 +2219,13 @@ export function MarkAttendanceBySite() {
                                       <p className="font-medium">
                                         {employee.firstName} {employee.lastName}
                                       </p>
-                                      <p className="text-sm text-muted-foreground">{employee.id}</p>
+                                      <p className="font-mono text-[13px] text-muted-foreground">{employee.id}</p>
                                     </div>
                                     {hasExistingAttendance && (
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger>
-                                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                                            <Badge variant="info">
                                               <CheckCircle2 className="h-3 w-3 mr-1" />
                                               Marked
                                             </Badge>
@@ -2253,7 +2244,7 @@ export function MarkAttendanceBySite() {
                                   <Input
                                     type="number"
                                     min="0"
-                                    max="31"
+                                    max={maxDays}
                                     value={employeeData?.presentCount || 0}
                                     onChange={(e) => {
                                       const value = Number.parseInt(e.target.value) || 0
@@ -2267,7 +2258,7 @@ export function MarkAttendanceBySite() {
                                       }
                                     }}
                                     disabled={isSubmitted}
-                                    className="w-20"
+                                    className="w-20 font-mono text-[13px] tabular-nums"
                                     placeholder="0"
                                   />
                                 </TableCell>
@@ -2286,12 +2277,12 @@ export function MarkAttendanceBySite() {
                           {!selectedMonth
                             ? "Please select a month first, then employees will be loaded."
                             : employees.length === 0
-                              ? "No active employees found for the selected company and month."
+                              ? "No active employees found for the selected client and month."
                               : "Please select at least one employee to mark attendance."}
                         </AlertDescription>
                       </Alert>
                     )}
-                    {!selectedMonth && form.watch("companyId") && (
+                    {!selectedMonth && form.watch("clientId") && (
                       <Alert>
                         <Info className="h-4 w-4" />
                         <AlertTitle>Select Month to Load Employees</AlertTitle>
@@ -2305,7 +2296,7 @@ export function MarkAttendanceBySite() {
                   <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>No employees found</AlertTitle>
-                    <AlertDescription>No active employees found for the selected company.</AlertDescription>
+                    <AlertDescription>No active employees found for the selected client.</AlertDescription>
                   </Alert>
                 )}
               </CardContent>
@@ -2332,15 +2323,33 @@ export function MarkAttendanceBySite() {
                       <FormControl>
                         <Input
                           type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
                           onChange={(e) => {
                             const file = e.target.files?.[0]
+                            if (!file) {
+                              onChange(undefined)
+                              return
+                            }
+                            const ext = file.name.toLowerCase().substring(file.name.lastIndexOf("."))
+                            const typeOk = SHEET_ACCEPTED_TYPES.includes(file.type)
+                            const extOk = SHEET_ACCEPTED_EXTENSIONS.includes(ext)
+                            if (!typeOk && !extOk) {
+                              toast({
+                                variant: "destructive",
+                                title: "Unsupported File Type",
+                                description: "Please upload a PDF, JPG, JPEG, or PNG file.",
+                              })
+                              e.target.value = ""
+                              onChange(undefined)
+                              return
+                            }
                             onChange(file)
                           }}
                           disabled={isSubmitted}
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>Upload any file type as attendance proof (PDF, images, documents, etc.)</FormDescription>
+                      <FormDescription>Upload attendance proof as a PDF or image (PDF, JPG, JPEG, PNG).</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -2371,8 +2380,8 @@ export function MarkAttendanceBySite() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <h4 className="font-medium">Company</h4>
-                    <p className="text-sm text-muted-foreground">{selectedCompany?.name}</p>
+                    <h4 className="font-medium">Client</h4>
+                    <p className="text-sm text-muted-foreground">{selectedClient?.name}</p>
                   </div>
                   <div className="space-y-2">
                     <h4 className="font-medium">Month</h4>
@@ -2396,12 +2405,12 @@ export function MarkAttendanceBySite() {
 
                 <div className="space-y-4">
                   <h4 className="font-medium">Selected Employees Summary</h4>
-                  <div className="border rounded-lg overflow-x-auto">
+                  <div className="rounded-md border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Employee</TableHead>
-                          <TableHead>Present Days</TableHead>
+                          <TableHead className="text-right">Present Days</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2411,10 +2420,10 @@ export function MarkAttendanceBySite() {
                             const employee = employees.find((e) => e.id === emp.employeeId)
                             return (
                               <TableRow key={emp.employeeId}>
-                                <TableCell>
+                                <TableCell className="font-medium">
                                   {employee?.firstName} {employee?.lastName}
                                 </TableCell>
-                                <TableCell>{emp.presentCount}</TableCell>
+                                <TableCell className="text-right font-mono text-[13px]">{emp.presentCount}</TableCell>
                               </TableRow>
                             )
                           })}
@@ -2439,7 +2448,7 @@ export function MarkAttendanceBySite() {
           {currentStep < 6 && (
             <div className="sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t p-4 -mx-4">
               <Card>
-                <CardContent className="pt-6">
+                <CardContent className="pt-4 pb-4">
                   <div className="flex flex-col sm:flex-row justify-between gap-4">
                     <Button
                       type="button"
@@ -2490,6 +2499,7 @@ export function MarkAttendanceBySite() {
                       ) : currentStep === 5 ? (
                         <Button
                           type="submit"
+                          variant="brand"
                           disabled={submitting || selectedEmployees.size === 0 || isSubmitted}
                           className="w-full sm:w-auto"
                         >
@@ -2510,23 +2520,30 @@ export function MarkAttendanceBySite() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-6">
-                  <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-                    <CheckCircle2 className="h-10 w-10 text-primary" />
+                  <div className="mx-auto w-20 h-20 bg-success/10 border border-success/40 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="h-10 w-10 text-success" />
                   </div>
                   <div className="space-y-3">
-                    <h3 className="text-2xl font-semibold">Attendance Marked Successfully!</h3>
+                    <h3 className="font-display text-2xl font-semibold tracking-[-0.02em]">Attendance Marked Successfully!</h3>
                     <p className="text-muted-foreground max-w-md mx-auto">
-                      The attendance has been recorded for {selectedEmployees.size} employees at {selectedCompany?.name}{" "}
+                      The attendance has been recorded for {selectedEmployees.size} employees at {selectedClient?.name}{" "}
                       for {selectedMonth && format(selectedMonth, "MMMM yyyy")}.
                     </p>
                     {submissionResult && (
-                      <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+                      <div className="bg-surface rounded-md border p-4 text-sm space-y-2">
                         <div className="font-medium">Submission Details:</div>
-                        <div>✅ {submissionResult.created} employees processed successfully</div>
-                        {submissionResult.failed > 0 && <div>❌ {submissionResult.failed} submissions failed</div>}
-                        {submissionResult.fileUploaded && <div>📁 Attendance file uploaded</div>}
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                          {submissionResult.created} employees processed successfully
+                        </div>
+                        {submissionResult.fileUploaded && (
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-success" />
+                            Attendance file uploaded
+                          </div>
+                        )}
                         <div className="text-xs text-muted-foreground">
-                          Completed at: {submissionResult.timestamp.toLocaleString()}
+                          Completed at: {formatDate(submissionResult.timestamp)}
                         </div>
                       </div>
                     )}
@@ -2554,19 +2571,19 @@ export function MarkAttendanceBySite() {
               Excel File Preview
             </DialogTitle>
             <DialogDescription>
-              Attendance Excel file for {selectedCompany?.name} - {selectedMonth && format(selectedMonth, "MMMM yyyy")}
+              Attendance Excel file for {selectedClient?.name} - {selectedMonth && format(selectedMonth, "MMMM yyyy")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="border rounded-lg p-4 bg-muted/30">
+            <div className="border rounded-md p-4 bg-surface">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <FileText className="h-8 w-8 text-blue-600" />
+                <div className="p-3 bg-card border rounded-md">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">Pre-finalized Attendance Excel File</p>
                   <p className="text-sm text-muted-foreground">
-                    This is the Excel file that was previously uploaded for this company and month.
+                    This is the Excel file that was previously uploaded for this client and month.
                   </p>
                 </div>
               </div>
@@ -2604,7 +2621,7 @@ export function MarkAttendanceBySite() {
                     else if (urlLower.endsWith(".xlsx")) extension = ".xlsx"
                   }
                   
-                  const filename = `Attendance_${selectedCompany?.name || "Company"}_${selectedMonth ? format(selectedMonth, "yyyy-MM") : ""}${extension}`
+                  const filename = `Attendance_${selectedClient?.name || "Client"}_${selectedMonth ? format(selectedMonth, "yyyy-MM") : ""}${extension}`
                   const url = URL.createObjectURL(blob)
                   const a = document.createElement("a")
                   a.href = url
@@ -2642,7 +2659,7 @@ export function MarkAttendanceBySite() {
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle className="flex items-center justify-between">
               <span>
-                Attendance Sheet - {selectedCompany?.name} - {selectedMonth ? format(selectedMonth, "MMMM yyyy") : ""}
+                Attendance Sheet - {selectedClient?.name} - {selectedMonth ? format(selectedMonth, "MMMM yyyy") : ""}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -2672,7 +2689,7 @@ export function MarkAttendanceBySite() {
                         else extension = ".jpg" // Default for images from S3
                       }
                       
-                      const filename = `attendance-sheet-${selectedCompany?.name || "sheet"}-${selectedMonth ? format(selectedMonth, "yyyy-MM") : ""}${extension}`
+                      const filename = `attendance-sheet-${selectedClient?.name || "sheet"}-${selectedMonth ? format(selectedMonth, "yyyy-MM") : ""}${extension}`
                       const url = URL.createObjectURL(blob)
                       const a = document.createElement("a")
                       a.href = url
@@ -2702,7 +2719,7 @@ export function MarkAttendanceBySite() {
           <DialogDescription>Attendance sheet document preview</DialogDescription>
         </DialogHeader>
         <div className="px-6 pb-6">
-          <div className="border rounded-md overflow-hidden bg-white">
+          <div className="border rounded-md overflow-hidden bg-card">
             {previewType === "loading" ? (
               <div className="flex items-center justify-center h-[70vh]">
                 <div className="text-center space-y-2">
@@ -2721,7 +2738,7 @@ export function MarkAttendanceBySite() {
                 }}
               />
             ) : previewType === "image" ? (
-              <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+              <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                 <img
                   src={previewUrl || ""}
                   alt="Attendance Sheet"

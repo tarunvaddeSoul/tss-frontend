@@ -7,7 +7,6 @@ import authService from "@/services/auth"
 import type {
   User,
   LoginCredentials,
-  SignupCredentials,
   ChangePasswordCredentials,
   ForgotPasswordCredentials,
   ResetPasswordCredentials,
@@ -23,7 +22,6 @@ interface AuthContextType {
   isInitializing: boolean
   isAuthenticated: boolean
   login: (credentials: LoginCredentials) => Promise<void>
-  signup: (credentials: SignupCredentials) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   changePassword: (credentials: ChangePasswordCredentials) => Promise<void>
@@ -91,34 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variant: "default",
       })
     } catch (error: any) {
-      const message = error?.response?.data?.message || error?.message || "Unable to login. Please try again."
+      const message = error?.response?.data?.error?.message || error?.message || "Unable to login. Please try again."
       toast({
         title: "Login failed",
-        description: message,
-        variant: "destructive",
-      })
-      throw error
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Signup
-  const signup = async (credentials: SignupCredentials) => {
-    setIsLoading(true)
-    try {
-      const response = await authService.signup(credentials)
-      await fetchCurrentUser() // Refresh user state
-      router.push("/dashboard")
-      toast({
-        title: "Account created",
-        description: "Your account has been created successfully!",
-        variant: "default",
-      })
-    } catch (error: any) {
-      const message = error?.response?.data?.message || error?.message || "Unable to sign up. Please try again."
-      toast({
-        title: "Signup failed",
         description: message,
         variant: "destructive",
       })
@@ -221,16 +194,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authService.resetPassword(credentials)
       toast({
         title: "Password reset",
-        description: "Your password has been reset successfully.",
+        description: "Your password has been reset successfully. Please login with your new password.",
         variant: "default",
       })
-      router.push("/login")
+      // Don't redirect automatically - let the component handle it after showing success message
     } catch (error: any) {
-      toast({
-        title: "Reset password failed",
-        description: error.message || "Unable to reset password. Please try again.",
-        variant: "destructive",
-      })
+      // Don't show toast here - let the component handle error display
+      // The component will show both toast and inline error message
       throw error
     } finally {
       setIsLoading(false)
@@ -267,7 +237,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isInitializing,
     isAuthenticated,
     login,
-    signup,
     logout,
     refreshUser,
     changePassword,

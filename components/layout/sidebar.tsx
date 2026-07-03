@@ -13,6 +13,7 @@ import {
   DollarSign,
   ChevronRight,
   ChevronDown,
+  ChevronsUpDown,
   LogOut,
   Settings,
   HelpCircle,
@@ -23,6 +24,8 @@ import {
   Zap,
   Keyboard,
   Command,
+  User,
+  Shield,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -30,7 +33,22 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -63,52 +81,67 @@ interface NavItem {
   subItems?: { title: string; href: string }[]
 }
 
-const navItems: NavItem[] = [
+interface NavSection {
+  header?: string
+  items: NavItem[]
+}
+
+export const navSections: NavSection[] = [
   {
-    title: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
+    items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
   },
   {
-    title: "Employees",
-    href: "/employees",
-    icon: Users,
-    subItems: [
-      { title: "List Employees", href: "/employees" },
-      { title: "Add Employee", href: "/employees/add" },
-      { title: "Advanced Search", href: "/employees/advanced-search" },
+    header: "Everyday Work",
+    items: [
+      {
+        title: "Attendance",
+        href: "/attendance",
+        icon: ClipboardCheck,
+        subItems: [
+          { title: "Mark by Site", href: "/attendance/mark-by-site" },
+          { title: "Upload Attendance", href: "/attendance/upload" },
+          { title: "Records", href: "/attendance/records" },
+          { title: "Reports", href: "/attendance/reports" },
+        ],
+      },
+      {
+        title: "Payroll",
+        href: "/payroll",
+        icon: DollarSign,
+        subItems: [
+          { title: "Run Payroll", href: "/payroll/calculate" },
+          { title: "Reports", href: "/payroll/reports" },
+        ],
+      },
     ],
   },
   {
-    title: "Companies",
-    href: "/companies",
-    icon: Building2,
-    subItems: [
-      { title: "List Companies", href: "/companies" },
-      { title: "Add Company", href: "/companies/add" },
-    ],
-  },
-  {
-    title: "Attendance",
-    href: "/attendance",
-    icon: ClipboardCheck,
-    subItems: [
-      { title: "Mark By Site", href: "/attendance/mark-by-site" },
-      { title: "Upload", href: "/attendance/upload" },
-      { title: "Reports", href: "/attendance/reports" },
-      { title: "Records", href: "/attendance/records" },
-    ],
-  },
-  {
-    title: "Payroll",
-    href: "/payroll",
-    icon: DollarSign,
-    subItems: [
-      { title: "Calculate Payroll", href: "/payroll/calculate" },
-      { title: "Reports", href: "/payroll/reports" },
+    header: "Master Data",
+    items: [
+      {
+        title: "Employees",
+        href: "/employees",
+        icon: Users,
+        subItems: [
+          { title: "All Employees", href: "/employees" },
+          { title: "Add Employee", href: "/employees/add" },
+          { title: "Search Employees", href: "/employees/advanced-search" },
+        ],
+      },
+      {
+        title: "Clients",
+        href: "/clients",
+        icon: Building2,
+        subItems: [
+          { title: "All Clients", href: "/clients" },
+          { title: "Add Client", href: "/clients/add" },
+        ],
+      },
     ],
   },
 ]
+
+export const navItems: NavItem[] = navSections.flatMap((section) => section.items)
 
 export function Sidebar({ className }: SidebarProps) {
   const { user, logout } = useAuth()
@@ -125,6 +158,7 @@ export function Sidebar({ className }: SidebarProps) {
     return false
   })
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
 
   // Save collapsed state to localStorage
   useEffect(() => {
@@ -191,23 +225,57 @@ export function Sidebar({ className }: SidebarProps) {
     return false
   }
 
+  const renderAccountMenu = () => (
+    <DropdownMenuContent side="top" align="start" className="w-56">
+      <DropdownMenuLabel className="font-normal">
+        <div className="flex flex-col space-y-1">
+          <p className="text-sm font-medium leading-none truncate">{user?.name}</p>
+          <p className="text-xs leading-none text-muted-foreground truncate">{user?.email}</p>
+        </div>
+      </DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem asChild>
+        <Link href="/settings/profile">
+          <User className="mr-2 h-4 w-4" />
+          My Profile
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/settings/security">
+          <Shield className="mr-2 h-4 w-4" />
+          Password
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        onClick={() => setLogoutConfirmOpen(true)}
+        className="text-destructive focus:text-destructive"
+      >
+        <LogOut className="mr-2 h-4 w-4" />
+        Log out
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  )
 
   // Desktop Sidebar Component
   const DesktopSidebar = () => (
     <SidebarContext.Provider value={{ collapsed, setCollapsed, toggleCollapsed }}>
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-card text-card-foreground border-r transition-all duration-300 h-screen relative group overflow-visible",
-          collapsed ? "w-[70px]" : "w-[280px]",
+          "hidden lg:flex flex-col bg-background border-r transition-all duration-200 h-screen relative group overflow-visible",
+          collapsed ? "w-[72px]" : "w-[264px]",
           className,
         )}
       >
         {/* Logo Section - Always visible */}
         <div className="flex items-center h-16 px-4 border-b relative overflow-visible">
           {!collapsed ? (
-            <div className="flex items-center gap-2 flex-1">
-              <Image src="/tss-logo.png" alt="TSS Logo" width={32} height={32} priority className="transition-transform group-hover:scale-105" />
-              <span className="font-bold text-xl">Tulsyan</span>
+            <div className="flex items-center gap-2.5 flex-1">
+              <Image src="/tss-logo.png" alt="TSS Logo" width={30} height={30} priority />
+              <span className="leading-tight">
+                <span className="block font-display text-[13px] font-bold tracking-tight">Tulsyan Security</span>
+                <span className="block font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Ops Portal</span>
+              </span>
             </div>
           ) : (
             <div className="flex justify-center w-full">
@@ -215,7 +283,7 @@ export function Sidebar({ className }: SidebarProps) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="cursor-pointer">
-                      <Image src="/tss-logo.png" alt="TSS Logo" width={32} height={32} priority className="transition-transform hover:scale-110" />
+                      <Image src="/tss-logo.png" alt="TSS Logo" width={30} height={30} priority />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right">
@@ -233,8 +301,7 @@ export function Sidebar({ className }: SidebarProps) {
           variant="ghost"
           size="icon"
           className={cn(
-            "absolute -right-3 top-8 -translate-y-1/2 h-7 w-7 rounded-full bg-card border-2 shadow-lg hover:bg-muted hover:shadow-xl transition-all z-50 pointer-events-auto",
-            "hover:scale-110 active:scale-95",
+            "absolute -right-3 top-8 -translate-y-1/2 h-6 w-6 rounded-full bg-card border shadow-sm hover:bg-muted transition-colors z-50 pointer-events-auto",
             collapsed && "rotate-180"
           )}
           onClick={toggleCollapsed}
@@ -244,45 +311,21 @@ export function Sidebar({ className }: SidebarProps) {
         </Button>
 
 
-        {/* User Profile */}
-        {user && (
-          <div className={cn("flex items-center gap-3 p-4 border-b relative", collapsed && "justify-center")}>
-            {collapsed ? (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="cursor-pointer">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
-                      </Avatar>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <div className="font-medium">{user.name}</div>
-                    <div className="text-xs text-muted-foreground">{user.email}</div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              <>
-                <Avatar>
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
         {/* Navigation */}
         <ScrollArea className="flex-1 px-2 py-4">
           <nav className="space-y-1">
-            {navItems.map((item) => {
+            {navSections.map((section, sIdx) => (
+              <div key={section.header ?? `section-${sIdx}`} className={sIdx > 0 ? "mt-3" : ""}>
+                {section.header &&
+                  (collapsed ? (
+                    <div className="mx-2 my-2 border-t border-border/60" />
+                  ) : (
+                    <p className="px-3 pb-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
+                      {section.header}
+                    </p>
+                  ))}
+                <div className="space-y-1">
+                  {section.items.map((item) => {
                 const isActive = isNavItemActive(item)
                 const Icon = item.icon
 
@@ -298,7 +341,7 @@ export function Sidebar({ className }: SidebarProps) {
                                 "w-full flex items-center h-10 px-3 rounded-md transition-all relative group/item",
                                 collapsed ? "justify-center" : "justify-between",
                                 isActive && !expandedItems[item.href]
-                                  ? "bg-primary/10 text-primary"
+                                  ? "bg-brand/[0.07] text-brand"
                                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                               )}
                             >
@@ -316,7 +359,7 @@ export function Sidebar({ className }: SidebarProps) {
                                 />
                               )}
                               {collapsed && isActive && (
-                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-brand" />
                               )}
                             </button>
                           </TooltipTrigger>
@@ -337,14 +380,14 @@ export function Sidebar({ className }: SidebarProps) {
                                 "w-full flex items-center h-10 px-3 rounded-md transition-all relative group/item",
                                 collapsed ? "justify-center" : "",
                                 isActive
-                                  ? "bg-primary text-primary-foreground"
+                                  ? "bg-brand/[0.07] text-brand font-medium"
                                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                               )}
                             >
                               <Icon size={20} className="shrink-0" />
                               {!collapsed && <span className="ml-3 text-sm">{item.title}</span>}
                               {collapsed && isActive && (
-                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-foreground rounded-r-full" />
+                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-brand" />
                               )}
                             </Link>
                           </TooltipTrigger>
@@ -367,16 +410,16 @@ export function Sidebar({ className }: SidebarProps) {
                               className={cn(
                                 "flex items-center h-9 px-3 rounded-md transition-colors group/sub",
                                 pathname === subItem.href
-                                  ? "bg-primary/10 text-primary font-medium"
+                                  ? "bg-brand/[0.07] text-brand font-medium"
                                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                               )}
                             >
                               <span
                                 className={cn(
-                                  "h-1.5 w-1.5 rounded-full mr-3 transition-all",
+                                  "h-1 w-1 rounded-full mr-3 transition-all",
                                   pathname === subItem.href
-                                    ? "bg-primary"
-                                    : "bg-muted-foreground/30 group-hover/sub:bg-primary/50"
+                                    ? "bg-brand"
+                                    : "bg-muted-foreground/30 group-hover/sub:bg-brand/50"
                                 )}
                               />
                               <span className="text-sm">{subItem.title}</span>
@@ -387,20 +430,19 @@ export function Sidebar({ className }: SidebarProps) {
                   </div>
                 )
               })}
+                </div>
+              </div>
+            ))}
           </nav>
         </ScrollArea>
 
         {/* Quick Actions / Innovations Section */}
         {!collapsed && (
           <div className="px-3 pb-2 border-t pt-2">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="h-4 w-4 text-primary" />
-              <span className="text-xs font-medium text-muted-foreground">Quick Actions</span>
-            </div>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start h-8 text-xs"
+              className="w-full justify-start h-8 text-xs text-muted-foreground"
               onClick={() => setShowKeyboardShortcuts(true)}
             >
               <Keyboard className="h-3.5 w-3.5 mr-2" />
@@ -414,7 +456,7 @@ export function Sidebar({ className }: SidebarProps) {
           {!collapsed ? (
             <>
               <Button variant="ghost" className="w-full justify-start h-9" asChild>
-                <Link href="/settings/profile">
+                <Link href="/settings">
                   <Settings size={18} className="mr-2" />
                   Settings
                 </Link>
@@ -423,10 +465,24 @@ export function Sidebar({ className }: SidebarProps) {
                 <HelpCircle size={18} className="mr-2" />
                 Help
               </Button>
-              <Button variant="ghost" className="w-full justify-start h-9 text-destructive" onClick={logout}>
-                <LogOut size={18} className="mr-2" />
-                Logout
-              </Button>
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="mt-1 w-full flex items-center gap-3 rounded-md p-2 hover:bg-muted transition-colors">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.avatar} alt={user.name} />
+                        <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-medium truncate">{user.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      </div>
+                      <ChevronsUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  {renderAccountMenu()}
+                </DropdownMenu>
+              )}
             </>
           ) : (
             <TooltipProvider delayDuration={100}>
@@ -434,7 +490,7 @@ export function Sidebar({ className }: SidebarProps) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" asChild className="hover:bg-muted transition-colors">
-                      <Link href="/settings/profile">
+                      <Link href="/settings">
                         <Settings size={18} />
                       </Link>
                     </Button>
@@ -449,14 +505,19 @@ export function Sidebar({ className }: SidebarProps) {
                   </TooltipTrigger>
                   <TooltipContent side="right">Help</TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={logout} className="hover:bg-muted transition-colors text-destructive hover:text-destructive">
-                      <LogOut size={18} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Logout</TooltipContent>
-                </Tooltip>
+                {user && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="rounded-full outline-none">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.avatar} alt={user.name} />
+                          <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
+                        </Avatar>
+                      </button>
+                    </DropdownMenuTrigger>
+                    {renderAccountMenu()}
+                  </DropdownMenu>
+                )}
               </div>
             </TooltipProvider>
           )}
@@ -470,9 +531,9 @@ export function Sidebar({ className }: SidebarProps) {
     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
       <SheetContent side="left" className="w-[280px] p-0">
         <SheetHeader className="p-4 border-b">
-          <div className="flex items-center gap-2">
-            <Image src="/tss-logo.png" alt="TSS Logo" width={32} height={32} priority />
-            <SheetTitle>Tulsyan</SheetTitle>
+          <div className="flex items-center gap-2.5">
+            <Image src="/tss-logo.png" alt="TSS Logo" width={30} height={30} priority />
+            <SheetTitle className="text-[15px]">Tulsyan Security</SheetTitle>
           </div>
         </SheetHeader>
 
@@ -504,7 +565,7 @@ export function Sidebar({ className }: SidebarProps) {
                         className={cn(
                           "w-full flex items-center justify-between h-10 px-3 rounded-md transition-colors",
                           isActive && !expandedItems[item.href]
-                            ? "bg-primary/10 text-primary"
+                            ? "bg-brand/[0.07] text-brand"
                             : "text-muted-foreground hover:bg-muted",
                         )}
                       >
@@ -524,7 +585,7 @@ export function Sidebar({ className }: SidebarProps) {
                               className={cn(
                                 "flex items-center h-9 px-3 rounded-md transition-colors",
                                 pathname === subItem.href
-                                  ? "bg-primary/10 text-primary font-medium"
+                                  ? "bg-brand/[0.07] text-brand font-medium"
                                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                               )}
                             >
@@ -541,7 +602,7 @@ export function Sidebar({ className }: SidebarProps) {
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "w-full flex items-center h-10 px-3 rounded-md transition-colors",
-                        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+                        isActive ? "bg-brand/[0.07] text-brand font-medium" : "text-muted-foreground hover:bg-muted",
                       )}
                     >
                       <Icon size={20} />
@@ -648,6 +709,25 @@ export function Sidebar({ className }: SidebarProps) {
               </div>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Logout Confirmation */}
+      <Dialog open={logoutConfirmOpen} onOpenChange={setLogoutConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Log out?</DialogTitle>
+            <DialogDescription>You will need to sign in again to access the portal.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
+            <Button variant="outline" onClick={() => setLogoutConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => logout()}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

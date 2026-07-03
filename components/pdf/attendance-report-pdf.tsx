@@ -14,7 +14,7 @@ const AttendanceReportPDF = ({ title, month, records }: AttendanceReportPDFProps
       title={`${title} - Attendance Report`}
       author={BRAND.name}
       subject="Attendance Report"
-      keywords="Tulsyan Security Solutions, Attendance, Report"
+      keywords="Tulsyan Security Services, Attendance, Report"
     >
       <BrandPage>
         <PdfHeader title={title} subtitle={month ? `Attendance Report • ${month}` : "Attendance Report"} />
@@ -28,25 +28,33 @@ const AttendanceReportPDF = ({ title, month, records }: AttendanceReportPDFProps
 
         <Section title="Details">
           <View style={[brandStyles.table, { marginTop: 0 }]}>
-            <View style={[brandStyles.tableRow, brandStyles.tableHeader]}>
+            <View style={[brandStyles.tableRow, brandStyles.tableHeader]} fixed>
               <Text style={[brandStyles.tableHeaderCell, { width: "12%" }]}>Employee ID</Text>
               <Text style={[brandStyles.tableHeaderCell, { width: "22%" }]}>Employee Name</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "22%" }]}>Company</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "22%" }]}>Client</Text>
               <Text style={[brandStyles.tableHeaderCell, { width: "16%" }]}>Designation</Text>
               <Text style={[brandStyles.tableHeaderCell, { width: "16%" }]}>Department</Text>
-              <Text style={[brandStyles.tableHeaderCell, { width: "12%" }]}>Present</Text>
+              <Text style={[brandStyles.tableHeaderCell, { width: "12%", textAlign: "right" }]}>Present Days</Text>
             </View>
 
-            {records.map((rec) => (
-              <View key={`${rec.employeeID}-${rec.companyName}`} style={brandStyles.tableRow}>
-                <Text style={[brandStyles.tableCell, { width: "12%" }]}>{rec.employeeID}</Text>
-                <Text style={[brandStyles.tableCell, { width: "22%" }]}>{rec.employeeName}</Text>
-                <Text style={[brandStyles.tableCell, { width: "22%" }]}>{rec.companyName}</Text>
-                <Text style={[brandStyles.tableCell, { width: "16%" }]}>{rec.designationName}</Text>
-                <Text style={[brandStyles.tableCell, { width: "16%" }]}>{rec.departmentName}</Text>
-                <Text style={[brandStyles.tableCell, { width: "12%", textAlign: "right" }]}>{rec.presentCount}</Text>
+            {records.length === 0 ? (
+              <View style={brandStyles.tableRow}>
+                <Text style={[brandStyles.tableCell, { width: "100%", textAlign: "center", color: BRAND.colors.muted }]}>
+                  No attendance records for this period.
+                </Text>
               </View>
-            ))}
+            ) : (
+              records.map((rec) => (
+                <View key={`${rec.employeeID}-${rec.clientName}`} style={brandStyles.tableRow} wrap={false}>
+                  <Text style={[brandStyles.tableCell, { width: "12%", fontFamily: "IBMPlexMono", fontSize: 8 }]}>{rec.employeeID || "-"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "22%" }]}>{rec.employeeName || "-"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "22%" }]}>{rec.clientName || "-"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "16%" }]}>{rec.designationName || "-"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "16%" }]}>{rec.departmentName || "-"}</Text>
+                  <Text style={[brandStyles.tableCell, { width: "12%", textAlign: "right", fontFamily: "IBMPlexMono", fontSize: 8.5 }]}>{rec.presentCount}</Text>
+                </View>
+              ))
+            )}
           </View>
         </Section>
 

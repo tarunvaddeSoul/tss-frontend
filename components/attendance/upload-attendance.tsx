@@ -23,6 +23,7 @@ import {
   Download,
   X,
   FileSpreadsheet,
+  Image as ImageIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -46,14 +47,17 @@ import {
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 
-import { useCompany } from "@/hooks/use-company"
+import { PageHeader } from "@/components/layout/page-header"
+import { useClient } from "@/hooks/use-client"
 import { attendanceSheetService } from "@/services/attendanceSheetService"
 import { attendanceService } from "@/services/attendanceService"
-import type { Company } from "@/types/company"
+import { getErrorMessage } from "@/services/api"
+import type { Client } from "@/types/client"
+import type { ImportAttendanceExcelResult } from "@/types/attendance"
 
 // Form validation schema
 const uploadAttendanceSchema = z.object({
-  companyId: z.string().min(1, "Please select a company"),
+  clientId: z.string().min(1, "Please select a client"),
   month: z.date({
     required_error: "Please select a month",
   }),
@@ -81,24 +85,25 @@ export function UploadAttendanceComponent() {
   const [existingExcelUrl, setExistingExcelUrl] = useState<string | null>(null)
   const [existingExcelId, setExistingExcelId] = useState<string | null>(null)
   const [checkingExcel, setCheckingExcel] = useState(false)
+  const [importResult, setImportResult] = useState<ImportAttendanceExcelResult | null>(null)
 
   const { toast } = useToast()
-  const { data, isLoading: companiesLoading, fetchCompanies } = useCompany()
+  const { data, isLoading: clientsLoading, fetchClients } = useClient()
 
   useEffect(() => {
-    fetchCompanies()
+    fetchClients()
   }, [])
 
   const form = useForm<UploadAttendanceFormValues>({
     resolver: zodResolver(uploadAttendanceSchema),
     defaultValues: {
-      companyId: "",
+      clientId: "",
       month: undefined,
     },
   })
 
-  const companies: Company[] = data?.companies || []
-  const selectedCompany = companies.find((c) => c.id === form.watch("companyId"))
+  const clients: Client[] = data?.clients || []
+  const selectedClient = clients.find((c) => c.id === form.watch("clientId"))
   const selectedMonth = form.watch("month")
 
   // Helper function to add cache-busting query parameter to URL
@@ -109,13 +114,13 @@ export function UploadAttendanceComponent() {
   }
 
   // Function to load existing sheet
-  const loadExistingSheet = async (companyId: string, monthDate: Date) => {
+  const loadExistingSheet = async (clientId: string, monthDate: Date) => {
     setExistingSheetUrl(null)
     setExistingSheetId(null)
-    if (!companyId || !monthDate) return
+    if (!clientId || !monthDate) return
     try {
       setCheckingSheet(true)
-      const res = await attendanceSheetService.get(companyId, format(monthDate, "yyyy-MM"))
+      const res = await attendanceSheetService.get(clientId, format(monthDate, "yyyy-MM"))
       if (res.data?.attendanceSheetUrl) {
         setExistingSheetUrl(res.data.attendanceSheetUrl)
         setExistingSheetId(res.data.id)
@@ -134,14 +139,14 @@ export function UploadAttendanceComponent() {
   }
 
   // Function to load existing Excel file
-  const loadExistingExcel = async (companyId: string, monthDate: Date) => {
+  const loadExistingExcel = async (clientId: string, monthDate: Date) => {
     setExistingExcelUrl(null)
     setExistingExcelId(null)
-    if (!companyId || !monthDate) return
+    if (!clientId || !monthDate) return
     try {
       setCheckingExcel(true)
       const res = await attendanceService.getAttendanceExcelFiles({
-        companyId,
+        clientId,
         month: format(monthDate, "yyyy-MM"),
       })
       if (res.data && typeof res.data === "object" && "attendanceExcelUrl" in res.data) {
@@ -159,31 +164,31 @@ export function UploadAttendanceComponent() {
     }
   }
 
-  // Watch company/month to fetch current sheet and Excel
+  // Watch client/month to fetch current sheet and Excel
   useEffect(() => {
-    const companyId = form.getValues("companyId")
+    const clientId = form.getValues("clientId")
     const monthDate = form.getValues("month")
-    if (companyId && monthDate) {
-      loadExistingSheet(companyId, monthDate)
-      loadExistingExcel(companyId, monthDate)
+    if (clientId && monthDate) {
+      loadExistingSheet(clientId, monthDate)
+      loadExistingExcel(clientId, monthDate)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.watch("companyId"), form.watch("month")])
+  }, [form.watch("clientId"), form.watch("month")])
 
   // Sheet file handlers
   const handleSheetFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      // Validate file type for sheets (PDF, images)
-      const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
-      const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp"]
+      // Validate file type for sheets (matches the backend's allowed set)
+      const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"]
+      const allowedExtensions = [".pdf", ".jpg", ".jpeg", ".png"]
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf("."))
-      
+
       if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
         toast({
           variant: "destructive",
           title: "Invalid File Type",
-          description: "Please upload a PDF or image file (JPG, PNG, GIF, WEBP) for attendance sheets.",
+          description: "Please upload a PDF, JPG, JPEG, or PNG file for attendance sheets.",
         })
         return
       }
@@ -279,7 +284,7 @@ export function UploadAttendanceComponent() {
 
   // Upload sheet
   const handleUploadSheet = async () => {
-    if (!selectedSheetFile || !selectedCompany || !selectedMonth) {
+    if (!selectedSheetFile || !selectedClient || !selectedMonth) {
       toast({
         variant: "destructive",
         title: "No File Selected",
@@ -292,26 +297,26 @@ export function UploadAttendanceComponent() {
       setSheetUploadLoading(true)
       const formattedMonth = format(selectedMonth, "yyyy-MM")
 
-      await attendanceSheetService.upload(selectedCompany.id!, formattedMonth, selectedSheetFile)
+      await attendanceSheetService.upload(selectedClient.id!, formattedMonth, selectedSheetFile)
 
       // Clear selected file and reset input
       setSelectedSheetFile(null)
-      const fileInput = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"]') as HTMLInputElement
+      const fileInput = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png"]') as HTMLInputElement
       if (fileInput) {
         fileInput.value = ""
       }
 
-      await loadExistingSheet(selectedCompany.id!, selectedMonth)
+      await loadExistingSheet(selectedClient.id!, selectedMonth)
 
       toast({
         title: "Upload Successful",
-        description: `Attendance sheet uploaded for ${selectedCompany.name} - ${format(selectedMonth, "MMMM yyyy")}.`,
+        description: `Attendance sheet uploaded for ${selectedClient.name} - ${format(selectedMonth, "MMMM yyyy")}.`,
       })
     } catch (error: any) {
       console.error("Upload error:", error)
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload attendance sheet. Please try again.",
+        description: getErrorMessage(error),
         variant: "destructive",
       })
     } finally {
@@ -321,7 +326,7 @@ export function UploadAttendanceComponent() {
 
   // Upload Excel
   const handleUploadExcel = async () => {
-    if (!selectedExcelFile || !selectedCompany || !selectedMonth) {
+    if (!selectedExcelFile || !selectedClient || !selectedMonth) {
       toast({
         variant: "destructive",
         title: "No File Selected",
@@ -332,15 +337,26 @@ export function UploadAttendanceComponent() {
 
     try {
       setExcelUploadLoading(true)
+      setImportResult(null)
       const formattedMonth = format(selectedMonth, "yyyy-MM")
+      const fileToImport = selectedExcelFile
 
       await attendanceService.uploadAttendanceExcel(
         {
-          companyId: selectedCompany.id!,
+          clientId: selectedClient.id!,
           month: formattedMonth,
         },
-        selectedExcelFile,
+        fileToImport,
       )
+
+      const result = await attendanceService.importAttendanceExcel(
+        {
+          clientId: selectedClient.id!,
+          month: formattedMonth,
+        },
+        fileToImport,
+      )
+      setImportResult(result)
 
       // Clear selected file and reset input
       setSelectedExcelFile(null)
@@ -349,17 +365,24 @@ export function UploadAttendanceComponent() {
         fileInput.value = ""
       }
 
-      await loadExistingExcel(selectedCompany.id!, selectedMonth)
+      await loadExistingExcel(selectedClient.id!, selectedMonth)
 
-      toast({
-        title: "Upload Successful",
-        description: `Attendance Excel file uploaded for ${selectedCompany.name} - ${format(selectedMonth, "MMMM yyyy")}.`,
-      })
+      if (result.skipped > 0) {
+        toast({
+          title: "Attendance saved with some skipped rows",
+          description: `Saved ${result.imported} of ${result.totalRows} rows for ${format(selectedMonth, "MMMM yyyy")}. ${result.skipped} skipped, see details below.`,
+        })
+      } else {
+        toast({
+          title: "Attendance saved",
+          description: `Saved ${result.imported} rows for ${selectedClient.name} - ${format(selectedMonth, "MMMM yyyy")}.`,
+        })
+      }
     } catch (error: any) {
       console.error("Upload error:", error)
       toast({
         title: "Upload Failed",
-        description: error.message || "Failed to upload attendance Excel file. Please try again.",
+        description: getErrorMessage(error),
         variant: "destructive",
       })
     } finally {
@@ -369,15 +392,15 @@ export function UploadAttendanceComponent() {
 
   // Delete sheet
   const handleDeleteSheet = async () => {
-    if (!existingSheetId || !selectedCompany || !selectedMonth) return
+    if (!existingSheetId || !selectedClient || !selectedMonth) return
 
     try {
       setCheckingSheet(true)
       await attendanceSheetService.delete(existingSheetId)
-      await loadExistingSheet(selectedCompany.id!, selectedMonth)
+      await loadExistingSheet(selectedClient.id!, selectedMonth)
       toast({ title: "Deleted", description: "Attendance sheet deleted." })
     } catch (e: any) {
-      toast({ title: "Delete failed", description: e?.message || "Unable to delete", variant: "destructive" })
+      toast({ title: "Delete failed", description: getErrorMessage(e), variant: "destructive" })
     } finally {
       setCheckingSheet(false)
     }
@@ -385,15 +408,15 @@ export function UploadAttendanceComponent() {
 
   // Delete Excel
   const handleDeleteExcel = async () => {
-    if (!existingExcelId || !selectedCompany || !selectedMonth) return
+    if (!existingExcelId || !selectedClient || !selectedMonth) return
 
     try {
       setCheckingExcel(true)
       await attendanceService.deleteAttendanceExcel(existingExcelId)
-      await loadExistingExcel(selectedCompany.id!, selectedMonth)
+      await loadExistingExcel(selectedClient.id!, selectedMonth)
       toast({ title: "Deleted", description: "Attendance Excel file deleted." })
     } catch (e: any) {
-      toast({ title: "Delete failed", description: e?.message || "Unable to delete", variant: "destructive" })
+      toast({ title: "Delete failed", description: getErrorMessage(e), variant: "destructive" })
     } finally {
       setCheckingExcel(false)
     }
@@ -451,17 +474,18 @@ export function UploadAttendanceComponent() {
     const extension = file.name.split(".").pop()?.toLowerCase()
     switch (extension) {
       case "pdf":
-        return "📄"
+        return <FileText className="h-8 w-8 text-muted-foreground" />
       case "jpg":
       case "jpeg":
       case "png":
       case "gif":
-        return "🖼️"
+      case "webp":
+        return <ImageIcon className="h-8 w-8 text-info" />
       case "xlsx":
       case "xls":
-        return "📊"
+        return <FileSpreadsheet className="h-8 w-8 text-success" />
       default:
-        return "📁"
+        return <FileText className="h-8 w-8 text-muted-foreground" />
     }
   }
 
@@ -473,48 +497,47 @@ export function UploadAttendanceComponent() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Upload Attendance Files</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Upload attendance sheets (PDF/images) and Excel files (XLSX/XLS) for a company and month
-        </p>
-      </div>
+      <PageHeader
+        no="02"
+        eyebrow="Attendance register"
+        title="Upload Attendance Files"
+        description="Upload attendance sheets (PDF/images) and Excel files (XLSX/XLS) for a client and month."
+      />
 
       <Form {...form}>
-        <form className="space-y-6">
-          {/* Company and Month Selection */}
+        <form noValidate className="space-y-6">
+          {/* Client and Month Selection */}
             <Card>
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Select Company & Month
+                Select Client & Month
                 </CardTitle>
-              <CardDescription>Choose the company and month for attendance upload</CardDescription>
+              <CardDescription>Choose the client and month for attendance upload</CardDescription>
               </CardHeader>
               <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="companyId"
+                  name="clientId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <Building2 className="h-4 w-4" />
-                        Company *
+                        Client *
                       </FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={companiesLoading}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={clientsLoading}>
                         <FormControl>
                           <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select a company" />
+                            <SelectValue placeholder="Select a client" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {companies.map((company) => (
-                            <SelectItem key={company.id} value={company.id ?? ""}>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id ?? ""}>
                               <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-muted-foreground" />
-                                {company.name}
+                                {client.name}
                               </div>
                             </SelectItem>
                           ))}
@@ -551,7 +574,7 @@ export function UploadAttendanceComponent() {
             </Card>
 
           {/* Attendance Sheet Section */}
-          {selectedCompany && selectedMonth && (
+          {selectedClient && selectedMonth && (
           <Card>
             <CardHeader>
                 <div className="flex items-center justify-between">
@@ -565,7 +588,7 @@ export function UploadAttendanceComponent() {
               </CardDescription>
                   </div>
                   {existingSheetUrl && (
-                    <Badge variant="secondary" className="text-sm">
+                    <Badge variant="success">
                       Sheet Available
                     </Badge>
                   )}
@@ -578,19 +601,19 @@ export function UploadAttendanceComponent() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : existingSheetUrl ? (
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-surface rounded-md border">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-background rounded-md">
+                      <div className="p-2 bg-card border rounded-md">
                         {previewIsPDF ? (
-                          <FileText className="h-5 w-5 text-red-500" />
+                          <FileText className="h-5 w-5 text-muted-foreground" />
                         ) : (
-                          <FileText className="h-5 w-5 text-blue-500" />
+                          <FileText className="h-5 w-5 text-info" />
                         )}
                       </div>
                       <div>
                         <p className="font-medium">Attendance Sheet</p>
                         <p className="text-sm text-muted-foreground">
-                          {selectedCompany.name} • {format(selectedMonth, "MMMM yyyy")}
+                          {selectedClient.name} • {format(selectedMonth, "MMMM yyyy")}
                         </p>
                       </div>
                     </div>
@@ -623,9 +646,9 @@ export function UploadAttendanceComponent() {
                 {/* Sheet Upload */}
                 <div
                   className={cn(
-                    "relative border-2 border-dashed rounded-lg transition-all duration-200",
+                    "relative border-2 border-dashed rounded-md transition-colors duration-200",
                     sheetDragActive
-                      ? "border-primary bg-primary/5 scale-[1.02]"
+                      ? "border-primary bg-primary/5"
                       : "border-muted-foreground/25 hover:border-primary/50",
                     selectedSheetFile && "border-primary bg-primary/5",
                   )}
@@ -633,7 +656,7 @@ export function UploadAttendanceComponent() {
                   {!selectedSheetFile && (
                     <Input
                       type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                      accept=".pdf,.jpg,.jpeg,.png"
                       onChange={handleSheetFileChange}
                       disabled={sheetUploadLoading}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
@@ -644,7 +667,7 @@ export function UploadAttendanceComponent() {
                     <div className="p-8">
                       <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
                         <div className="flex items-center gap-4">
-                          <div className="text-4xl">{getFileIcon(selectedSheetFile)}</div>
+                          <div className="flex items-center justify-center">{getFileIcon(selectedSheetFile)}</div>
                           <div className="flex-1">
                             <p className="font-medium text-sm">{selectedSheetFile.name}</p>
                             <div className="flex items-center gap-3 mt-1">
@@ -666,7 +689,7 @@ export function UploadAttendanceComponent() {
                             e.stopPropagation()
                             setSelectedSheetFile(null)
                             // Reset file input
-                            const fileInput = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"]') as HTMLInputElement
+                            const fileInput = document.querySelector('input[type="file"][accept=".pdf,.jpg,.jpeg,.png"]') as HTMLInputElement
                             if (fileInput) {
                               fileInput.value = ""
                             }
@@ -735,7 +758,7 @@ export function UploadAttendanceComponent() {
                   <AlertDescription className="text-sm">
                   <strong>File Requirements:</strong>
                     <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
-                      <li>Accepted formats: PDF, JPG, JPEG, PNG, GIF, WEBP</li>
+                      <li>Accepted formats: PDF, JPG, JPEG, PNG</li>
                     <li>Maximum file size: 10MB</li>
                   </ul>
                 </AlertDescription>
@@ -745,7 +768,7 @@ export function UploadAttendanceComponent() {
           )}
 
           {/* Attendance Excel Section */}
-          {selectedCompany && selectedMonth && (
+          {selectedClient && selectedMonth && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -755,11 +778,11 @@ export function UploadAttendanceComponent() {
                       Attendance Excel File (XLSX/XLS)
                     </CardTitle>
                     <CardDescription>
-                      Upload pre-finalized attendance Excel files for processing
+                      Upload the filled attendance Excel to save present days for the month
                     </CardDescription>
                   </div>
                   {existingExcelUrl && (
-                    <Badge variant="secondary" className="text-sm">
+                    <Badge variant="success">
                       Excel Available
                     </Badge>
                   )}
@@ -772,15 +795,15 @@ export function UploadAttendanceComponent() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : existingExcelUrl ? (
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-surface rounded-md border">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-background rounded-md">
-                        <FileSpreadsheet className="h-5 w-5 text-green-500" />
+                      <div className="p-2 bg-card border rounded-md">
+                        <FileSpreadsheet className="h-5 w-5 text-success" />
                       </div>
                       <div>
                         <p className="font-medium">Attendance Excel File</p>
                         <p className="text-sm text-muted-foreground">
-                          {selectedCompany.name} • {format(selectedMonth, "MMMM yyyy")}
+                          {selectedClient.name} • {format(selectedMonth, "MMMM yyyy")}
                         </p>
                       </div>
                     </div>
@@ -798,7 +821,7 @@ export function UploadAttendanceComponent() {
                             const url = URL.createObjectURL(blob)
                             const a = document.createElement("a")
                             a.href = url
-                            a.download = `attendance-excel-${selectedCompany.name}-${format(selectedMonth, "yyyy-MM")}.xlsx`
+                            a.download = `attendance-excel-${selectedClient.name}-${format(selectedMonth, "yyyy-MM")}.xlsx`
                             document.body.appendChild(a)
                             a.click()
                             document.body.removeChild(a)
@@ -843,9 +866,9 @@ export function UploadAttendanceComponent() {
                 {/* Excel Upload */}
                 <div
                   className={cn(
-                    "relative border-2 border-dashed rounded-lg transition-all duration-200",
+                    "relative border-2 border-dashed rounded-md transition-colors duration-200",
                     excelDragActive
-                      ? "border-primary bg-primary/5 scale-[1.02]"
+                      ? "border-primary bg-primary/5"
                       : "border-muted-foreground/25 hover:border-primary/50",
                     selectedExcelFile && "border-primary bg-primary/5",
                   )}
@@ -864,7 +887,7 @@ export function UploadAttendanceComponent() {
                     <div className="p-8">
                       <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
                         <div className="flex items-center gap-4">
-                          <div className="text-4xl">{getFileIcon(selectedExcelFile)}</div>
+                          <div className="flex items-center justify-center">{getFileIcon(selectedExcelFile)}</div>
                           <div className="flex-1">
                             <p className="font-medium text-sm">{selectedExcelFile.name}</p>
                             <div className="flex items-center gap-3 mt-1">
@@ -956,9 +979,40 @@ export function UploadAttendanceComponent() {
                     <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
                       <li>Accepted formats: XLSX, XLS</li>
                       <li>Maximum file size: 10MB</li>
+                      <li>Needs an employee ID column and a present days column</li>
                     </ul>
                   </AlertDescription>
                 </Alert>
+
+                {importResult && (
+                  <div className="rounded-md border p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-success" />
+                      <p className="font-medium">Import summary</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">Total rows: {importResult.totalRows}</Badge>
+                      <Badge variant="success">Saved: {importResult.imported}</Badge>
+                      {importResult.skipped > 0 && (
+                        <Badge variant="destructive">Skipped: {importResult.skipped}</Badge>
+                      )}
+                    </div>
+                    {importResult.errors.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Skipped rows</p>
+                        <div className="max-h-48 overflow-auto rounded-md border divide-y">
+                          {importResult.errors.map((e, i) => (
+                            <div key={i} className="flex items-start gap-3 px-3 py-2 text-sm">
+                              <span className="text-muted-foreground w-16 shrink-0">Row {e.row}</span>
+                              <span className="font-mono text-[13px] w-28 shrink-0">{e.employeeId || "-"}</span>
+                              <span className="text-muted-foreground">{e.reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -971,7 +1025,7 @@ export function UploadAttendanceComponent() {
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle className="flex items-center justify-between">
               <span>
-                Attendance Sheet - {selectedCompany?.name || "Sheet"} -{" "}
+                Attendance Sheet - {selectedClient?.name || "Sheet"} -{" "}
                 {selectedMonth ? format(selectedMonth, "MMMM yyyy") : ""}
               </span>
               <div className="flex gap-2">
@@ -998,7 +1052,7 @@ export function UploadAttendanceComponent() {
                         if (match) extension = `.${match[1]}`
                         else extension = ".jpg"
                       }
-                      const filename = `attendance-sheet-${selectedCompany?.name || "sheet"}-${
+                      const filename = `attendance-sheet-${selectedClient?.name || "sheet"}-${
                         selectedMonth ? format(selectedMonth, "yyyy-MM") : ""
                       }${extension}`
                       const url = URL.createObjectURL(blob)
@@ -1029,7 +1083,7 @@ export function UploadAttendanceComponent() {
             <DialogDescription>Attendance sheet document preview</DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
-            <div className="border rounded-md overflow-hidden bg-white">
+            <div className="border rounded-md overflow-hidden bg-card">
               {previewType === "loading" ? (
                 <div className="flex items-center justify-center h-[70vh]">
                   <div className="text-center space-y-2">
@@ -1047,7 +1101,7 @@ export function UploadAttendanceComponent() {
                   }}
                 />
               ) : previewType === "image" ? (
-                <div className="flex items-center justify-center min-h-[70vh] bg-gray-50 p-4">
+                <div className="flex items-center justify-center min-h-[70vh] bg-surface p-4">
                   <img
                     src={previewUrl || ""}
                     alt="Attendance Sheet"

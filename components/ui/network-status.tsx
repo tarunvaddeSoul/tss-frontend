@@ -49,7 +49,7 @@ export function NetworkStatus() {
       <div
         className={cn(
           "flex items-center gap-2 px-4 py-2 rounded-full",
-          "bg-red-500/20 text-red-500 border border-red-500/20",
+          "bg-destructive/10 text-destructive border border-destructive/20",
           "shadow-lg backdrop-blur-sm",
         )}
       >

@@ -2,8 +2,8 @@ import api from "./api"
 
 export interface AttendanceSheet {
   id: string
-  companyId: string
-  companyName?: string // Included in list responses
+  clientId: string
+  clientName?: string // Included in list responses
   month: string
   attendanceSheetUrl: string
   createdAt?: string
@@ -11,45 +11,38 @@ export interface AttendanceSheet {
 }
 
 export interface AttendanceSheetResponse {
-  statusCode: number
-  message: string
   data: AttendanceSheet | null
 }
 
 export interface AttendanceSheetListResponse {
-  statusCode: number
-  message: string
   data:
-    | {
-        data: AttendanceSheet[]
-        pagination: {
-          total: number
-          page: number
-          limit: number
-          totalPages: number
-        }
-      } // Paginated list
-    | AttendanceSheet // Single record when companyId + month provided
+    | AttendanceSheet[] // Paginated list items
+    | AttendanceSheet // Single record when clientId + month provided
     | null // When no sheet found
+  meta?: {
+    total: number
+    page: number
+    limit: number
+  }
 }
 
 export interface AttendanceSheetListParams {
-  companyId?: string
+  clientId?: string
   month?: string
   startMonth?: string
   endMonth?: string
   page?: number
   limit?: number
-  sortBy?: "month" | "companyId" | "createdAt"
+  sortBy?: "month" | "clientId" | "createdAt"
   sortOrder?: "asc" | "desc"
 }
 
 class AttendanceSheetService {
   private readonly baseUrl = "/attendance/attendance-sheets"
 
-  async upload(companyId: string, month: string, file: File): Promise<AttendanceSheetResponse> {
+  async upload(clientId: string, month: string, file: File): Promise<AttendanceSheetResponse> {
     const formData = new FormData()
-    formData.append("companyId", companyId)
+    formData.append("clientId", clientId)
     formData.append("month", month)
     formData.append("file", file)
 
@@ -60,8 +53,8 @@ class AttendanceSheetService {
   }
 
   // Get single record (backward compatible)
-  async get(companyId: string, month: string): Promise<AttendanceSheetResponse> {
-    const response = await api.get(this.baseUrl, { params: { companyId, month } })
+  async get(clientId: string, month: string): Promise<AttendanceSheetResponse> {
+    const response = await api.get(this.baseUrl, { params: { clientId, month } })
     return response.data
   }
 

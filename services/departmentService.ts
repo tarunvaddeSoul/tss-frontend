@@ -6,22 +6,22 @@ export interface Department {
   name: string
 }
 
+export type DepartmentListResponse = Department[]
+
 export interface DepartmentResponse {
-  statusCode: number
-  message: string
-  data: Department[]
+  data: Department
 }
 
 const DEPARTMENT_ENDPOINTS = {
   USER: {
     GET_ALL: "/departments/user-departments",
-    ADD: (name: string) => `/departments/user-department:${name}`,
-    DELETE: (name: string) => `/departments/user-department:${name}`,
+    ADD: (name: string) => `/departments/user-department/${encodeURIComponent(name)}`,
+    DELETE: (name: string) => `/departments/user-department/${encodeURIComponent(name)}`,
   },
   EMPLOYEE: {
     GET_ALL: "/departments/employee-departments",
-    ADD: (name: string) => `/departments/employee-department:${name}`,
-    DELETE: (name: string) => `/departments/employee-department:${name}`,
+    ADD: (name: string) => `/departments/employee-department/${encodeURIComponent(name)}`,
+    DELETE: (name: string) => `/departments/employee-department/${encodeURIComponent(name)}`,
   },
 }
 
@@ -29,7 +29,7 @@ export const departmentService = {
   // User Department Methods
   async getUserDepartments(): Promise<Department[]> {
     try {
-      const response = await api.get<DepartmentResponse>(DEPARTMENT_ENDPOINTS.USER.GET_ALL)
+      const response = await api.get(DEPARTMENT_ENDPOINTS.USER.GET_ALL)
       return response.data.data
     } catch (error) {
       throw new Error(handleApiError(error))
@@ -39,7 +39,7 @@ export const departmentService = {
   async addUserDepartment(name: string): Promise<Department> {
     try {
       const response = await api.post<DepartmentResponse>(DEPARTMENT_ENDPOINTS.USER.ADD(name))
-      return response.data.data[0]
+      return response.data.data
     } catch (error) {
       throw new Error(handleApiError(error))
     }
@@ -56,7 +56,7 @@ export const departmentService = {
   // Employee Department Methods
   async getEmployeeDepartments(): Promise<Department[]> {
     try {
-      const response = await api.get<DepartmentResponse>(DEPARTMENT_ENDPOINTS.EMPLOYEE.GET_ALL)
+      const response = await api.get(DEPARTMENT_ENDPOINTS.EMPLOYEE.GET_ALL)
       return response.data.data
     } catch (error) {
       throw new Error(handleApiError(error))
@@ -66,7 +66,7 @@ export const departmentService = {
   async addEmployeeDepartment(name: string): Promise<Department> {
     try {
       const response = await api.post<DepartmentResponse>(DEPARTMENT_ENDPOINTS.EMPLOYEE.ADD(name))
-      return response.data.data[0]
+      return response.data.data
     } catch (error) {
       throw new Error(handleApiError(error))
     }

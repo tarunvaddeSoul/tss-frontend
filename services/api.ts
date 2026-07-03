@@ -19,11 +19,16 @@ const api = axios.create({
 
 // Helper function to extract error message from API response
 export function getErrorMessage(error: unknown): string {
-  // Handle Axios errors with response data
+  // Handle Axios errors with the API error envelope { error: { message } }
   if (error && typeof error === "object" && "response" in error) {
-    const axiosError = error as { response?: { data?: { message?: string } } }
-    if (axiosError.response?.data?.message) {
-      return axiosError.response.data.message
+    const axiosError = error as {
+      response?: { data?: { error?: { message?: string }; message?: string } }
+    }
+    const apiMessage =
+      axiosError.response?.data?.error?.message ??
+      axiosError.response?.data?.message
+    if (apiMessage) {
+      return apiMessage
     }
   }
   
@@ -112,6 +117,22 @@ api.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${response.data.tokens.accessToken}`
           }
           return axios(originalRequest)
+        } else {
+          // No refresh token: reset the flag and flush the queue, otherwise every
+          // subsequent request stays wedged behind isRefreshing forever.
+          isRefreshing = false
+          const noTokenError = new Error("Session expired. Please sign in again.")
+          flushQueue(noTokenError, null)
+          clearTokens()
+          toast({
+            title: "Authentication Failed",
+            description: noTokenError.message,
+            variant: "destructive",
+          })
+          setTimeout(() => {
+            window.location.href = "/login"
+          }, 1000)
+          return Promise.reject(noTokenError)
         }
       } catch (refreshError) {
         isRefreshing = false
@@ -147,14 +168,36 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
     
-    // Handle 401 errors (only if not an auth request)
+    // A 401 that reached here already went through the refresh path (originalRequest._retry)
+    // and still failed. Clear the session and send the user to login rather than rejecting silently.
     if (error.response?.status === 401 && !isAuthRequest && !isRefreshRequest) {
-      // Don't show toast or redirect for auth errors, just reject
+      clearTokens()
+      toast({
+        title: "Authentication Failed",
+        description: "Your session has ended. Please sign in again.",
+        variant: "destructive",
+      })
+      setTimeout(() => {
+        window.location.href = "/login"
+      }, 1000)
       return Promise.reject(error)
     }
     
+    // Callers that treat some statuses as expected (e.g. a 404 meaning "no payroll yet")
+    // set skipErrorToast on the request so the global handler stays quiet and they can
+    // handle it inline.
+    const skipErrorToast = (error.config as { skipErrorToast?: boolean } | undefined)?.skipErrorToast === true
+
+    // Handle 400/422 validation errors
+    if (!skipErrorToast && (error.response?.status === 400 || error.response?.status === 422)) {
+      toast({
+        title: "Could not save",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      })
+    }
     // Handle 403 Forbidden errors (insufficient permissions)
-    if (error.response?.status === 403) {
+    if (!skipErrorToast && error.response?.status === 403) {
       toast({
         title: "Access Denied",
         description: getErrorMessage(error),
@@ -162,7 +205,7 @@ api.interceptors.response.use(
       })
     }
     // Handle 404 Not Found errors
-    if (error.response?.status === 404) {
+    if (!skipErrorToast && error.response?.status === 404) {
       toast({
         title: "Not Found",
         description: getErrorMessage(error),
@@ -170,18 +213,26 @@ api.interceptors.response.use(
       })
     }
     // Handle 500 Internal Server Error
-    if (error.response?.status === 500) {
+    if (!skipErrorToast && error.response?.status === 500) {
       toast({
         title: "Server Error",
         description: getErrorMessage(error),
         variant: "destructive",
       })
     }
-    // Handle network errors
-    if (error.message === "Network Error") {
+    // Handle request timeouts
+    if (error.code === "ECONNABORTED") {
+      toast({
+        title: "Request Timed Out",
+        description: "The request took too long. Please try again.",
+        variant: "destructive",
+      })
+    }
+    // Handle network errors (request sent but no response received)
+    if (error.message === "Network Error" || (error.request && !error.response && error.code !== "ECONNABORTED")) {
       toast({
         title: "Network Error",
-        description: getErrorMessage(error),
+        description: "Cannot reach the server. Please check your connection and try again.",
         variant: "destructive",
       })
     }

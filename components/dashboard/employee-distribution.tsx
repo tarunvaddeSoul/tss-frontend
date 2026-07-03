@@ -14,7 +14,7 @@ interface EmployeeDistributionProps {
 const departmentChartConfig = {
   count: {
     label: "Employees",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--brand))",
   },
 } satisfies ChartConfig
 
@@ -26,12 +26,11 @@ const designationChartConfig = {
 } satisfies ChartConfig
 
 const COLORS = [
-  "hsl(var(--primary))",
+  "hsl(var(--brand))",
   "hsl(var(--info))",
-  "hsl(var(--success))",
+  "hsl(var(--muted-foreground))",
   "hsl(var(--warning))",
-  "hsl(var(--destructive))",
-  "hsl(var(--secondary))",
+  "hsl(var(--success))",
 ]
 
 export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
@@ -69,10 +68,10 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Department Distribution */}
-      <Card className="security-card">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
+            <Users className="h-5 w-5 text-muted-foreground" />
             By Department
           </CardTitle>
           <CardDescription>Employee distribution across departments</CardDescription>
@@ -101,10 +100,10 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="count" fill="hsl(var(--brand))" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
@@ -120,7 +119,7 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
                       labelLine={false}
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={100}
-                      fill="#8884d8"
+                      fill="hsl(var(--brand))"
                       dataKey="value"
                     >
                       {departmentPieData.map((entry, index) => (
@@ -131,7 +130,7 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
                     <Legend />
@@ -144,10 +143,10 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
       </Card>
 
       {/* Designation Distribution */}
-      <Card className="security-card">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5 text-info" />
+            <Briefcase className="h-5 w-5 text-muted-foreground" />
             By Designation
           </CardTitle>
           <CardDescription>Employee distribution by job roles</CardDescription>
@@ -176,10 +175,10 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
-                    <Bar dataKey="count" fill="hsl(var(--info))" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="count" fill="hsl(var(--info))" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
@@ -195,7 +194,7 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
                       labelLine={false}
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                       outerRadius={100}
-                      fill="#8884d8"
+                      fill="hsl(var(--brand))"
                       dataKey="value"
                     >
                       {designationPieData.map((entry, index) => (
@@ -206,7 +205,7 @@ export function EmployeeDistribution({ data }: EmployeeDistributionProps) {
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
+                        borderRadius: "6px",
                       }}
                     />
                     <Legend />

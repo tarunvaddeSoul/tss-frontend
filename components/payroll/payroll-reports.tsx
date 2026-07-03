@@ -22,20 +22,35 @@ import { AlertCircle, FileSpreadsheet, Search, Building2, User, TrendingUp, Refr
 import { SalaryCategory } from "@/types/salary"
 import { useToast } from "@/components/ui/use-toast"
 import { payrollService } from "@/services/payrollService"
-import { useCompany } from "@/hooks/use-company"
+import { useClient } from "@/hooks/use-client"
 import { employeeService } from "@/services/employeeService"
 import { MonthPicker } from "@/components/ui/month-picker"
 import { exportPayrollToExcel, formatCurrency, formatDate, getCurrentDateTime, type PayrollReportRecord } from "@/utils/payroll-export"
+import { label } from "@/lib/labels"
 import { PayrollReportResponseData, ReportFilters, ReportType } from "@/types/payroll"
 import type { Employee } from "@/types/employee"
 import dynamic from "next/dynamic"
 import { format } from "date-fns"
+import { PageHeader } from "@/components/layout/page-header"
 
 // Dynamically import PDF preview dialog to prevent SSR issues
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
   {
     ssr: false,
+  },
+)
+
+const DynamicPayslipButton = dynamic(
+  () => import("./pdf/single-payslip-pdf").then((mod) => ({ default: mod.SingleEmployeePayslipButton })),
+  {
+    ssr: false,
+    loading: () => (
+      <Button variant="ghost" size="sm" disabled className="h-8 gap-1.5">
+        <FileText className="h-4 w-4 shrink-0" />
+        <span className="hidden sm:inline">Payslip</span>
+      </Button>
+    ),
   },
 )
 
@@ -49,7 +64,7 @@ interface ColumnField {
 
 const COLUMN_FIELDS: ColumnField[] = [
   { key: "employeeId", label: "Employee ID", category: "essential", defaultVisible: true },
-  { key: "company", label: "Company", category: "essential", defaultVisible: true },
+  { key: "client", label: "Client", category: "essential", defaultVisible: true },
   { key: "month", label: "Month", category: "essential", defaultVisible: true },
   { key: "category", label: "Category", category: "essential", defaultVisible: true },
   { key: "rate", label: "Rate", category: "essential", defaultVisible: true },
@@ -104,18 +119,18 @@ const saveColumnPreferences = (preferences: Record<string, boolean>) => {
 
 export function PayrollReports() {
   const { toast } = useToast()
-  const { companies, isLoading: loadingCompanies } = useCompany()
+  const { clients, isLoading: loadingClients } = useClient()
   const searchParams = useSearchParams()
   const router = useRouter()
 
   // Initialize filters from URL query parameters
   const getInitialFilters = (): ReportFilters => {
-    const companyId = searchParams.get("companyId") || undefined
+    const clientId = searchParams.get("clientId") || undefined
     const startMonth = searchParams.get("startMonth") || undefined
     const endMonth = searchParams.get("endMonth") || undefined
     
     return {
-      companyId,
+      clientId,
       startMonth,
       endMonth,
       page: 1,
@@ -124,7 +139,7 @@ export function PayrollReports() {
   }
 
   // State management
-  const [reportType, setReportType] = useState<ReportType>("company")
+  const [reportType, setReportType] = useState<ReportType>("client")
   const [filters, setFilters] = useState<ReportFilters>(getInitialFilters())
   const [initialized, setInitialized] = useState(false)
   const [employeeSearch, setEmployeeSearch] = useState("")
@@ -133,6 +148,7 @@ export function PayrollReports() {
   const [searchingEmployees, setSearchingEmployees] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [reportData, setReportData] = useState<PayrollReportResponseData | null>(null)
+  const [allRecords, setAllRecords] = useState<PayrollReportResponseData["records"]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pdfOpen, setPdfOpen] = useState(false)
@@ -184,7 +200,7 @@ export function PayrollReports() {
 
     try {
       const response = await payrollService.getPayrollReport({
-        companyId: filters.companyId,
+        clientId: filters.clientId,
         employeeId: filters.employeeId,
         startMonth: filters.startMonth,
         endMonth: filters.endMonth,
@@ -193,6 +209,21 @@ export function PayrollReports() {
       })
 
       setReportData(response.data)
+
+      const { total, records } = response.data
+      if (total > records.length) {
+        const fullResponse = await payrollService.getPayrollReport({
+          clientId: filters.clientId,
+          employeeId: filters.employeeId,
+          startMonth: filters.startMonth,
+          endMonth: filters.endMonth,
+          page: 1,
+          limit: total,
+        })
+        setAllRecords(fullResponse.data.records)
+      } else {
+        setAllRecords(records)
+      }
     } catch (err: any) {
       const errorMessage = err.message || "Failed to fetch payroll report data"
       setError(errorMessage)
@@ -208,16 +239,16 @@ export function PayrollReports() {
 
   // Initialize from URL params on mount
   useEffect(() => {
-    if (!initialized && companies.length > 0) {
-      const companyId = searchParams.get("companyId")
+    if (!initialized && clients.length > 0) {
+      const clientId = searchParams.get("clientId")
       const startMonth = searchParams.get("startMonth")
       const endMonth = searchParams.get("endMonth")
       
-      if (companyId) {
-        setReportType("company")
+      if (clientId) {
+        setReportType("client")
         setFilters((prev) => ({
           ...prev,
-          companyId: companyId || undefined,
+          clientId: clientId || undefined,
           startMonth: startMonth || undefined,
           endMonth: endMonth || undefined,
         }))
@@ -225,12 +256,12 @@ export function PayrollReports() {
       
       setInitialized(true)
     }
-  }, [companies, searchParams, initialized])
+  }, [clients, searchParams, initialized])
 
   // Effect to fetch data when filters change
   useEffect(() => {
     if (initialized) {
-      if (reportType === "company" && filters.companyId) {
+      if (reportType === "client" && filters.clientId) {
         fetchReportData()
       } else if (reportType === "employee" && filters.employeeId) {
         fetchReportData()
@@ -244,6 +275,7 @@ export function PayrollReports() {
     setReportType(type)
     setFilters({ page: 1, limit: 20 })
     setReportData(null)
+    setAllRecords([])
     setError(null)
     setEmployeeSearch("")
     setSelectedEmployee(null)
@@ -355,11 +387,12 @@ export function PayrollReports() {
     }
 
     const filename =
-      reportType === "company"
-        ? `Company_Payroll_Report_${companies.find((c) => c.id === filters.companyId)?.name || "Report"}`
+      reportType === "client"
+        ? `Client_Payroll_Report_${clients.find((c) => c.id === filters.clientId)?.name || "Report"}`
         : `Employee_${filters.employeeId}_Payroll_Report`
 
-    const result = exportPayrollToExcel(reportData.records, filename)
+    const exportRecords = allRecords.length ? allRecords : reportData.records
+    const result = exportPayrollToExcel(exportRecords, filename)
 
     if (result.success) {
       toast({
@@ -384,7 +417,7 @@ export function PayrollReports() {
   const getSummaryStats = () => {
     if (!reportData?.records.length) return null
 
-    const records = reportData.records
+    const records = allRecords.length ? allRecords : reportData.records
     return {
       totalRecords: reportData.total,
       totalGrossSalary: records.reduce((sum, r) => {
@@ -404,7 +437,7 @@ export function PayrollReports() {
         return sum + (calculations?.basicPay ?? r.salaryData?.basicPay ?? 0)
       }, 0),
       uniqueEmployees: new Set(records.map((r) => r.employeeId)).size,
-      uniqueCompanies: new Set(records.map((r) => r.companyId)).size,
+      uniqueClients: new Set(records.map((r) => r.clientId)).size,
     }
   }
 
@@ -412,8 +445,8 @@ export function PayrollReports() {
 
   // Get report title for PDF
   const getReportTitle = () => {
-    if (reportType === "company") {
-      return companies.find((c) => c.id === filters.companyId)?.name || "Company"
+    if (reportType === "client") {
+      return clients.find((c) => c.id === filters.clientId)?.name || "Client"
     } else {
       return selectedEmployee
         ? `${selectedEmployee.firstName} ${selectedEmployee.lastName} (${selectedEmployee.employeeId || selectedEmployee.id})`
@@ -433,13 +466,12 @@ export function PayrollReports() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Payroll Reports</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Generate and download comprehensive payroll reports</p>
-        </div>
-      </div>
+      <PageHeader
+        no="03"
+        eyebrow="Payroll register"
+        title="Payroll Reports"
+        description="Generate and download comprehensive payroll reports"
+      />
 
       {/* Report Type Selection */}
       <Card>
@@ -453,9 +485,9 @@ export function PayrollReports() {
         <CardContent>
           <Tabs value={reportType} onValueChange={(value) => handleReportTypeChange(value as ReportType)}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="company" className="flex items-center gap-2">
+              <TabsTrigger value="client" className="flex items-center gap-2">
                 <Building2 className="h-4 w-4" />
-                Company Reports
+                Client Reports
               </TabsTrigger>
               <TabsTrigger value="employee" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -463,25 +495,25 @@ export function PayrollReports() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Company Reports Tab */}
-            <TabsContent value="company" className="space-y-4 mt-6">
+            {/* Client Reports Tab */}
+            <TabsContent value="client" className="space-y-4 mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="md:col-span-1 lg:col-span-1">
-                  <Label htmlFor="company-select">Company *</Label>
+                  <Label htmlFor="client-select">Client *</Label>
                   <Select
-                    value={filters.companyId || ""}
-                    onValueChange={(value) => updateFilter("companyId", value || undefined)}
-                    disabled={loadingCompanies}
+                    value={filters.clientId || ""}
+                    onValueChange={(value) => updateFilter("clientId", value || undefined)}
+                    disabled={loadingClients}
                   >
-                    <SelectTrigger id="company-select" className="h-12">
-                      <SelectValue placeholder="Select a company" />
+                    <SelectTrigger id="client-select" className="h-12">
+                      <SelectValue placeholder="Select a client" />
                     </SelectTrigger>
                     <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.id ?? ""}>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id ?? ""}>
                           <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-gray-500 shrink-0" />
-                            <span className="truncate">{company.name}</span>
+                            <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="truncate">{client.name}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -520,7 +552,7 @@ export function PayrollReports() {
                 </div>
 
                 <div className="flex items-end md:col-span-2 lg:col-span-1">
-                  <Button onClick={fetchReportData} disabled={!filters.companyId || loading} className="w-full h-12">
+                  <Button onClick={fetchReportData} disabled={!filters.clientId || loading} className="w-full h-12">
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -590,7 +622,7 @@ export function PayrollReports() {
                                       <div className="font-medium truncate">
                                         {employee.firstName} {employee.lastName}
                                       </div>
-                                      <div className="text-xs opacity-80 truncate">
+                                      <div className="font-mono text-xs opacity-80 truncate">
                                         {employee.employeeId || employee.id}
                                       </div>
                                     </div>
@@ -621,20 +653,20 @@ export function PayrollReports() {
                 </div>
 
                 <div>
-                  <Label htmlFor="employee-company">Company (Optional)</Label>
+                  <Label htmlFor="employee-client">Client (Optional)</Label>
                   <Select
-                    value={filters.companyId || "all"}
-                    onValueChange={(value) => updateFilter("companyId", value === "all" ? undefined : value)}
-                    disabled={loadingCompanies}
+                    value={filters.clientId || "all"}
+                    onValueChange={(value) => updateFilter("clientId", value === "all" ? undefined : value)}
+                    disabled={loadingClients}
                   >
-                    <SelectTrigger id="employee-company" className="h-12">
-                      <SelectValue placeholder="All companies" />
+                    <SelectTrigger id="employee-client" className="h-12">
+                      <SelectValue placeholder="All clients" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All companies</SelectItem>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.id ?? ""}>
-                          {company.name}
+                      <SelectItem value="all">All clients</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id ?? ""}>
+                          {client.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -700,35 +732,35 @@ export function PayrollReports() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-6xl w-full">
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold">{summaryStats.totalRecords}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums">{summaryStats.totalRecords}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Records</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(summaryStats.totalGrossSalary)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatCurrency(summaryStats.totalGrossSalary)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Gross Salary</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(summaryStats.totalNetSalary)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate text-brand">{formatCurrency(summaryStats.totalNetSalary)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Net Salary</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(summaryStats.totalDeductions)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatCurrency(summaryStats.totalDeductions)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Deductions</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xl sm:text-2xl font-bold">
-                  {reportType === "company" ? summaryStats.uniqueEmployees : summaryStats.uniqueCompanies}
+                <div className="font-display text-xl sm:text-2xl font-bold nums">
+                  {reportType === "client" ? summaryStats.uniqueEmployees : summaryStats.uniqueClients}
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  {reportType === "company" ? "Unique Employees" : "Unique Companies"}
+                  {reportType === "client" ? "Unique Employees" : "Unique Clients"}
                 </p>
               </CardContent>
             </Card>
@@ -821,7 +853,7 @@ export function PayrollReports() {
                           const getMinWidthClass = (key: string) => {
                             const widthMap: Record<string, string> = {
                               employeeId: "min-w-[120px]",
-                              company: "min-w-[120px]",
+                              client: "min-w-[120px]",
                               month: "min-w-[100px]",
                               category: "min-w-[100px]",
                               rate: "min-w-[100px]",
@@ -850,6 +882,7 @@ export function PayrollReports() {
                             </TableHead>
                           )
                         })}
+                        <TableHead className="min-w-[110px] text-right">Payslip</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -869,12 +902,12 @@ export function PayrollReports() {
                         const showPF = pfAmount > 0
                         const showESIC = esicAmount > 0
                         const pfDisabled = pfAmount === 0 && grossSalary > 15000
-                        const esicDisabled = esicAmount === 0 && grossSalary > 15000
+                        const esicDisabled = esicAmount === 0 && grossSalary > 21000
                         
                         // Helper function to render cell content based on field key
                         const renderCell = (fieldKey: string) => {
                           const isRightAligned = ["basicPay", "grossSalary", "netSalary", "pf", "esic", "totalDeductions", "bonus", "advanceTaken", "lwf"].includes(fieldKey)
-                          const cellClassName = `${isRightAligned ? "text-right whitespace-nowrap" : ""} ${fieldKey === "employeeId" ? "font-medium" : ""} ${fieldKey === "createdAt" ? "text-muted-foreground whitespace-nowrap" : ""}`
+                          const cellClassName = `${isRightAligned ? "text-right whitespace-nowrap font-mono text-[13px]" : ""} ${fieldKey === "employeeId" ? "font-medium" : ""} ${fieldKey === "createdAt" ? "text-muted-foreground whitespace-nowrap font-mono text-[13px]" : ""}`
                           
                           switch (fieldKey) {
                             case "employeeId":
@@ -885,11 +918,11 @@ export function PayrollReports() {
                                   </Badge>
                                 </TableCell>
                               )
-                            case "company":
+                            case "client":
                               return (
-                                <TableCell key={fieldKey} className={cellClassName}>
+                                <TableCell key={fieldKey} className={`${cellClassName} font-medium`}>
                                   <span className="truncate max-w-[120px] inline-block">
-                                    {record.companyName || information?.companyName || "N/A"}
+                                    {record.clientName || information?.clientName || "N/A"}
                                   </span>
                                 </TableCell>
                               )
@@ -905,11 +938,11 @@ export function PayrollReports() {
                                   {salaryCategory ? (
                                     <div className="flex flex-col gap-1">
                                       <Badge variant="outline" className="text-xs w-fit">
-                                        {salaryCategory}
+                                        {label.salaryCategory(salaryCategory)}
                                       </Badge>
                                       {salaryData?.salarySubCategory && (
                                         <span className="text-xs text-muted-foreground truncate">
-                                          {salaryData.salarySubCategory}
+                                          {label.salarySubCategory(salaryData.salarySubCategory)}
                                         </span>
                                       )}
                                     </div>
@@ -923,17 +956,17 @@ export function PayrollReports() {
                                 <TableCell key={fieldKey} className={cellClassName}>
                                   {isSpecialized && salaryData?.monthlySalary ? (
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
                                       <span className="text-xs text-muted-foreground">/month</span>
                                     </div>
                                   ) : salaryData?.salaryPerDay ? (
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
                                       <span className="text-xs text-muted-foreground">/day</span>
                                     </div>
                                   ) : calculations?.wagesPerDay ?? calculations?.rate ? (
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium">{formatCurrency(calculations?.wagesPerDay ?? calculations?.rate ?? 0)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(calculations?.wagesPerDay ?? calculations?.rate ?? 0)}</span>
                                       <span className="text-xs text-muted-foreground">/day</span>
                                     </div>
                                   ) : (
@@ -974,7 +1007,7 @@ export function PayrollReports() {
                                   {showESIC ? (
                                     formatCurrency(esicAmount)
                                   ) : esicDisabled ? (
-                                    <div className="flex items-center justify-end gap-1" title="ESIC disabled: Gross salary > ₹15,000">
+                                    <div className="flex items-center justify-end gap-1" title="ESIC disabled: Gross salary > ₹21,000">
                                       <span className="text-xs text-muted-foreground">-</span>
                                       <Info className="h-3 w-3 text-muted-foreground" />
                                     </div>
@@ -1054,9 +1087,16 @@ export function PayrollReports() {
                                 (field.category !== "essential" && hasValue && columnPreferences[field.key])
                               
                               if (!shouldShow) return null
-                              
+
                               return renderCell(field.key)
                             })}
+                            <TableCell className="text-right">
+                              <DynamicPayslipButton
+                                record={record}
+                                clientName={record.clientName}
+                                month={record.month}
+                              />
+                            </TableCell>
                           </TableRow>
                         )
                       })}
@@ -1078,17 +1118,17 @@ export function PayrollReports() {
             </>
           ) : (
             <div className="text-center py-12">
-              <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">
-                {reportType === "company" && !filters.companyId && "Select a company to generate reports"}
+              <p className="registry-eyebrow mb-3">No records on file</p>
+              <h3 className="font-display text-lg font-semibold mb-2">
+                {reportType === "client" && !filters.clientId && "Select a client to generate reports"}
                 {reportType === "employee" && !filters.employeeId && "Select an employee to generate reports"}
-                {((reportType === "company" && filters.companyId) || (reportType === "employee" && filters.employeeId)) &&
+                {((reportType === "client" && filters.clientId) || (reportType === "employee" && filters.employeeId)) &&
                   !loading &&
                   "No payroll data found"}
               </h3>
               <p className="text-sm text-muted-foreground">
-                {reportType === "company"
-                  ? "Choose a company and click 'Generate Report' to view payroll data."
+                {reportType === "client"
+                  ? "Choose a client and click 'Generate Report' to view payroll data."
                   : "Search for an employee and click 'Generate Report' to view payroll data."}
               </p>
             </div>
@@ -1106,13 +1146,14 @@ export function PayrollReports() {
           fileName={`payroll-report-${getReportTitle().replace(/\s+/g, "_")}-${getCurrentDateTime()}`}
           renderDocument={async () => {
             const { default: PayrollReportPDF } = await import("./pdf/payroll-report-pdf")
+            const pdfRecords = allRecords.length ? allRecords : reportData.records
             // Get employee name for single employee reports
-            const employeeName = reportData.records.length === 1 && selectedEmployee
+            const employeeName = pdfRecords.length === 1 && selectedEmployee
               ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}`
               : undefined
             return (
               <PayrollReportPDF
-                data={reportData.records}
+                data={pdfRecords}
                 title={getReportTitle()}
                 totalRecords={reportData.total}
                 startMonth={filters.startMonth ? format(new Date(filters.startMonth), "MMM yyyy") : undefined}

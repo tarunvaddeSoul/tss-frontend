@@ -3,7 +3,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { FileText } from "lucide-react"
 import type { EmployeePayrollRecord } from "@/types/payroll"
-import { BRAND, SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
+import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
+import { BRAND } from "@/components/pdf/brand"
 import { PdfPreviewDialog } from "@/components/pdf/pdf-preview-dialog"
 import { format } from "date-fns"
 
@@ -53,7 +54,7 @@ function convertToSalarySlipData(record: EmployeePayrollRecord): SalarySlipData 
   const employeeName = information?.employeeName || record.employeeId
 
   return {
-    company: information?.companyName || "N/A",
+    client: information?.clientName || "N/A",
     month: formatMonth(record.month),
     pay_period: getPayPeriod(record.month),
     employee: {

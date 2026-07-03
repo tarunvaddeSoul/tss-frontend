@@ -15,6 +15,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { employeeService } from "@/services/employeeService"
 import type { UpdateEmployeeDto, Employee } from "@/types/employee"
+import { label } from "@/lib/labels"
 import { format } from "date-fns"
 
 const basicInfoSchema = z.object({
@@ -112,26 +113,28 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
   }
 
   const titleOptions = [
-    { value: "MR", label: "MR" },
-    { value: "MS", label: "MS" },
+    { value: "MR", label: label.title("MR") },
+    { value: "MS", label: label.title("MS") },
   ]
 
   const statusOptions = [
-    { value: "ACTIVE", label: "ACTIVE" },
-    { value: "INACTIVE", label: "INACTIVE" },
+    { value: "ACTIVE", label: label.status("ACTIVE") },
+    { value: "INACTIVE", label: label.status("INACTIVE") },
   ]
 
   const genderOptions = [
-    { value: "MALE", label: "MALE" },
-    { value: "FEMALE", label: "FEMALE" },
+    { value: "MALE", label: label.gender("MALE") },
+    { value: "FEMALE", label: label.gender("FEMALE") },
   ]
 
   const categoryOptions = [
-    { value: "SC", label: "SC" },
-    { value: "ST", label: "ST" },
-    { value: "OBC", label: "OBC" },
-    { value: "GENERAL", label: "GENERAL" },
+    { value: "SC", label: label.category("SC") },
+    { value: "ST", label: label.category("ST") },
+    { value: "OBC", label: label.category("OBC") },
+    { value: "GENERAL", label: label.category("GENERAL") },
   ]
+
+  const bloodGroupOptions = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
   return (
     <Card>
@@ -155,7 +158,7 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} onChange={() => setHasChanges(true)} className="space-y-6">
+          <form noValidate onSubmit={form.handleSubmit(handleSubmit)} onChange={() => setHasChanges(true)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormField
                 control={form.control}
@@ -303,9 +306,20 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Blood Group</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter blood group" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select blood group" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bloodGroupOptions.map((group) => (
+                          <SelectItem key={group} value={group}>
+                            {group}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

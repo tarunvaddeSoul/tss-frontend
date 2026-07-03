@@ -54,7 +54,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { employeeService } from "@/services/employeeService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import type {
@@ -65,7 +65,7 @@ import type {
   CreateEmploymentHistoryDto,
   UpdateEmploymentHistoryDto,
 } from "@/types/employee"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
 import { Status } from "@/enums/employee.enum"
 import { SalaryType } from "@/types/salary"
 
@@ -93,7 +93,7 @@ const parseDate = (dateString: string | undefined | null): Date | null => {
 
 // Employment history schema
 const employmentHistorySchema = z.object({
-  companyId: z.string().uuid("Invalid company ID"),
+  clientId: z.string().uuid("Invalid client ID"),
   departmentId: z.string().uuid("Invalid department ID"),
   designationId: z.string().uuid("Invalid designation ID"),
   joiningDate: z.date({ required_error: "Joining date is required" }),
@@ -120,9 +120,9 @@ const employmentHistorySchema = z.object({
 
 // Add helper text constants
 const EMPLOYMENT_GUIDANCE = {
-  add: "Add a new employment record when an employee starts working at a new company or changes their role.",
+  add: "Add a new employment record when an employee starts working at a new client or changes their role.",
   edit: "Update employment details if there are changes in the employee's role, salary, or department.",
-  close: "Close the current employment when the employee leaves or changes companies.",
+  close: "Close the current employment when the employee leaves or changes clients.",
   active: "Mark as current employment if this is the employee's active role. Only one employment can be active at a time.",
 }
 
@@ -146,7 +146,7 @@ interface EmploymentHistoryFormProps {
 export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryFormProps) {
   const { toast } = useToast()
   const [employmentHistories, setEmploymentHistories] = useState<IEmployeeEmploymentHistory[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [designations, setDesignations] = useState<Designation[]>([])
   const [departments, setDepartments] = useState<EmployeeDepartments[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -160,7 +160,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
   const form = useForm<z.infer<typeof employmentHistorySchema>>({
     resolver: zodResolver(employmentHistorySchema),
     defaultValues: {
-      companyId: "",
+      clientId: "",
       departmentId: "",
       designationId: "",
       joiningDate: new Date(),
@@ -175,15 +175,15 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
       try {
         setIsLoading(true)
 
-        const [historiesResponse, companiesResponse, designationsResponse, departmentsResponse] = await Promise.all([
+        const [historiesResponse, clientsResponse, designationsResponse, departmentsResponse] = await Promise.all([
           employeeService.getEmployeeEmploymentHistory(employee.id),
-          companyService.getCompanies({ page: 1, limit: 100 }),
+          clientService.getClients({ page: 1, limit: 100 }),
           designationService.getDesignations(),
           departmentService.getEmployeeDepartments(),
         ])
 
         setEmploymentHistories(historiesResponse.data || [])
-        setCompanies(companiesResponse.data?.companies || [])
+        setClients(clientsResponse.data?.clients || [])
         setDesignations(designationsResponse || [])
         setDepartments(departmentsResponse || [])
       } catch (error) {
@@ -238,7 +238,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
       }
 
       const updateData: any = {
-        companyId: data.companyId,
+        clientId: data.clientId,
         departmentId: data.departmentId,
         designationId: data.designationId,
         joiningDate: data.joiningDate ? format(data.joiningDate, "dd-MM-yyyy") : undefined,
@@ -313,7 +313,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
     setSelectedHistory(history);
     const parsedJoiningDate = parseDate(history.joiningDate);
     form.reset({
-      companyId: history.companyId || "",
+      clientId: history.clientId || "",
       departmentId: history.departmentId || "",
       designationId: history.designationId || "",
       joiningDate: parsedJoiningDate || new Date(),
@@ -324,9 +324,9 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
   };
 
   // Prepare options for selects
-  const companyOptions = companies.map((company) => ({
-    value: company.id,
-    label: company.name,
+  const clientOptions = clients.map((client) => ({
+    value: client.id,
+    label: client.name,
   }))
 
   const designationOptions = designations.map((designation) => ({
@@ -383,8 +383,8 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
 
       <CardContent className="p-0">
         {employmentHistories.length === 0 ? (
-          <div className="text-center py-8">
-            <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <div className="flex flex-col items-center py-8 text-center">
+            <span className="registry-eyebrow mb-2">No records on file</span>
             <h3 className="text-lg font-medium mb-2">No Employment History</h3>
             <p className="text-muted-foreground mb-4">This employee has no employment history records yet.</p>
             <Button onClick={() => setShowAssignDialog(true)}>
@@ -400,7 +400,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   <TableHead className="min-w-[150px]">
                     <div className="flex items-center gap-2">
                       <Building className="h-4 w-4 shrink-0" />
-                      <span className="whitespace-nowrap">Company</span>
+                      <span className="whitespace-nowrap">Client</span>
                     </div>
                   </TableHead>
                   <TableHead className="min-w-[120px]">
@@ -453,7 +453,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                 {employmentHistories.map((history) => (
                   <TableRow key={history.id}>
                     <TableCell className="font-medium min-w-[150px]">
-                      <span className="truncate block">{history.companyName}</span>
+                      <span className="truncate block">{history.clientName}</span>
                     </TableCell>
                     <TableCell className="min-w-[120px]">
                       <span className="truncate block">{history.designationName}</span>
@@ -461,7 +461,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     <TableCell className="min-w-[120px]">
                       <span className="truncate block">{history.departmentName}</span>
                     </TableCell>
-                    <TableCell className="min-w-[110px] whitespace-nowrap">{history.joiningDate}</TableCell>
+                    <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{history.joiningDate}</TableCell>
                     <TableCell className="min-w-[100px]">
                       {history.salaryType ? (
                         <Badge variant="outline" className="text-xs">
@@ -489,7 +489,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                         <span className="text-xs text-muted-foreground">N/A</span>
                       )}
                     </TableCell>
-                    <TableCell className="min-w-[130px] whitespace-nowrap">
+                    <TableCell className="min-w-[130px] whitespace-nowrap font-mono text-[13px]">
                       {history.salaryType === SalaryType.PER_DAY && history.salaryPerDay ? (
                         <>
                           ₹{history.salaryPerDay.toLocaleString()}
@@ -506,7 +506,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     </TableCell>
                     <TableCell className="min-w-[100px]">
                       <Badge
-                        variant={history.status === Status.ACTIVE ? "default" : "secondary"}
+                        variant={history.status === Status.ACTIVE ? "success" : "secondary"}
                         className="flex items-center gap-1 w-fit"
                       >
                         {history.status === Status.ACTIVE ? (
@@ -583,22 +583,22 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleUpdateEmploymentHistory)} className="space-y-4">
+            <form noValidate onSubmit={form.handleSubmit(handleUpdateEmploymentHistory)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="companyId"
+                  name="clientId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company</FormLabel>
+                      <FormLabel>Client</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select company" />
+                            <SelectValue placeholder="Select client" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {companyOptions.map((option) => (
+                          {clientOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value ?? ""}>
                               {option.label}
                             </SelectItem>
@@ -665,7 +665,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   name="joiningDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Start Date <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel>Start Date <span className="text-destructive">*</span></FormLabel>
                       <DatePicker 
                         date={field.value ?? null} 
                         onSelect={(date) => {
@@ -682,7 +682,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   name="leavingDate"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>End Date {!form.watch("isActive") && <span className="text-red-500">*</span>}</FormLabel>
+                      <FormLabel>End Date {!form.watch("isActive") && <span className="text-destructive">*</span>}</FormLabel>
                       {form.watch("isActive") ? (
                         <div className="text-sm text-muted-foreground">Not applicable for current employment</div>
                       ) : (

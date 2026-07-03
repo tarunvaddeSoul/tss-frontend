@@ -6,7 +6,7 @@ export interface IEmployee {
   id: string
   firstName: string
   lastName: string
-  companyName: string
+  clientName: string
   avatar?: string
   // Add other properties as needed
 }
@@ -25,8 +25,8 @@ export interface Employee {
   employeeDepartmentName?: string
   status?: Status | ""
   mobileNumber?: string
-  companyName?: string
-  companyId?: string
+  clientName?: string
+  clientId?: string
   recruitedBy?: string
   gender?: Gender
   fatherName?: string
@@ -79,7 +79,7 @@ export interface Employee {
   additionalDetails?: IEmployeeAdditionalDetails
   referenceDetails?: IEmployeeReferenceDetails
   documentUploads?: IEmployeeDocumentUploads
-  employmentHistories?: IEmployeeEmploymentHistory | any
+  employmentHistories?: IEmployeeEmploymentHistory[]
   otherDocumentRemarks?: string
 }
 
@@ -143,10 +143,10 @@ export interface IEmployeeDocumentUploads {
 export interface IEmployeeEmploymentHistory {
   id?: string
   employeeId?: string
-  companyName?: string
+  clientName?: string
   designationName?: string
   departmentName?: string
-  companyId?: string
+  clientId?: string
   designationId?: string
   departmentId?: string
   salary?: number // Historical snapshot
@@ -235,7 +235,7 @@ export interface UpdateEmployeeDocumentUploadsDto {
 
 export interface CreateEmploymentHistoryDto {
   employeeId?: string
-  companyId: string
+  clientId: string
   designationId: string
   departmentId: string
   salary?: number // NOW OPTIONAL - auto-populated if not provided
@@ -244,7 +244,7 @@ export interface CreateEmploymentHistoryDto {
 }
 
 export interface UpdateEmploymentHistoryDto {
-  companyId?: string
+  clientId?: string
   designationId?: string
   departmentId?: string
   salary?: number
@@ -266,7 +266,7 @@ export interface EmployeeDepartments {
   name: string
 }
 
-export interface Companies {
+export interface Clients {
   id: string
   name: string
   address: string
@@ -276,11 +276,11 @@ export interface EmployeeFormValues {
   title: string
   firstName: string
   lastName: string
-  currentCompanyDesignationId?: string
-  currentCompanyDepartmentId?: string
-  currentCompanyJoiningDate?: string
+  currentClientDesignationId?: string
+  currentClientDepartmentId?: string
+  currentClientJoiningDate?: string
   mobileNumber: string
-  currentCompanyId?: string
+  currentClientId?: string
   recruitedBy: string
   gender: string
   status: string
@@ -336,7 +336,7 @@ export interface EmployeeSearchParams {
   searchText?: string
   designationId?: string
   employeeDepartmentId?: string
-  companyId?: string
+  clientId?: string
   gender?: string
   category?: string
   highestEducationQualification?: string

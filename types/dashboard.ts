@@ -9,7 +9,7 @@ export interface DashboardReportResponse {
 export interface DashboardReportData {
   summary: SummaryStats
   employeeStats: EmployeeStats
-  companyStats: CompanyStats
+  clientStats: ClientStats
   growthMetrics: GrowthMetrics
   specialDates: SpecialDates
   recentActivity: RecentActivity
@@ -19,12 +19,12 @@ export interface DashboardReportData {
 export interface SummaryStats {
   totalEmployees: number
   newEmployeesThisMonth: number
-  totalCompanies: number
-  newCompaniesThisMonth: number
+  totalClients: number
+  newClientsThisMonth: number
   activeEmployees: number
   inactiveEmployees: number
-  activeCompanies: number
-  inactiveCompanies: number
+  activeClients: number
+  inactiveClients: number
 }
 
 // Employee Statistics
@@ -55,19 +55,19 @@ export interface ActiveInactiveCount {
   inactive: number
 }
 
-// Company Statistics
-export interface CompanyStats {
+// Client Statistics
+export interface ClientStats {
   total: number
   newThisMonth: number
   activeInactive: ActiveInactiveCount
-  tenure: CompanyTenureInfo
+  tenure: ClientTenureInfo
 }
 
-export interface CompanyTenureInfo {
+export interface ClientTenureInfo {
   tenureDistribution: TenureDistribution
   averageTenureMonths: number
   averageTenureYears: number
-  companies: CompanyTenureDetail[]
+  clients: ClientTenureDetail[]
 }
 
 export interface TenureDistribution {
@@ -78,7 +78,7 @@ export interface TenureDistribution {
   '5+ years': number
 }
 
-export interface CompanyTenureDetail {
+export interface ClientTenureDetail {
   id: string
   name: string
   status: string
@@ -91,7 +91,7 @@ export interface CompanyTenureDetail {
 // Growth Metrics (for charts)
 export interface GrowthMetrics {
   employees: EmployeeGrowth
-  companies: CompanyGrowth
+  clients: ClientGrowth
 }
 
 export interface EmployeeGrowth {
@@ -99,9 +99,9 @@ export interface EmployeeGrowth {
   yearly: YearlyGrowthData[]
 }
 
-export interface CompanyGrowth {
-  monthly: MonthlyCompanyGrowthData[]
-  yearly: YearlyCompanyGrowthData[]
+export interface ClientGrowth {
+  monthly: MonthlyClientGrowthData[]
+  yearly: YearlyClientGrowthData[]
 }
 
 export interface MonthlyGrowthData {
@@ -116,23 +116,23 @@ export interface YearlyGrowthData {
   newEmployees: number // New employees added in this year
 }
 
-export interface MonthlyCompanyGrowthData {
+export interface MonthlyClientGrowthData {
   month: string // Format: YYYY-MM (e.g., "2024-01")
-  count: number // Total companies up to this month
-  newCompanies: number // New companies added in this month
+  count: number // Total clients up to this month
+  newClients: number // New clients added in this month
 }
 
-export interface YearlyCompanyGrowthData {
+export interface YearlyClientGrowthData {
   year: number // e.g., 2024
-  count: number // Total companies up to this year
-  newCompanies: number // New companies added in this year
+  count: number // Total clients up to this year
+  newClients: number // New clients added in this year
 }
 
 // Special Dates
 export interface SpecialDates {
   birthdays: BirthdayInfo[]
   employeeAnniversaries: EmployeeAnniversaryInfo[]
-  companyAnniversaries: CompanyAnniversaryInfo[]
+  clientAnniversaries: ClientAnniversaryInfo[]
 }
 
 export interface BirthdayInfo {
@@ -149,10 +149,10 @@ export interface EmployeeAnniversaryInfo {
   employeeOnboardingDate: string // Format: DD-MM-YYYY or YYYY-MM-DD
 }
 
-export interface CompanyAnniversaryInfo {
+export interface ClientAnniversaryInfo {
   id: string
   name: string
-  companyOnboardingDate: string // Format: DD-MM-YYYY
+  clientOnboardingDate: string // Format: DD-MM-YYYY
   status: string
 }
 
@@ -176,7 +176,7 @@ export interface RecentJoinee {
 export interface RecentPayroll {
   id: string
   employeeId: string
-  companyId: string
+  clientId: string
   month: string // Format: YYYY-MM
   salaryData: any // JSON object with salary details
   createdAt: string // ISO date string
@@ -188,10 +188,10 @@ export interface RecentPayroll {
     // ... other employee fields
     [key: string]: any
   }
-  company: {
+  client: {
     id: string
     name: string
-    // ... other company fields
+    // ... other client fields
     [key: string]: any
   }
 }
@@ -234,14 +234,14 @@ export interface Employee {
   updatedAt: string
 }
 
-export interface Company {
+export interface Client {
   id: string
   name: string
   address: string
   contactPersonName: string
   contactPersonNumber: string
   status: string
-  companyOnboardingDate: string
+  clientOnboardingDate: string
   createdAt: string
   updatedAt: string
 }
@@ -249,17 +249,17 @@ export interface Company {
 export interface PayrollRecord {
   id: string
   employeeId: string
-  companyName: string | null
-  companyId: string
+  clientName: string | null
+  clientId: string
   month: string
   salaryData: Record<string, any>
   createdAt: string
   updatedAt: string
   employee: Employee
-  company: Company
+  client: Client
 }
 
-export interface CompanyEmployeeCount {
+export interface ClientEmployeeCount {
   name: string
   employeeCount: number
 }
@@ -273,9 +273,9 @@ export interface DashboardReport {
     employeesByDesignation: DesignationStat[]
     activeInactive: ActiveInactiveStat
   }
-  companyStats: {
-    totalCompanies: number
-    newCompaniesThisMonth: number
+  clientStats: {
+    totalClients: number
+    newClientsThisMonth: number
     activeInactive: ActiveInactiveStat
   }
   specialDates: {

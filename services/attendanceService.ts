@@ -3,7 +3,7 @@ import type {
   MarkAttendanceDto,
   BulkMarkAttendanceDto,
   UploadAttendanceSheetDto,
-  GetAttendanceByCompanyAndMonthDto,
+  GetAttendanceByClientAndMonthDto,
   DeleteAttendanceDto,
   AttendanceResponse,
   AttendanceListResponse,
@@ -16,6 +16,7 @@ import type {
   UploadAttendanceExcelResponse,
   AttendanceExcelListParams,
   AttendanceExcelListResponse,
+  ImportAttendanceExcelResult,
 } from "@/types/attendance"
 
 class AttendanceService {
@@ -53,7 +54,7 @@ class AttendanceService {
   async uploadAttendanceSheet(data: UploadAttendanceSheetDto, file: File): Promise<UploadAttendanceResponse> {
     try {
       const formData = new FormData()
-      formData.append("companyId", data.companyId)
+      formData.append("clientId", data.clientId)
       formData.append("month", data.month)
       formData.append("attendanceSheet", file)
 
@@ -70,29 +71,29 @@ class AttendanceService {
   }
 
   /**
-   * Get attendance records by company and month
+   * Get attendance records by client and month
    */
-  async getAttendanceByCompanyAndMonth(params: GetAttendanceByCompanyAndMonthDto): Promise<AttendanceListResponse> {
+  async getAttendanceByClientAndMonth(params: GetAttendanceByClientAndMonthDto): Promise<AttendanceListResponse> {
     try {
-      const response = await api.get(`${this.baseUrl}/records-by-company-and-month`, {
+      const response = await api.get(`${this.baseUrl}/records-by-client-and-month`, {
         params,
       })
       return response.data
     } catch (error) {
-      console.error("Error fetching attendance by company and month:", error)
+      console.error("Error fetching attendance by client and month:", error)
       throw error
     }
   }
 
   /**
-   * Get attendance records by company ID
+   * Get attendance records by client ID
    */
-  async getAttendanceByCompanyId(companyId: string): Promise<AttendanceListResponse> {
+  async getAttendanceByClientId(clientId: string): Promise<AttendanceListResponse> {
     try {
-      const response = await api.get(`${this.baseUrl}/records-by-company/${companyId}`)
+      const response = await api.get(`${this.baseUrl}/records-by-client/${clientId}`)
       return response.data
     } catch (error) {
-      console.error("Error fetching attendance by company:", error)
+      console.error("Error fetching attendance by client:", error)
       throw error
     }
   }
@@ -167,16 +168,16 @@ class AttendanceService {
   }
 
   /**
-   * Get attendance summary for a company
+   * Get attendance summary for a client
    */
-  async getCompanyAttendanceSummary(companyId: string, month: string): Promise<AttendanceListResponse> {
+  async getClientAttendanceSummary(clientId: string, month: string): Promise<AttendanceListResponse> {
     try {
-      const response = await api.get(`${this.baseUrl}/${companyId}`, {
+      const response = await api.get(`${this.baseUrl}/${clientId}`, {
         params: { month },
       })
       return response.data
     } catch (error) {
-      console.error("Error fetching company attendance summary:", error)
+      console.error("Error fetching client attendance summary:", error)
       throw error
     }
   }
@@ -198,10 +199,10 @@ class AttendanceService {
   /**
    * Get attendance statistics for dashboard
    */
-  async getAttendanceStats(companyId?: string, month?: string) {
+  async getAttendanceStats(clientId?: string, month?: string) {
     try {
       const params: any = {}
-      if (companyId) params.companyId = companyId
+      if (clientId) params.clientId = clientId
       if (month) params.month = month
 
       const response = await api.get(`${this.baseUrl}/stats`, { params })
@@ -213,13 +214,13 @@ class AttendanceService {
   }
 
   /**
-   * Get active employees for a specific company and month
+   * Get active employees for a specific client and month
    * NEW: Returns only employees who were active during the specified month
    */
-  async getActiveEmployeesForMonth(companyId: string, month: string): Promise<ActiveEmployeesResponse> {
+  async getActiveEmployeesForMonth(clientId: string, month: string): Promise<ActiveEmployeesResponse> {
     try {
       const response = await api.get(`${this.baseUrl}/active-employees`, {
-        params: { companyId, month },
+        params: { clientId, month },
       })
       return response.data
     } catch (error) {
@@ -229,13 +230,13 @@ class AttendanceService {
   }
 
   /**
-   * Get attendance report for a company and month (includes totals, stats, and attendance sheet)
+   * Get attendance report for a client and month (includes totals, stats, and attendance sheet)
    * Uses GET /attendance/reports endpoint
    */
-  async getAttendanceReport(companyId: string, month: string): Promise<AttendanceReportResponse> {
+  async getAttendanceReport(clientId: string, month: string): Promise<AttendanceReportResponse> {
     try {
       const response = await api.get(`${this.baseUrl}/reports`, {
-        params: { companyId, month },
+        params: { clientId, month },
       })
       return response.data
     } catch (error) {
@@ -245,7 +246,7 @@ class AttendanceService {
   }
 
   /**
-   * Upload attendance Excel file (XLSX/XLS) for a company and month
+   * Upload attendance Excel file (XLSX/XLS) for a client and month
    * Uploads or replaces an attendance Excel file stored in AWS S3
    * Uses POST /attendance/attendance-excel endpoint
    */
@@ -273,7 +274,7 @@ class AttendanceService {
       }
 
       const formData = new FormData()
-      formData.append("companyId", data.companyId)
+      formData.append("clientId", data.clientId)
       formData.append("month", data.month)
       formData.append("file", file)
 
@@ -290,8 +291,29 @@ class AttendanceService {
   }
 
   /**
+   * Parse an uploaded attendance Excel and save present days for the client + month
+   * Uses POST /attendance/import-excel endpoint
+   */
+  async importAttendanceExcel(
+    data: UploadAttendanceExcelDto,
+    file: File,
+  ): Promise<ImportAttendanceExcelResult> {
+    const formData = new FormData()
+    formData.append("clientId", data.clientId)
+    formData.append("month", data.month)
+    formData.append("file", file)
+
+    const response = await api.post(`${this.baseUrl}/import-excel`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    })
+    return response.data.data
+  }
+
+  /**
    * Get attendance Excel files with optional filters
-   * Returns single record if companyId + month provided, or paginated list
+   * Returns single record if clientId + month provided, or paginated list
    * Only returns records where attendanceExcelUrl is not null
    * Uses GET /attendance/attendance-excel endpoint
    */
@@ -311,7 +333,7 @@ class AttendanceService {
    * Delete attendance Excel file by ID
    * Uses DELETE /attendance/attendance-excel/:id endpoint
    */
-  async deleteAttendanceExcel(id: string): Promise<{ statusCode: number; message: string; data: null }> {
+  async deleteAttendanceExcel(id: string): Promise<{ data: { id: string } | null }> {
     try {
       const response = await api.delete(`${this.baseUrl}/attendance-excel/${id}`)
       return response.data

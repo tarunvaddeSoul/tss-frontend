@@ -2,14 +2,14 @@ import { Document, Text, View, StyleSheet, Image } from "@react-pdf/renderer"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 import { SalaryCategory, SalaryType } from "@/types/salary"
+import { label, formatDate } from "@/lib/labels"
 
 const styles = StyleSheet.create({
   headerSection: {
     marginBottom: 20,
-    padding: 15,
-    backgroundColor: BRAND.colors.softBg,
-    borderRadius: 4,
-    borderWidth: 1,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: BRAND.colors.border,
   },
   headerRow: {
@@ -38,6 +38,19 @@ const styles = StyleSheet.create({
     height: "100%",
     objectFit: "cover",
   },
+  photoInitials: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: BRAND.colors.softBg,
+  },
+  photoInitialsText: {
+    fontFamily: "Archivo",
+    fontSize: 24,
+    fontWeight: "bold",
+    color: BRAND.colors.primary,
+  },
   column: {
     flexDirection: "column",
     flexGrow: 1,
@@ -50,27 +63,34 @@ const styles = StyleSheet.create({
     flexBasis: 0,
   },
   heading: {
-    fontSize: 9,
-    fontWeight: "bold",
-    color: "#4b5563",
+    fontFamily: "IBMPlexMono",
+    fontSize: 7.5,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: BRAND.colors.muted,
     marginBottom: 2,
   },
   text: {
     fontSize: 9,
-    color: "#111827",
+    color: BRAND.colors.text,
   },
   textBold: {
     fontSize: 10,
-    fontWeight: "bold",
-    color: "#111827",
+    fontWeight: 600,
+    color: BRAND.colors.text,
   },
   badge: {
+    fontFamily: "IBMPlexMono",
     fontSize: 8,
-    color: "#ffffff",
-    backgroundColor: BRAND.colors.primary,
+    fontWeight: 600,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: BRAND.colors.primary,
+    borderWidth: 1,
+    borderColor: BRAND.colors.primary,
     paddingVertical: 2,
     paddingHorizontal: 6,
-    borderRadius: 3,
+    borderRadius: 2,
     marginTop: 2,
   },
   table: {
@@ -91,26 +111,45 @@ const styles = StyleSheet.create({
     fontSize: 8,
     padding: 4,
     flex: 1,
+    borderRightWidth: 1,
+    borderRightColor: BRAND.colors.border,
   },
   tableHeaderCell: {
-    fontSize: 8,
-    fontWeight: "bold",
+    fontFamily: "IBMPlexMono",
+    fontSize: 7,
+    fontWeight: 600,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
     padding: 4,
     flex: 1,
-    color: BRAND.colors.text,
+    color: BRAND.colors.muted,
+    borderRightWidth: 1,
+    borderRightColor: BRAND.colors.border,
   },
   statusBadge: {
+    alignSelf: "flex-start",
+    fontFamily: "IBMPlexMono",
     fontSize: 7,
-    color: "#ffffff",
-    backgroundColor: "#10b981",
+    fontWeight: 600,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: "#17693F",
+    borderWidth: 1,
+    borderColor: "#17693F",
     paddingVertical: 2,
     paddingHorizontal: 5,
     borderRadius: 2,
   },
   statusBadgeInactive: {
+    alignSelf: "flex-start",
+    fontFamily: "IBMPlexMono",
     fontSize: 7,
-    color: "#ffffff",
-    backgroundColor: "#ef4444",
+    fontWeight: 600,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: BRAND.colors.primary,
+    borderWidth: 1,
+    borderColor: BRAND.colors.primary,
     paddingVertical: 2,
     paddingHorizontal: 5,
     borderRadius: 2,
@@ -121,28 +160,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 })
-
-// Helper function to format date
-const formatDateString = (dateString?: string | null): string => {
-  if (!dateString) return "N/A"
-  try {
-    // Handle DD-MM-YYYY format
-    if (dateString.includes("-") && dateString.split("-").length === 3) {
-      const [day, month, year] = dateString.split("-")
-      if (day && month && year) {
-        return `${day}-${month}-${year}`
-      }
-    }
-    // Try to parse as Date
-    const date = new Date(dateString)
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
-    }
-    return dateString
-  } catch {
-    return dateString
-  }
-}
 
 // Helper function to check if value exists
 const hasValue = (value: any): boolean => {
@@ -161,7 +178,10 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
     (h: IEmployeeEmploymentHistory) => h.status === "ACTIVE"
   )
 
-  const photoUrl = employee.documentUploads?.photo || employee.photo
+  const rawPhoto = employee.documentUploads?.photo || employee.photo
+  const photoUrl = typeof rawPhoto === "string" && rawPhoto.trim() !== "" ? rawPhoto : ""
+  const initials =
+    `${(employee.firstName?.[0] ?? "")}${(employee.lastName?.[0] ?? "")}`.toUpperCase() || "?"
   const generatedDate = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "long",
@@ -176,7 +196,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
       keywords="Tulsyan Security Services, Employee, Profile"
     >
       <BrandPage>
-        {/* Company Branding Header */}
+        {/* Client Branding Header */}
         <PdfHeader 
           title="Employee Profile" 
           subtitle={`${employee.firstName} ${employee.lastName}`}
@@ -187,18 +207,22 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <Text style={styles.textBold}>
-                {employee.title || ""} {employee.firstName} {employee.lastName}
+                {[employee.title ? label.title(employee.title) : "", employee.firstName, employee.lastName].filter(Boolean).join(" ")}
               </Text>
               <Text style={styles.heading}>Employee ID: {employee.id}</Text>
               <Text style={styles.text}>{generatedDate}</Text>
             </View>
-            {photoUrl && (
-              <View style={styles.headerRight}>
-                <View style={styles.photoContainer}>
-                  <Image src={typeof photoUrl === "string" ? photoUrl : ""} style={styles.photo} />
-                </View>
+            <View style={styles.headerRight}>
+              <View style={styles.photoContainer}>
+                {photoUrl ? (
+                  <Image src={photoUrl} style={styles.photo} />
+                ) : (
+                  <View style={styles.photoInitials}>
+                    <Text style={styles.photoInitialsText}>{initials}</Text>
+                  </View>
+                )}
               </View>
-            )}
+            </View>
           </View>
         </View>
 
@@ -207,7 +231,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
           <View style={brandStyles.row}>
             <View style={styles.column}>
               <Text style={styles.heading}>Date of Birth</Text>
-              <Text style={styles.text}>{formatDateString(employee.dateOfBirth)}</Text>
+              <Text style={styles.text}>{formatDate(employee.dateOfBirth)}</Text>
             </View>
             <View style={styles.column}>
               <Text style={styles.heading}>Age</Text>
@@ -217,7 +241,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
           <View style={brandStyles.row}>
             <View style={styles.column}>
               <Text style={styles.heading}>Gender</Text>
-              <Text style={styles.text}>{employee.gender || "N/A"}</Text>
+              <Text style={styles.text}>{employee.gender ? label.gender(employee.gender) : "N/A"}</Text>
             </View>
             <View style={styles.column}>
               <Text style={styles.heading}>Blood Group</Text>
@@ -252,7 +276,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
             <View style={brandStyles.row}>
               <View style={styles.column}>
                 <Text style={styles.heading}>Category</Text>
-                <Text style={styles.text}>{employee.category}</Text>
+                <Text style={styles.text}>{label.category(employee.category)}</Text>
               </View>
             </View>
           )}
@@ -350,8 +374,8 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
           <Section title="Current Employment Information">
             <View style={brandStyles.row}>
               <View style={styles.column}>
-                <Text style={styles.heading}>Company Name</Text>
-                <Text style={styles.text}>{getValue(currentEmployment.companyName, employee.companyName)}</Text>
+                <Text style={styles.heading}>Client Name</Text>
+                <Text style={styles.text}>{getValue(currentEmployment.clientName, employee.clientName)}</Text>
               </View>
               <View style={styles.column}>
                 <Text style={styles.heading}>Designation</Text>
@@ -365,13 +389,21 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
               </View>
               <View style={styles.column}>
                 <Text style={styles.heading}>Joining Date</Text>
-                <Text style={styles.text}>{formatDateString(getValue(currentEmployment.joiningDate, employee.dateOfJoining))}</Text>
+                <Text style={styles.text}>{formatDate(currentEmployment.joiningDate || employee.dateOfJoining)}</Text>
               </View>
             </View>
             <View style={brandStyles.row}>
               <View style={styles.column}>
                 <Text style={styles.heading}>Status</Text>
-                <Text style={styles.statusBadge}>{currentEmployment.status || employee.status || "N/A"}</Text>
+                <Text
+                  style={
+                    (currentEmployment.status || employee.status) === "ACTIVE"
+                      ? styles.statusBadge
+                      : styles.statusBadgeInactive
+                  }
+                >
+                  {label.status(currentEmployment.status || employee.status)}
+                </Text>
               </View>
               {hasValue(employee.recruitedBy) && (
                 <View style={styles.column}>
@@ -389,12 +421,12 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
             <View style={brandStyles.row}>
               <View style={styles.column}>
                 <Text style={styles.heading}>Salary Category</Text>
-                <Text style={styles.text}>{employee.salaryCategory}</Text>
+                <Text style={styles.text}>{label.salaryCategory(employee.salaryCategory)}</Text>
               </View>
               {employee.salarySubCategory && (
                 <View style={styles.column}>
                   <Text style={styles.heading}>Salary Sub-Category</Text>
-                  <Text style={styles.text}>{employee.salarySubCategory}</Text>
+                  <Text style={styles.text}>{label.salarySubCategory(employee.salarySubCategory)}</Text>
                 </View>
               )}
             </View>
@@ -497,7 +529,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
             <View style={brandStyles.row}>
               <View style={styles.column}>
                 <Text style={styles.heading}>Highest Education Qualification</Text>
-                <Text style={styles.text}>{employee.highestEducationQualification}</Text>
+                <Text style={styles.text}>{label.education(employee.highestEducationQualification)}</Text>
               </View>
             </View>
           </Section>
@@ -507,34 +539,34 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
         {employee.employmentHistories && employee.employmentHistories.length > 0 && (
           <Section title="Employment History">
             <View style={styles.table}>
-              <View style={[styles.tableRow, styles.tableHeader]}>
-                <Text style={styles.tableHeaderCell}>Company</Text>
-                <Text style={styles.tableHeaderCell}>Designation</Text>
-                <Text style={styles.tableHeaderCell}>Department</Text>
-                <Text style={styles.tableHeaderCell}>Joining Date</Text>
-                <Text style={styles.tableHeaderCell}>Leaving Date</Text>
-                <Text style={styles.tableHeaderCell}>Salary</Text>
+              <View style={[styles.tableRow, styles.tableHeader]} fixed>
+                <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Client</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.6 }]}>Designation</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.6 }]}>Department</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.3 }]}>Joining Date</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.3 }]}>Leaving Date</Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1.5, textAlign: "right" }]}>Salary</Text>
               </View>
               {employee.employmentHistories.map((history: IEmployeeEmploymentHistory, index: number) => {
                 const salaryDisplay =
                   history.salaryType === SalaryType.PER_DAY && history.salaryPerDay
-                    ? `₹${history.salaryPerDay.toLocaleString()}/day`
+                    ? `₹${history.salaryPerDay.toLocaleString("en-IN")}/day`
                     : history.salaryType === SalaryType.PER_MONTH && history.salary
-                      ? `₹${history.salary.toLocaleString()}/month`
+                      ? `₹${history.salary.toLocaleString("en-IN")}/month`
                       : history.salary
-                        ? `₹${history.salary.toLocaleString()}`
+                        ? `₹${history.salary.toLocaleString("en-IN")}`
                         : "N/A"
 
                 return (
-                  <View key={index} style={styles.tableRow}>
-                    <Text style={styles.tableCell}>{history.companyName || "N/A"}</Text>
-                    <Text style={styles.tableCell}>{history.designationName || "N/A"}</Text>
-                    <Text style={styles.tableCell}>{history.departmentName || "N/A"}</Text>
-                    <Text style={styles.tableCell}>{formatDateString(history.joiningDate)}</Text>
-                    <Text style={styles.tableCell}>
-                      {history.leavingDate ? formatDateString(history.leavingDate) : "Present"}
+                  <View key={index} style={styles.tableRow} wrap={false}>
+                    <Text style={[styles.tableCell, { flex: 2 }]}>{history.clientName || "N/A"}</Text>
+                    <Text style={[styles.tableCell, { flex: 1.6 }]}>{history.designationName || "N/A"}</Text>
+                    <Text style={[styles.tableCell, { flex: 1.6 }]}>{history.departmentName || "N/A"}</Text>
+                    <Text style={[styles.tableCell, { flex: 1.3 }]}>{formatDate(history.joiningDate)}</Text>
+                    <Text style={[styles.tableCell, { flex: 1.3 }]}>
+                      {history.leavingDate ? formatDate(history.leavingDate) : "Present"}
                     </Text>
-                    <Text style={styles.tableCell}>{salaryDisplay}</Text>
+                    <Text style={[styles.tableCell, { flex: 1.5, textAlign: "right" }]}>{salaryDisplay}</Text>
                   </View>
                 )
               })}
@@ -595,7 +627,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
                   <View style={styles.column}>
                     <Text style={styles.heading}>Police Verification Date</Text>
                     <Text style={styles.text}>
-                      {formatDateString(employee.additionalDetails?.policeVerificationDate)}
+                      {formatDate(employee.additionalDetails?.policeVerificationDate)}
                     </Text>
                   </View>
                 )}
@@ -614,7 +646,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
                   <View style={styles.column}>
                     <Text style={styles.heading}>Training Certificate Date</Text>
                     <Text style={styles.text}>
-                      {formatDateString(employee.additionalDetails?.trainingCertificateDate)}
+                      {formatDate(employee.additionalDetails?.trainingCertificateDate)}
                     </Text>
                   </View>
                 )}
@@ -633,7 +665,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
                   <View style={styles.column}>
                     <Text style={styles.heading}>Medical Certificate Date</Text>
                     <Text style={styles.text}>
-                      {formatDateString(employee.additionalDetails?.medicalCertificateDate)}
+                      {formatDate(employee.additionalDetails?.medicalCertificateDate)}
                     </Text>
                   </View>
                 )}
@@ -666,7 +698,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
               <View style={brandStyles.row}>
                 <View style={styles.column}>
                   <Text style={styles.heading}>Employee Onboarding Date</Text>
-                  <Text style={styles.text}>{formatDateString(employee.employeeOnboardingDate)}</Text>
+                  <Text style={styles.text}>{formatDate(employee.employeeOnboardingDate)}</Text>
                 </View>
               </View>
             )}
@@ -675,7 +707,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
                 <View style={styles.column}>
                   <Text style={styles.heading}>Employee Relieving Date</Text>
                   <Text style={styles.text}>
-                    {formatDateString(
+                    {formatDate(
                       employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.leavingDate)?.leavingDate
                     )}
                   </Text>
@@ -689,7 +721,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
                   <Text
                     style={employee.status === "ACTIVE" ? styles.statusBadge : styles.statusBadgeInactive}
                   >
-                    {employee.status}
+                    {label.status(employee.status)}
                   </Text>
                 </View>
               </View>

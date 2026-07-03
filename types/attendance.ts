@@ -2,7 +2,7 @@
 export interface Attendance {
   id: string
   employeeId: string
-  companyId: string
+  clientId: string
   month: string // Format: YYYY-MM
   presentCount: number
   createdAt?: string
@@ -14,13 +14,13 @@ export interface Attendance {
     lastName: string
     employeeId?: string
   }
-  company?: {
+  client?: {
     id: string
     name: string
   }
   employeeID: string
   employeeName: string
-  companyName: string
+  clientName: string
   designationName: string
   departmentName: string
   attendanceSheetUrl: string
@@ -29,7 +29,7 @@ export interface Attendance {
 export interface AttendanceRecord {
   employeeID: string
   employeeName: string
-  companyName: string
+  clientName: string
   designationName: string
   departmentName: string
   presentCount: number
@@ -39,7 +39,7 @@ export interface AttendanceRecord {
 // DTO interfaces matching your backend DTOs
 export interface MarkAttendanceDto {
   employeeId: string
-  companyId: string
+  clientId: string
   month: string // Format: YYYY-MM
   presentCount: number
 }
@@ -49,7 +49,7 @@ export interface BulkMarkAttendanceDto {
 }
 
 export interface UploadAttendanceSheetDto {
-  companyId: string
+  clientId: string
   month: string // Format: YYYY-MM
   attendanceSheet?: File
 }
@@ -59,8 +59,8 @@ export interface GetAttendanceDto {
   month: string // Format: YYYY-MM
 }
 
-export interface GetAttendanceByCompanyAndMonthDto {
-  companyId: string
+export interface GetAttendanceByClientAndMonthDto {
+  clientId: string
   month: string // Format: YYYY-MM
 }
 
@@ -76,14 +76,11 @@ export interface AttendanceResponse {
 }
 
 export interface AttendanceListResponse {
-  success: boolean
-  message: string
   data: Attendance[]
-  pagination?: {
+  meta?: {
     total: number
     page: number
     limit: number
-    totalPages: number
   }
 }
 
@@ -111,7 +108,7 @@ export interface UploadAttendanceResponse {
 
 // Search and filter interfaces
 export interface AttendanceSearchParams {
-  companyId?: string
+  clientId?: string
   employeeId?: string
   month?: string
   startMonth?: string
@@ -132,9 +129,9 @@ export interface AttendanceSummary {
   month: string
 }
 
-export interface CompanyAttendanceSummary {
-  companyId: string
-  companyName: string
+export interface ClientAttendanceSummary {
+  clientId: string
+  clientName: string
   month: string
   totalEmployees: number
   totalPresent: number
@@ -145,13 +142,13 @@ export interface CompanyAttendanceSummary {
 // Form validation schemas (for use with react-hook-form)
 export interface AttendanceFormValues {
   employeeId: string
-  companyId: string
+  clientId: string
   month: string
   presentCount: number
 }
 
 export interface BulkAttendanceFormValues {
-  companyId: string
+  clientId: string
   month: string
   records: Array<{
     employeeId: string
@@ -160,7 +157,7 @@ export interface BulkAttendanceFormValues {
 }
 
 export interface UploadAttendanceFormValues {
-  companyId: string
+  clientId: string
   month: string
   attendanceSheet: File | null
 }
@@ -176,7 +173,7 @@ export interface ActiveEmployee {
   }
   employmentHistories?: Array<{
     id: string
-    companyId: string
+    clientId: string
     joiningDate: string
     leavingDate: string | null
     status: string
@@ -190,11 +187,9 @@ export interface ActiveEmployee {
 }
 
 export interface ActiveEmployeesResponse {
-  statusCode: number
-  message: string
   data: {
-    companyId: string
-    companyName: string
+    clientId: string
+    clientName: string
     month: string
     employees: ActiveEmployee[]
     count: number
@@ -203,10 +198,8 @@ export interface ActiveEmployeesResponse {
 
 // Attendance Report API Response (GET /attendance/reports)
 export interface AttendanceReportResponse {
-  statusCode: number
-  message: string
   data: {
-    company: {
+    client: {
       id: string
       name: string
       address?: string
@@ -236,15 +229,15 @@ export interface AttendanceReportResponse {
 
 // Attendance Excel Upload DTO
 export interface UploadAttendanceExcelDto {
-  companyId: string
+  clientId: string
   month: string // Format: YYYY-MM
 }
 
 // Attendance Excel Record (only includes Excel URL)
 export interface AttendanceExcelRecord {
   id: string
-  companyId: string
-  companyName?: string // Included in list responses
+  clientId: string
+  clientName?: string // Included in list responses
   month: string // Format: YYYY-MM
   attendanceExcelUrl: string // URL of prefinalized Excel file
   createdAt?: string
@@ -253,43 +246,52 @@ export interface AttendanceExcelRecord {
 
 // Attendance Excel Upload Response
 export interface UploadAttendanceExcelResponse {
-  statusCode: number
-  message: string
   data: {
     id: string
-    companyId: string
+    clientId: string
     month: string
     attendanceExcelUrl: string
     createdAt: string
   }
 }
 
+export interface ImportAttendanceExcelRowError {
+  row: number
+  employeeId: string
+  reason: string
+}
+
+export interface ImportAttendanceExcelResult {
+  clientId: string
+  clientName: string
+  month: string
+  totalRows: number
+  imported: number
+  skipped: number
+  errors: ImportAttendanceExcelRowError[]
+}
+
 // Attendance Excel List Query Parameters
 export interface AttendanceExcelListParams {
-  companyId?: string
+  clientId?: string
   month?: string // Cannot use with startMonth/endMonth
   startMonth?: string // Format: YYYY-MM
   endMonth?: string // Format: YYYY-MM
   page?: number // Default: 1
   limit?: number // Default: 20, max: 100
-  sortBy?: "month" | "companyId" | "createdAt" // Default: "month"
+  sortBy?: "month" | "clientId" | "createdAt" // Default: "month"
   sortOrder?: "asc" | "desc" // Default: "desc"
 }
 
 // Attendance Excel List Response (can be single record or paginated list)
 export interface AttendanceExcelListResponse {
-  statusCode: number
-  message: string
   data:
-    | AttendanceExcelRecord // Single record when companyId + month provided
-    | {
-        data: AttendanceExcelRecord[]
-        pagination: {
-          total: number
-          page: number
-          limit: number
-          totalPages: number
-        }
-      } // Paginated list
+    | AttendanceExcelRecord // Single record when clientId + month provided
+    | AttendanceExcelRecord[] // Paginated list items
     | null // When no Excel file found
+  meta?: {
+    total: number
+    page: number
+    limit: number
+  }
 }

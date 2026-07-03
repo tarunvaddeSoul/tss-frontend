@@ -3,19 +3,19 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, Building2, UserPlus, Building, TrendingUp, TrendingDown } from "lucide-react"
-import type { DashboardReportData, CompanyEmployeeCount } from "@/types/dashboard"
+import type { DashboardReportData, ClientEmployeeCount } from "@/types/dashboard"
 
 interface StatCardsProps {
   data: DashboardReportData
-  companyEmployeeCounts: CompanyEmployeeCount[]
+  clientEmployeeCounts: ClientEmployeeCount[]
 }
 
-export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
-  const { summary, employeeStats, companyStats } = data
+export function StatCards({ data, clientEmployeeCounts }: StatCardsProps) {
+  const { summary, employeeStats, clientStats } = data
 
-  // Calculate companies with employees vs without employees
-  const companiesWithEmployees = companyEmployeeCounts.filter((company) => company.employeeCount > 0).length
-  const companiesWithoutEmployees = companyEmployeeCounts.filter((company) => company.employeeCount === 0).length
+  // Calculate clients with employees vs without employees
+  const clientsWithEmployees = clientEmployeeCounts.filter((client) => client.employeeCount > 0).length
+  const clientsWithoutEmployees = clientEmployeeCounts.filter((client) => client.employeeCount === 0).length
 
   const stats = [
     {
@@ -24,8 +24,6 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
       change: summary.newEmployeesThisMonth,
       changeLabel: "new this month",
       icon: Users,
-      gradient: "from-primary-light/20 to-primary/20",
-      iconColor: "text-primary",
     },
     {
       title: "Active Employees",
@@ -33,62 +31,49 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
       change: summary.inactiveEmployees,
       changeLabel: "inactive",
       icon: UserPlus,
-      gradient: "from-success/20 to-success/10",
-      iconColor: "text-success",
     },
     {
-      title: "Total Companies",
-      value: summary.totalCompanies,
-      change: summary.newCompaniesThisMonth,
+      title: "Total Clients",
+      value: summary.totalClients,
+      change: summary.newClientsThisMonth,
       changeLabel: "new this month",
       icon: Building2,
-      gradient: "from-info/20 to-info/10",
-      iconColor: "text-info",
     },
     {
-      title: "Active Companies",
-      value: summary.activeCompanies,
-      change: companiesWithEmployees,
+      title: "Active Clients",
+      value: summary.activeClients,
+      change: clientsWithEmployees,
       changeLabel: "with employees",
       icon: Building,
-      gradient: "from-warning/20 to-warning/10",
-      iconColor: "text-warning",
     },
   ]
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => {
+      {stats.map((stat) => {
         const Icon = stat.icon
         const isPositive = stat.change > 0
         const TrendIcon = isPositive ? TrendingUp : TrendingDown
 
         return (
-          <Card
-            key={stat.title}
-            className="relative overflow-hidden security-card hover:border-primary/20 transition-all duration-300 group"
-          >
-            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-50 transition-opacity duration-300`} />
-            <CardContent className="relative p-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-3 flex-1">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{stat.title}</p>
-                  <div className="flex items-baseline space-x-3">
-                    <p className="text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                      {stat.value.toLocaleString()}
+          <Card key={stat.title}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <p className="registry-eyebrow">{stat.title}</p>
+                  <div className="flex items-baseline gap-3">
+                    <p className="font-display font-expanded text-4xl font-bold tracking-tight tabular-nums">
+                      {stat.value.toLocaleString("en-IN")}
                     </p>
                     {stat.change > 0 && (
-                      <Badge 
-                        variant="secondary" 
-                        className="text-xs font-semibold bg-success/10 text-success border-success/20"
-                      >
-                        <TrendingUp className="h-3 w-3 mr-1" />
+                      <Badge variant="success">
+                        <TrendingUp />
                         +{stat.change}
                       </Badge>
                     )}
                   </div>
                   {stat.change !== undefined && (
-                    <div className="flex items-center space-x-1.5 text-xs text-muted-foreground pt-1">
+                    <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
                       <TrendIcon className={`h-3.5 w-3.5 ${isPositive ? 'text-success' : 'text-muted-foreground'}`} />
                       <span className="font-medium">
                         {stat.change} {stat.changeLabel}
@@ -96,8 +81,8 @@ export function StatCards({ data, companyEmployeeCounts }: StatCardsProps) {
                     </div>
                   )}
                 </div>
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg ${stat.iconColor} opacity-90 group-hover:opacity-100 transition-opacity`}>
-                  <Icon className="h-6 w-6" />
+                <div className="rounded-md bg-surface p-2.5 text-muted-foreground">
+                  <Icon className="h-5 w-5" />
                 </div>
               </div>
             </CardContent>

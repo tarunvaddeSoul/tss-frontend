@@ -93,25 +93,18 @@ export interface GetActiveRateQuery {
  * Salary Rate Schedule API Response
  */
 export interface SalaryRateScheduleResponse {
-  statusCode: number
-  message: string
   data: SalaryRateSchedule
 }
 
 /**
  * Salary Rate Schedule List Response
- * Note: Backend returns records in data.data (nested) and hasNextPage/hasPrevPage instead of totalPages
  */
 export interface SalaryRateScheduleListResponse {
-  statusCode: number
-  message: string
-  data: {
-    data: SalaryRateSchedule[] // Records are nested in data.data
+  data: SalaryRateSchedule[]
+  meta: {
     total: number
     page: number
     limit: number
-    hasNextPage: boolean
-    hasPrevPage: boolean
   }
 }
 
@@ -120,8 +113,6 @@ export interface SalaryRateScheduleListResponse {
  * Note: API returns an array of active rate schedules in data
  */
 export interface ActiveRateResponse {
-  statusCode: number
-  message: string
   data: SalaryRateSchedule[] // Array of active rate schedules (can be empty)
 }
 

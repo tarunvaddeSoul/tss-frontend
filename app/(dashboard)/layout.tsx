@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { AuthProvider, useAuth } from "@/hooks/use-auth"
+import { Loader } from "@/components/ui/loader"
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, isInitializing } = useAuth()
@@ -19,7 +20,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }, [user, isInitializing, router])
 
   if (isInitializing) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader text="Loading" />
+      </div>
+    )
   }
 
   if (!user) {
@@ -31,7 +36,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden min-w-0 min-h-0">
         <Header />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 min-h-0">{children}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 min-h-0">
+          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+        </main>
       </div>
     </div>
   )

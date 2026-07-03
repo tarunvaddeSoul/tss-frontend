@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
-import { Search } from "lucide-react"
+import { AlertCircle, RefreshCw, Search } from "lucide-react"
 import { format } from "date-fns"
+import { toast } from "sonner"
+import { label } from "@/lib/labels"
 
 // UI Components
 import { Button } from "@/components/ui/button"
@@ -13,29 +15,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker"
 import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { PageHeader } from "@/components/layout/page-header"
 
 // Services
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 
 // Types
 import type { Employee } from "@/types/employee"
 import type { Designation } from "@/services/designationService"
 import type { Department } from "@/services/departmentService"
-import type { Company } from "@/types/company"
+import type { Client } from "@/types/client"
 
 interface AdvancedSearchFormValues {
   searchText: string
   designationId: string
   employeeDepartmentId: string
-  companyId: string
+  clientId: string
   gender: string
   category: string
   highestEducationQualification: string
@@ -63,8 +67,9 @@ export default function AdvancedEmployeeSearch() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [designations, setDesignations] = useState<Designation[]>([])
   const [employeeDepartments, setEmployeeDepartments] = useState<Department[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
@@ -76,7 +81,7 @@ export default function AdvancedEmployeeSearch() {
       searchText: "",
       designationId: "",
       employeeDepartmentId: "",
-      companyId: "",
+      clientId: "",
       gender: "",
       category: "",
       highestEducationQualification: "",
@@ -106,24 +111,21 @@ export default function AdvancedEmployeeSearch() {
   useEffect(() => {
     fetchDesignations()
     fetchEmployeeDepartments()
-    fetchCompanies()
+    fetchClients()
     fetchEmployees(1)
   }, [])
 
-  function formatDateToDDMMYYYY(date: Date): string {
-    return format(date, "dd-MM-yyyy")
-  }
-
-  const fetchEmployees = async (currentPage = 1) => {
+  const fetchEmployees = async (currentPage = 1, limitOverride?: number) => {
     setLoading(true)
+    setSearchError(null)
     try {
       const params = {
         page: currentPage,
-        limit: limit,
+        limit: limitOverride ?? limit,
         searchText: formValues.searchText || undefined,
         designationId: formValues.designationId && formValues.designationId !== "all" ? formValues.designationId : undefined,
         employeeDepartmentId: formValues.employeeDepartmentId && formValues.employeeDepartmentId !== "all" ? formValues.employeeDepartmentId : undefined,
-        companyId: formValues.companyId && formValues.companyId !== "all" ? formValues.companyId : undefined,
+        clientId: formValues.clientId && formValues.clientId !== "all" ? formValues.clientId : undefined,
         gender: formValues.gender && formValues.gender !== "all" ? formValues.gender : undefined,
         category: formValues.category && formValues.category !== "all" ? formValues.category : undefined,
         highestEducationQualification: formValues.highestEducationQualification && formValues.highestEducationQualification !== "all" ? formValues.highestEducationQualification : undefined,
@@ -131,8 +133,8 @@ export default function AdvancedEmployeeSearch() {
         maxAge: formValues.ageRange[1],
         sortBy: formValues.sortBy || "lastName",
         sortOrder: formValues.sortOrder || "asc",
-        startDate: formValues.startDate ? formatDateToDDMMYYYY(formValues.startDate) : undefined,
-        endDate: formValues.endDate ? formatDateToDDMMYYYY(formValues.endDate) : undefined,
+        startDate: formValues.startDate ? format(formValues.startDate, "yyyy-MM-dd") : undefined,
+        endDate: formValues.endDate ? format(formValues.endDate, "yyyy-MM-dd") : undefined,
         status: formValues.status && formValues.status !== "all" ? formValues.status : undefined,
         // New advanced filters
         salaryCategory: formValues.salaryCategory && formValues.salaryCategory !== "all" ? (formValues.salaryCategory as "CENTRAL" | "STATE" | "SPECIALIZED") : undefined,
@@ -149,11 +151,15 @@ export default function AdvancedEmployeeSearch() {
       }
 
       const response = await employeeService.getEmployees(params)
-      setEmployees(response.data?.data || [])
-      const totalCount = response.data?.total || 0
+      setEmployees(response.data || [])
+      const totalCount = response.meta?.total || 0
       setTotalPages(Math.ceil(totalCount / params.limit))
     } catch (error) {
       console.error("Error fetching employees:", error)
+      setEmployees([])
+      const message = error instanceof Error ? error.message : "Could not load employees. Please try again."
+      setSearchError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -177,12 +183,12 @@ export default function AdvancedEmployeeSearch() {
     }
   }
 
-  const fetchCompanies = async () => {
+  const fetchClients = async () => {
     try {
-      const data = await companyService.getCompanies()
-      setCompanies(data.data?.companies || [])
+      const data = await clientService.getClients()
+      setClients(data.data?.clients || [])
     } catch (error) {
-      console.error("Error fetching companies:", error)
+      console.error("Error fetching clients:", error)
     }
   }
 
@@ -211,10 +217,12 @@ export default function AdvancedEmployeeSearch() {
 
   return (
     <div className="space-y-6 min-h-0">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Advanced Employee Search</h1>
-        <p className="text-muted-foreground">Search for employees using multiple criteria</p>
-      </div>
+      <PageHeader
+        no="04"
+        eyebrow="Employee register"
+        title="Advanced Employee Search"
+        description="Search for employees using multiple criteria."
+      />
 
       <Card>
         <CardHeader>
@@ -222,7 +230,7 @@ export default function AdvancedEmployeeSearch() {
           <CardDescription>Use the filters below to find specific employees</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(handleSearch)} className="space-y-6">
+          <form noValidate onSubmit={handleSubmit(handleSearch)} className="space-y-6">
             <div className="space-y-4">
               <div>
                 <Label htmlFor="searchText">Search</Label>
@@ -270,14 +278,14 @@ export default function AdvancedEmployeeSearch() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="companyId">Company</Label>
-                  <Select onValueChange={(value) => setValue("companyId", value)} value={formValues.companyId}>
+                  <Label htmlFor="clientId">Client</Label>
+                  <Select onValueChange={(value) => setValue("clientId", value)} value={formValues.clientId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
+                      <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All</SelectItem>
-                      {companies.map((c) => (
+                      {clients.map((c) => (
                         <SelectItem key={c.id ?? ""} value={c.id ?? ""}>
                           {c.name}
                         </SelectItem>
@@ -412,7 +420,9 @@ export default function AdvancedEmployeeSearch() {
 
               {/* Salary Filters Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">Salary Filters</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Salary filters</h3>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -502,7 +512,9 @@ export default function AdvancedEmployeeSearch() {
 
               {/* Personal Information Filters Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">Personal Information Filters</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Personal information filters</h3>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -535,7 +547,9 @@ export default function AdvancedEmployeeSearch() {
 
               {/* Location Filters Section */}
               <div className="space-y-4 pt-4 border-t">
-                <h3 className="text-lg font-semibold">Location Filters</h3>
+                <div className="registry-line">
+                  <h3 className="registry-eyebrow">Location filters</h3>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
@@ -593,9 +607,10 @@ export default function AdvancedEmployeeSearch() {
               <Select
                 value={String(limit)}
                 onValueChange={(value) => {
-                  setLimit(Number(value))
+                  const next = Number(value)
+                  setLimit(next)
                   setPage(1) // Reset to first page when changing limit
-                  fetchEmployees(1)
+                  fetchEmployees(1, next)
                 }}
               >
                 <SelectTrigger className="w-[80px]">
@@ -618,6 +633,18 @@ export default function AdvancedEmployeeSearch() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
+          ) : searchError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Search failed</AlertTitle>
+              <AlertDescription className="mt-2">
+                {searchError}
+                <Button variant="outline" size="sm" onClick={() => fetchEmployees(page)} className="ml-0 mt-3 block sm:ml-4 sm:mt-0 sm:inline-flex">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : employees.length > 0 ? (
             <>
               <div className="rounded-md border overflow-x-auto scrollbar-sleek">
@@ -628,31 +655,37 @@ export default function AdvancedEmployeeSearch() {
                       <TableHead>Name</TableHead>
                       <TableHead>Designation</TableHead>
                       <TableHead>Department</TableHead>
-                      <TableHead>Company</TableHead>
+                      <TableHead>Client</TableHead>
                       <TableHead>Gender</TableHead>
-                      <TableHead>Age</TableHead>
+                      <TableHead className="text-right">Age</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {employees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell>
-                          <Button
-                            variant="link"
-                            onClick={() => handleIdClick(employee.id)}
-                            className="p-0 h-auto font-normal text-primary"
-                          >
-                            {employee.id}
-                          </Button>
-                        </TableCell>
-                        <TableCell>{`${employee.firstName} ${employee.lastName}`}</TableCell>
-                        <TableCell>{employee.employmentHistories?.[0]?.designation?.name || "N/A"}</TableCell>
-                        <TableCell>{employee.employmentHistories?.[0]?.department?.name || "N/A"}</TableCell>
-                        <TableCell>{employee.employmentHistories?.[0]?.company?.name || "N/A"}</TableCell>
-                        <TableCell>{employee.gender}</TableCell>
-                        <TableCell>{employee.age}</TableCell>
-                      </TableRow>
-                    ))}
+                    {employees.map((employee) => {
+                      const activeHistory =
+                        employee.employmentHistories?.find((h) => h.status === "ACTIVE") ||
+                        employee.employmentHistories?.[0]
+
+                      return (
+                        <TableRow key={employee.id}>
+                          <TableCell>
+                            <Button
+                              variant="link"
+                              onClick={() => handleIdClick(employee.id)}
+                              className="p-0 h-auto font-normal font-mono text-[13px]"
+                            >
+                              {employee.id}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="font-medium">{`${employee.firstName} ${employee.lastName}`}</TableCell>
+                          <TableCell>{activeHistory?.designationName || "N/A"}</TableCell>
+                          <TableCell>{activeHistory?.departmentName || "N/A"}</TableCell>
+                          <TableCell>{activeHistory?.clientName || "N/A"}</TableCell>
+                          <TableCell>{label.gender(employee.gender)}</TableCell>
+                          <TableCell className="text-right font-mono text-[13px]">{employee.age}</TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -662,7 +695,10 @@ export default function AdvancedEmployeeSearch() {
               </div>
             </>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">No results found</div>
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+              <span className="registry-eyebrow">No records on file</span>
+              <p className="text-sm text-muted-foreground">No employees match the current search criteria.</p>
+            </div>
           )}
         </CardContent>
       </Card>

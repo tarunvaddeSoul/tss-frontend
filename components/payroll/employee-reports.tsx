@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, FileDown, Search } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { payrollService } from "@/services/payrollService"
-import { useCompany } from "@/hooks/use-company"
+import { useClient } from "@/hooks/use-client"
 import { Input } from "@/components/ui/input"
 import { MonthPicker } from "@/components/ui/month-picker"
 import { exportEmployeePayrollToExcel } from "@/utils/file-export"
@@ -18,12 +18,13 @@ import { EmployeePayrollPDFDownloadButton } from "./pdf/employee-payroll-pdf"
 import { employeeService } from "@/services/employeeService"
 import type { EmployeePayrollRecord } from "@/types/payroll"
 import type { Employee } from "@/types/employee"
+import { format } from "date-fns"
 
 export function EmployeeReports() {
     const { toast } = useToast()
-    const { companies, loading: loadingCompanies } = useCompany()
+    const { clients, isLoading: loadingClients } = useClient()
 
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all")
+    const [selectedClientId, setSelectedClientId] = useState<string>("all")
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("")
     const [employeeSearch, setEmployeeSearch] = useState<string>("")
     const [employees, setEmployees] = useState<Employee[]>([])
@@ -35,18 +36,18 @@ export function EmployeeReports() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // Fetch employees when company changes
+    // Fetch employees when client changes
     useEffect(() => {
         const fetchEmployees = async () => {
-            if (selectedCompanyId === "all") {
+            if (selectedClientId === "all") {
                 setEmployees([])
                 return
             }
 
             setLoadingEmployees(true)
             try {
-                const response = await employeeService.getEmployeesByCompany(selectedCompanyId)
-                setEmployees(response.data || [])
+                const response = await employeeService.getEmployees({ clientId: selectedClientId })
+                setEmployees(response.data?.data || [])
             } catch (err) {
                 toast({
                     title: "Error",
@@ -59,7 +60,7 @@ export function EmployeeReports() {
         }
 
         fetchEmployees()
-    }, [selectedCompanyId, toast])
+    }, [selectedClientId, toast])
 
     const fetchPayrollData = async () => {
         if (!selectedEmployeeId) return
@@ -70,11 +71,11 @@ export function EmployeeReports() {
         try {
             const response = await payrollService.getEmployeePayrollReport(
                 selectedEmployeeId,
-                selectedCompanyId === "all" ? undefined : selectedCompanyId,
-                startMonth,
-                endMonth,
+                selectedClientId === "all" ? undefined : selectedClientId,
+                startMonth ? format(startMonth, "yyyy-MM") : undefined,
+                endMonth ? format(endMonth, "yyyy-MM") : undefined,
             )
-            setPayrollData(response || [])
+            setPayrollData((response as unknown as EmployeePayrollRecord[]) || [])
         } catch (err) {
             setError("Failed to fetch payroll data. Please try again.")
             toast({
@@ -91,16 +92,17 @@ export function EmployeeReports() {
         if (selectedEmployeeId) {
             fetchPayrollData()
         }
-    }, [selectedEmployeeId, selectedCompanyId, startMonth, endMonth])
+    }, [selectedEmployeeId, selectedClientId, startMonth, endMonth])
 
     const handleSearch = async () => {
         if (!employeeSearch) return
 
         setLoadingEmployees(true)
         try {
-            const response = await employeeService.getEmployees(employeeSearch)
-            if (response.data && response.data.length > 0) {
-                setSelectedEmployeeId(response.data[0].id)
+            const response = await employeeService.getEmployees({ searchText: employeeSearch })
+            const results = response.data?.data || []
+            if (results.length > 0) {
+                setSelectedEmployeeId(results[0].id)
             } else {
                 toast({
                     title: "No employees found",
@@ -170,20 +172,20 @@ export function EmployeeReports() {
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="min-w-0">
-                                <label htmlFor="employee-company" className="text-sm font-medium mb-2 block truncate">
-                                    Company (Optional)
+                                <label htmlFor="employee-client" className="text-sm font-medium mb-2 block truncate">
+                                    Client (Optional)
                                 </label>
-                                <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId} disabled={loadingCompanies}>
-                                    <SelectTrigger id="employee-company" className="h-12 w-full">
-                                        <SelectValue placeholder="All Companies" className="truncate" />
+                                <Select value={selectedClientId} onValueChange={setSelectedClientId} disabled={loadingClients}>
+                                    <SelectTrigger id="employee-client" className="h-12 w-full">
+                                        <SelectValue placeholder="All Clients" className="truncate" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all" className="truncate">
-                                            <span className="truncate block">All Companies</span>
+                                            <span className="truncate block">All Clients</span>
                                         </SelectItem>
-                                        {companies.map((company) => (
-                                            <SelectItem key={company.id} value={company.id ?? ""} className="truncate">
-                                                <span className="truncate block">{company.name}</span>
+                                        {clients.map((client) => (
+                                            <SelectItem key={client.id} value={client.id ?? ""} className="truncate">
+                                                <span className="truncate block">{client.name}</span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -194,7 +196,7 @@ export function EmployeeReports() {
                                 <label htmlFor="employee-select" className="text-sm font-medium mb-2 block truncate">
                                     Employee
                                 </label>
-                                {selectedCompanyId !== "all" ? (
+                                {selectedClientId !== "all" ? (
                                     <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={loadingEmployees}>
                                         <SelectTrigger id="employee-select" className="h-12 w-full">
                                             <SelectValue placeholder="Select an employee" className="truncate" />
@@ -235,7 +237,6 @@ export function EmployeeReports() {
                                     Start Month (Optional)
                                 </label>
                                 <MonthPicker
-                                    id="start-month"
                                     value={startMonth}
                                     onChange={setStartMonth}
                                     placeholder="Select start month"
@@ -247,7 +248,6 @@ export function EmployeeReports() {
                                     End Month (Optional)
                                 </label>
                                 <MonthPicker
-                                    id="end-month"
                                     value={endMonth}
                                     onChange={setEndMonth}
                                     placeholder="Select end month"
@@ -289,19 +289,19 @@ export function EmployeeReports() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-xl sm:text-2xl font-bold truncate">₹{totalGrossSalary.toLocaleString()}</div>
+                            <div className="font-display text-xl sm:text-2xl font-bold nums truncate">₹{totalGrossSalary.toLocaleString()}</div>
                             <p className="text-xs sm:text-sm text-muted-foreground">Total Gross Salary</p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-xl sm:text-2xl font-bold truncate">₹{totalDeductions.toLocaleString()}</div>
+                            <div className="font-display text-xl sm:text-2xl font-bold nums truncate">₹{totalDeductions.toLocaleString()}</div>
                             <p className="text-xs sm:text-sm text-muted-foreground">Total Deductions</p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-xl sm:text-2xl font-bold truncate">₹{totalNetSalary.toLocaleString()}</div>
+                            <div className="font-display text-xl sm:text-2xl font-bold nums truncate text-brand">₹{totalNetSalary.toLocaleString()}</div>
                             <p className="text-xs sm:text-sm text-muted-foreground">Total Net Salary</p>
                         </CardContent>
                     </Card>
@@ -330,28 +330,29 @@ export function EmployeeReports() {
                             ))}
                         </div>
                     ) : payrollData.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p className="text-sm">
+                        <div className="text-center py-12">
+                            <p className="registry-eyebrow mb-3">No records on file</p>
+                            <p className="text-sm text-muted-foreground">
                                 {selectedEmployeeId
                                     ? "No payroll data found for this employee"
                                     : "Select an employee to view payroll data"}
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto scrollbar-sleek">
+                        <div className="rounded-md border overflow-x-auto scrollbar-sleek">
                               <Table className="min-w-[800px]">
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Month</TableHead>
-                                        <TableHead>Basic Pay</TableHead>
-                                        <TableHead>Gross Salary</TableHead>
-                                        <TableHead>Net Salary</TableHead>
-                                        <TableHead>PF</TableHead>
-                                        <TableHead>ESIC</TableHead>
-                                        <TableHead>LWF</TableHead>
-                                        <TableHead>Bonus</TableHead>
-                                        <TableHead>Advance</TableHead>
-                                        <TableHead>Total Deductions</TableHead>
+                                        <TableHead className="text-right">Basic Pay</TableHead>
+                                        <TableHead className="text-right">Gross Salary</TableHead>
+                                        <TableHead className="text-right">Net Salary</TableHead>
+                                        <TableHead className="text-right">PF</TableHead>
+                                        <TableHead className="text-right">ESIC</TableHead>
+                                        <TableHead className="text-right">LWF</TableHead>
+                                        <TableHead className="text-right">Bonus</TableHead>
+                                        <TableHead className="text-right">Advance</TableHead>
+                                        <TableHead className="text-right">Total Deductions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -369,16 +370,16 @@ export function EmployeeReports() {
                                       
                                       return (
                                         <TableRow key={record.id}>
-                                            <TableCell className="font-medium">{record.month}</TableCell>
-                                            <TableCell>₹{(calculations?.basicPay ?? salaryData?.basicPay ?? 0).toLocaleString()}</TableCell>
-                                            <TableCell>₹{(calculations?.grossSalary ?? salaryData?.grossSalary ?? 0).toLocaleString()}</TableCell>
-                                            <TableCell>₹{(calculations?.netSalary ?? salaryData?.netSalary ?? 0).toLocaleString()}</TableCell>
-                                            <TableCell>{pf > 0 ? `₹${pf.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{esic > 0 ? `₹${esic.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{lwf > 0 ? `₹${lwf.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{bonus > 0 ? `₹${bonus.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>{advanceTaken > 0 ? `₹${advanceTaken.toLocaleString()}` : "-"}</TableCell>
-                                            <TableCell>₹{(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="font-mono text-[13px] font-medium">{record.month}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">₹{(calculations?.basicPay ?? salaryData?.basicPay ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">₹{(calculations?.grossSalary ?? salaryData?.grossSalary ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px] font-semibold">₹{(calculations?.netSalary ?? salaryData?.netSalary ?? 0).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{pf > 0 ? `₹${pf.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{esic > 0 ? `₹${esic.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{lwf > 0 ? `₹${lwf.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{bonus > 0 ? `₹${bonus.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">{advanceTaken > 0 ? `₹${advanceTaken.toLocaleString()}` : "-"}</TableCell>
+                                            <TableCell className="text-right font-mono text-[13px]">₹{(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0).toLocaleString()}</TableCell>
                                         </TableRow>
                                       )
                                     })}

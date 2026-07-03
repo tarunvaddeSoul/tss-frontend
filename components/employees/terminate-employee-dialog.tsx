@@ -4,12 +4,11 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { AlertTriangle, UserX, Calendar, FileText, Loader2 } from "lucide-react"
+import { AlertTriangle, UserX, Calendar, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
+import { Form, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { DatePicker } from "@/components/ui/date-picker"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -30,14 +29,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { employeeService } from "@/services/employeeService"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { convertToCustomDateFormat } from "@/lib/utils"
 import type { Employee, UpdateEmployeeDto } from "@/types/employee"
 import { Status } from "@/enums/employee.enum"
 
 const terminateEmployeeSchema = z.object({
   employeeRelievingDate: z.date({ required_error: "Termination date is required" }),
-  reason: z.string().optional(),
 })
 
 interface TerminateEmployeeDialogProps {
@@ -48,7 +46,6 @@ interface TerminateEmployeeDialogProps {
 }
 
 export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSuccess }: TerminateEmployeeDialogProps) {
-  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
@@ -56,7 +53,6 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
     resolver: zodResolver(terminateEmployeeSchema),
     defaultValues: {
       employeeRelievingDate: new Date(),
-      reason: "",
     },
   })
 
@@ -77,10 +73,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
       const response = await employeeService.updateEmployee(employee.id, updateData)
 
       if (response.statusCode === 200 || response.data) {
-        toast({
-          title: "Employee Terminated",
-          description: `${employee.firstName} ${employee.lastName} has been terminated from TSS successfully.`,
-        })
+        toast.success(`${employee.firstName} ${employee.lastName} has been terminated from TSS successfully.`)
 
         onSuccess()
         onOpenChange(false)
@@ -99,11 +92,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
         errorMessage = error.message
       }
 
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -160,23 +149,23 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Employee ID:</span>
-                <span className="text-sm">{employee.id}</span>
+                <span className="font-mono text-[13px]">{employee.id}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Current Status:</span>
                 <span className="text-sm">{employee.status || "ACTIVE"}</span>
               </div>
-              {employee.companyName && (
+              {employee.clientName && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Current Company:</span>
-                  <span className="text-sm">{employee.companyName}</span>
+                  <span className="text-sm font-medium">Current Client:</span>
+                  <span className="text-sm">{employee.clientName}</span>
                 </div>
               )}
             </div>
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <form noValidate onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="employeeRelievingDate"
@@ -184,35 +173,11 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Termination Date <span className="text-red-500">*</span>
+                      Termination Date <span className="text-destructive">*</span>
                     </FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormDescription>
                       Select the last working day with Tulsyan Security Services.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="reason"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Termination Reason (Optional)
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter reason for terminating this employee from TSS (optional, for internal records)"
-                        {...field}
-                        rows={3}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Optional: Record the reason for termination for internal documentation.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -258,16 +223,11 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
                 <p>
                   <strong>Termination Date:</strong> {form.getValues("employeeRelievingDate")?.toLocaleDateString() || "Not set"}
                 </p>
-                {form.getValues("reason") && (
-                  <p>
-                    <strong>Reason:</strong> {form.getValues("reason")}
-                  </p>
-                )}
               </div>
               <Alert variant="destructive" className="mt-2">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  This action will mark the employee as <strong>INACTIVE</strong> in the system. The employee will no longer appear in active employee lists and cannot be assigned to new companies.
+                  This action will mark the employee as <strong>INACTIVE</strong> in the system. The employee will no longer appear in active employee lists and cannot be assigned to new clients.
                   <br />
                   <br />
                   <strong>All historical data will be preserved.</strong>

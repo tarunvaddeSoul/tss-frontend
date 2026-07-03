@@ -4,34 +4,22 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { format } from "date-fns"
 import { toast } from "sonner"
 import {
-  MoreHorizontal,
   Plus,
   Search,
-  User,
-  Building,
-  Briefcase,
-  Users,
-  Mail,
-  Phone,
-  Calendar,
-  ArrowUpDown,
-  CheckCircle,
   XCircle,
   Loader2,
   Download,
   Edit,
   Eye,
-  Trash,
-  DollarSign,
+  AlertCircle,
 } from "lucide-react"
 import { SalaryCategory, SalaryType } from "@/types/salary"
 import { employeeService } from "@/services/employeeService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
-import { companyService } from "@/services/companyService"
+import { clientService } from "@/services/clientService"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,12 +30,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/pagination"
 import { Badge } from "@/components/ui/badge"
+import { label } from "@/lib/labels"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Employee, EmployeeSearchParams, IEmployeeEmploymentHistory } from "@/types/employee"
-import { Company } from "@/types/company"
+import { Client } from "@/types/client"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { PageHeader } from "@/components/layout/page-header"
 import { TerminateEmployeeDialog } from "@/components/employees/terminate-employee-dialog"
 import dynamic from "next/dynamic"
 // import { EmployeeViewPDF } from "@/components/employees/employee-view-pdf"
@@ -88,17 +78,32 @@ export default function EmployeeListPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [designations, setDesignations] = useState<Designation[]>([])
   const [employeeDepartments, setEmployeeDepartments] = useState<EmployeeDepartment[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [searchInput, setSearchInput] = useState("")
 
   const router = useRouter()
 
   useEffect(() => {
-    fetchEmployees()
     fetchDesignations()
     fetchEmployeeDepartments()
-    fetchCompanies()
+    fetchClients()
+  }, [])
+
+  useEffect(() => {
+    fetchEmployees()
   }, [searchParams])
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearchParams((prev) => {
+        if ((prev.searchText || "") === searchInput) return prev
+        return { ...prev, searchText: searchInput || undefined, page: 1 }
+      })
+    }, 350)
+    return () => clearTimeout(handle)
+  }, [searchInput])
 
   // Cleanup PDF URL when component unmounts
   useEffect(() => {
@@ -112,14 +117,18 @@ export default function EmployeeListPage() {
   const fetchEmployees = async () => {
     try {
       setLoading(true)
+      setError(false)
       const response = await employeeService.getEmployees(searchParams)
-      setEmployees(response.data?.data || [])
-      const total = response.data?.total || 0
+      setEmployees(response.data || [])
+      const total = response.meta?.total || 0
       setTotalCount(total)
       const limit = searchParams.limit || 10
       setTotalPages(Math.ceil(total / limit))
     } catch (error) {
       console.error("Error fetching employees:", error)
+      setError(true)
+      setEmployees([])
+      toast.error("Could not load employees. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -143,17 +152,17 @@ export default function EmployeeListPage() {
     }
   }
 
-  const fetchCompanies = async () => {
+  const fetchClients = async () => {
     try {
-      const response = await companyService.getCompanies()
+      const response = await clientService.getClients()
 
-      if (response.data && response.data.companies) {
-        setCompanies(response.data.companies)
+      if (response.data && response.data.clients) {
+        setClients(response.data.clients)
       } else {
-        setCompanies([])
+        setClients([])
       }
     } catch (error) {
-      console.error("Error fetching companies:", error)
+      console.error("Error fetching clients:", error)
     }
   }
 
@@ -189,6 +198,7 @@ export default function EmployeeListPage() {
       setActiveTab("pdf")
     } catch (error) {
       console.error("Error generating PDF:", error)
+      toast.error("Failed to generate PDF. Please try again.")
     } finally {
       setPdfLoading(false)
     }
@@ -206,7 +216,6 @@ export default function EmployeeListPage() {
   }
 
   const handleEdit = (employee: Employee) => {
-    console.log("Edit employee:", JSON.stringify(employee, null, 2))
     router.push(`/employees/edit/${employee.id}`)
   }
 
@@ -229,7 +238,7 @@ export default function EmployeeListPage() {
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setSearchParams({ ...searchParams, page: 1 })
+    setSearchParams({ ...searchParams, searchText: searchInput || undefined, page: 1 })
   }
 
   const handlePageChange = (newPage: number | string | undefined) => {
@@ -239,35 +248,37 @@ export default function EmployeeListPage() {
   }
 
   const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase()
+    return `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase() || "?"
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
-          <p className="text-sm text-gray-500">View and manage all employees</p>
-        </div>
-        <Link href="/employees/add">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Employee
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        no="04"
+        eyebrow="Employee register"
+        title="Employees"
+        description="View and manage all employees."
+        actions={
+          <Link href="/employees/add">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Employee
+            </Button>
+          </Link>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Search Employees</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <form noValidate onSubmit={handleSearch} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               <div>
                 <Input
                   placeholder="Search employees"
-                  value={searchParams.searchText || ""}
-                  onChange={(e) => setSearchParams({ ...searchParams, searchText: e.target.value })}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
 
@@ -321,24 +332,46 @@ export default function EmployeeListPage() {
 
               <div>
                 <Select
-                  value={searchParams.companyId}
+                  value={searchParams.clientId}
                   onValueChange={(value) =>
                     setSearchParams({
                       ...searchParams,
-                      companyId: value === "all" ? undefined : value,
+                      clientId: value === "all" ? undefined : value,
                     })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select company" />
+                    <SelectValue placeholder="Select client" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Companies</SelectItem>
-                    {companies.map((c) => (
+                    <SelectItem value="all">All Clients</SelectItem>
+                    {clients.map((c) => (
                       <SelectItem key={c.id} value={c.id ?? ""}>
                         {c.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Select
+                  value={searchParams.status || "all"}
+                  onValueChange={(value) =>
+                    setSearchParams({
+                      ...searchParams,
+                      status: value === "all" ? undefined : value,
+                      page: 1,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -390,33 +423,48 @@ export default function EmployeeListPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="rounded-md border overflow-x-auto scrollbar-sleek w-full">
-              <div className="min-w-[1200px]">
+              <div className="min-w-[900px]">
                 <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead>Designation</TableHead>
                     <TableHead>Department</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Salary Type</TableHead>
-                    <TableHead>Salary Category</TableHead>
-                    <TableHead>Salary Sub Category</TableHead>
+                    <TableHead>Client</TableHead>
                     <TableHead>Salary</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        {Array.from({ length: 7 }).map((__, j) => (
+                          <TableCell key={j}>
+                            <Skeleton className="h-6 w-full" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : error ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-10">
-                        Loading employees...
+                      <TableCell colSpan={7} className="py-10">
+                        <div className="flex flex-col items-center justify-center gap-3 text-center">
+                          <AlertCircle className="h-8 w-8 text-destructive" />
+                          <p className="text-sm text-muted-foreground">
+                            Could not load employees. Check your connection and try again.
+                          </p>
+                          <Button variant="outline" size="sm" onClick={() => fetchEmployees()}>
+                            Retry
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : employees.length > 0 ? (
                     employees.map((employee) => {
                       const activeHistory = employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")
-                      const salaryType = activeHistory?.salaryType || (employee.salaryCategory === SalaryCategory.SPECIALIZED ? SalaryType.PER_MONTH : SalaryType.PER_DAY)
-                      
+
                       return (
                       <TableRow key={employee.id}>
                         <TableCell>
@@ -429,7 +477,7 @@ export default function EmployeeListPage() {
                               <p className="font-medium">{`${employee.firstName} ${employee.lastName}`}</p>
                               <button
                                 onClick={() => handleIdClick(employee.id)}
-                                className="text-xs text-primary hover:underline"
+                                className="font-mono text-xs text-info hover:underline"
                               >
                                 ID: {employee.id}
                               </button>
@@ -437,69 +485,51 @@ export default function EmployeeListPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10">
-                              {activeHistory?.designationName || "N/A"}
-                            </Badge>
+                          <span className={activeHistory?.designationName ? "text-sm" : "text-sm text-muted-foreground"}>
+                            {activeHistory?.designationName || "N/A"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={activeHistory?.departmentName ? "text-sm" : "text-sm text-muted-foreground"}>
+                            {activeHistory?.departmentName || "N/A"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={activeHistory?.clientName ? "text-sm" : "text-sm text-muted-foreground"}>
+                            {activeHistory?.clientName || "N/A"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {(() => {
+                              if (activeHistory?.salaryType === SalaryType.PER_DAY && activeHistory.salaryPerDay) {
+                                return <span className="font-mono text-[13px] font-semibold">₹{activeHistory.salaryPerDay.toLocaleString("en-IN")}/day</span>
+                              }
+                              if (activeHistory?.salaryType === SalaryType.PER_MONTH && activeHistory.salary) {
+                                return <span className="font-mono text-[13px] font-semibold">₹{activeHistory.salary.toLocaleString("en-IN")}/month</span>
+                              }
+                              if (employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary) {
+                                return <span className="font-mono text-[13px] font-semibold">₹{employee.monthlySalary.toLocaleString("en-IN")}/month</span>
+                              }
+                              if (employee.salaryPerDay) {
+                                return <span className="font-mono text-[13px] font-semibold">₹{employee.salaryPerDay.toLocaleString("en-IN")}/day</span>
+                              }
+                              return <span className="text-xs text-muted-foreground">Not configured</span>
+                            })()}
+                            <span className="text-xs text-muted-foreground">
+                              {[
+                                employee.salaryCategory ? label.salaryCategory(employee.salaryCategory) : null,
+                                employee.salarySubCategory ? label.salarySubCategory(employee.salarySubCategory) : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || "-"}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10">
-                              {activeHistory?.departmentName || "N/A"}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10">
-                              {activeHistory?.companyName || "N/A"}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {salaryType ? (
-                            <Badge variant="outline" className="text-xs">
-                              {salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {employee.salaryCategory ? (
-                            <Badge variant="outline" className="text-xs">
-                              {employee.salaryCategory}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {employee.salarySubCategory ? (
-                            <Badge variant="outline" className="text-xs">
-                              {employee.salarySubCategory}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">N/A</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {(() => {
-                            if (activeHistory?.salaryType === SalaryType.PER_DAY && activeHistory.salaryPerDay) {
-                              return <span className="text-sm font-semibold">₹{activeHistory.salaryPerDay.toLocaleString()}/day</span>
-                            }
-                            if (activeHistory?.salaryType === SalaryType.PER_MONTH && activeHistory.salary) {
-                              return <span className="text-sm font-semibold">₹{activeHistory.salary.toLocaleString()}/month</span>
-                            }
-                            if (employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary) {
-                              return <span className="text-sm font-semibold">₹{employee.monthlySalary.toLocaleString()}/month</span>
-                            }
-                            if (employee.salaryPerDay) {
-                              return <span className="text-sm font-semibold">₹{employee.salaryPerDay.toLocaleString()}/day</span>
-                            }
-                            return <span className="text-xs text-muted-foreground">Not configured</span>
-                          })()}
+                          <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"}>
+                            {label.status(employee.status)}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-center gap-2">
@@ -553,8 +583,19 @@ export default function EmployeeListPage() {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-10">
-                        No employees found
+                      <TableCell colSpan={7} className="py-12">
+                        <div className="flex flex-col items-center justify-center gap-3 text-center">
+                          <span className="registry-eyebrow">No records on file</span>
+                          <p className="text-sm text-muted-foreground">
+                            No employees match the current filters.
+                          </p>
+                          <Link href="/employees/add">
+                            <Button variant="outline" size="sm">
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Employee
+                            </Button>
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
@@ -599,36 +640,30 @@ export default function EmployeeListPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h3 className="text-xl font-bold">{`${selectedEmployee.firstName} ${selectedEmployee.lastName}`}</h3>
-                    <p className="text-sm text-muted-foreground">ID: {selectedEmployee.id}</p>
+                    <h3 className="font-display text-xl font-bold">{`${selectedEmployee.firstName} ${selectedEmployee.lastName}`}</h3>
+                    <p className="font-mono text-[13px] text-muted-foreground">ID: {selectedEmployee.id}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Designation</p>
-                    <p>{selectedEmployee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "N/A"}</p>
+                    <p>{selectedEmployee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "N/A"}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Department</p>
-                    <p>{selectedEmployee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "N/A"}</p>
+                    <p>{selectedEmployee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "N/A"}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Company</p>
-                    <p>{selectedEmployee.employmentHistories.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.companyName || "N/A"}</p>
+                    <p className="text-sm font-medium">Client</p>
+                    <p>{selectedEmployee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.clientName || "N/A"}</p>
                   </div>
                   {selectedEmployee.contactDetails?.mobileNumber && (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium">Email</p>
+                      <p className="text-sm font-medium">Mobile</p>
                       <p>{selectedEmployee.contactDetails?.mobileNumber}</p>
                     </div>
                   )}
-                  {/* {selectedEmployee.phone && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Phone</p>
-                      <p>{selectedEmployee.phone}</p>
-                    </div>
-                  )} */}
                 </div>
 
                 <div className="pt-4 flex justify-end">

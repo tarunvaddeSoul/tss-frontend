@@ -4,10 +4,26 @@ import { Font, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer"
 // Register brand fonts (served from Next public folder) - safely
 try {
   Font.register({
-    family: "Roboto",
+    family: "PublicSans",
     fonts: [
-      { src: "/fonts/Roboto-Regular.ttf", fontWeight: "normal" },
-      { src: "/fonts/Roboto-Bold.ttf", fontWeight: "bold" },
+      { src: "/fonts/PublicSans-Regular.ttf", fontWeight: "normal" },
+      { src: "/fonts/PublicSans-Medium.ttf", fontWeight: 500 },
+      { src: "/fonts/PublicSans-SemiBold.ttf", fontWeight: 600 },
+      { src: "/fonts/PublicSans-Bold.ttf", fontWeight: "bold" },
+    ],
+  })
+  Font.register({
+    family: "Archivo",
+    fonts: [
+      { src: "/fonts/Archivo-SemiBold.ttf", fontWeight: 600 },
+      { src: "/fonts/Archivo-Bold.ttf", fontWeight: "bold" },
+    ],
+  })
+  Font.register({
+    family: "IBMPlexMono",
+    fonts: [
+      { src: "/fonts/IBMPlexMono-Regular.ttf", fontWeight: "normal" },
+      { src: "/fonts/IBMPlexMono-SemiBold.ttf", fontWeight: 600 },
     ],
   })
 } catch (e) {
@@ -18,24 +34,31 @@ export const BRAND = {
   name: "Tulsyan Security Services Pvt. Ltd.",
   tagline: "Professional Security Services",
   colors: {
-    primary: "#D12702",
-    text: "#1f2937",
-    muted: "#6b7280",
-    border: "#e5e7eb",
-    softBg: "#fafafa",
-    tableHeaderBg: "#f9fafb",
+    primary: "#B42025",
+    text: "#1B1B1D",
+    muted: "#5B5B60",
+    border: "#E4E4E1",
+    softBg: "#FAFAF9",
+    tableHeaderBg: "#F1F1EF",
+  },
+  fonts: {
+    body: "PublicSans",
+    display: "Archivo",
+    mono: "IBMPlexMono",
   },
 }
 
 export const brandStyles = StyleSheet.create({
   page: {
     padding: 30,
+    paddingBottom: 52,
     backgroundColor: "#ffffff",
-    fontFamily: "Roboto",
+    fontFamily: "PublicSans",
+    color: BRAND.colors.text,
   },
   header: {
     marginBottom: 18,
-    paddingBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 2,
     borderBottomColor: BRAND.colors.primary,
     flexDirection: "row",
@@ -48,65 +71,74 @@ export const brandStyles = StyleSheet.create({
   headerBrandRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 6,
   },
   logo: {
-    width: 28,
-    height: 28,
-    marginRight: 8,
+    width: 24,
+    height: 24,
+    marginRight: 7,
   },
   brandName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: BRAND.colors.primary,
-  },
-  headerTitle: {
-    fontSize: 16,
+    fontFamily: "Archivo",
+    fontSize: 12,
     fontWeight: "bold",
     color: BRAND.colors.text,
-    marginTop: 2,
+  },
+  headerTitle: {
+    fontFamily: "Archivo",
+    fontSize: 15,
+    fontWeight: "bold",
+    color: BRAND.colors.text,
   },
   headerSubtitle: {
-    fontSize: 10,
+    fontFamily: "IBMPlexMono",
+    fontSize: 7.5,
+    letterSpacing: 1,
+    textTransform: "uppercase",
     color: BRAND.colors.muted,
-    marginTop: 2,
+    marginTop: 3,
   },
   headerRight: {
     alignItems: "flex-end",
   },
   tag: {
-    fontSize: 9,
-    color: "#ffffff",
-    backgroundColor: BRAND.colors.primary,
+    fontFamily: "IBMPlexMono",
+    fontSize: 8,
+    fontWeight: 600,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: BRAND.colors.primary,
+    borderWidth: 1,
+    borderColor: BRAND.colors.primary,
     paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: 3,
+    borderRadius: 2,
   },
   section: {
     marginBottom: 14,
-    backgroundColor: BRAND.colors.softBg,
-    padding: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: BRAND.colors.border,
+    paddingBottom: 2,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: "bold",
+    fontFamily: "IBMPlexMono",
+    fontSize: 8.5,
+    fontWeight: 600,
+    letterSpacing: 1,
+    textTransform: "uppercase",
     color: BRAND.colors.primary,
-    marginBottom: 8,
-    paddingBottom: 5,
+    marginBottom: 7,
+    paddingBottom: 4,
     borderBottomWidth: 1,
     borderBottomColor: BRAND.colors.border,
   },
   row: {
     flexDirection: "row",
-    marginBottom: 6,
+    marginBottom: 5,
   },
   label: {
     width: "55%",
-    fontSize: 10,
-    fontWeight: "bold",
-    color: "#4b5563",
+    fontSize: 9,
+    fontWeight: 500,
+    color: BRAND.colors.muted,
   },
   value: {
     width: "45%",
@@ -129,16 +161,19 @@ export const brandStyles = StyleSheet.create({
     backgroundColor: BRAND.colors.tableHeaderBg,
   },
   tableHeaderCell: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: BRAND.colors.text,
+    fontFamily: "IBMPlexMono",
+    fontSize: 7.5,
+    fontWeight: 600,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: BRAND.colors.muted,
     padding: 6,
     borderRightWidth: 1,
     borderRightColor: BRAND.colors.border,
   },
   tableCell: {
     fontSize: 9,
-    color: BRAND.colors.muted,
+    color: BRAND.colors.text,
     padding: 6,
     borderRightWidth: 1,
     borderRightColor: BRAND.colors.border,
@@ -149,7 +184,8 @@ export const brandStyles = StyleSheet.create({
     left: 30,
     right: 30,
     textAlign: "center",
-    fontSize: 9,
+    fontFamily: "IBMPlexMono",
+    fontSize: 7.5,
     color: BRAND.colors.muted,
     borderTopWidth: 1,
     borderTopColor: BRAND.colors.border,
@@ -230,5 +266,3 @@ export function Row({ label, value }: { label: ReactNode; value: ReactNode }) {
     </View>
   )
 }
-
-

@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx"
 import { saveAs } from "file-saver"
-import type { CompanyPayrollMonth, EmployeePayrollRecord } from "@/types/payroll"
+import type { ClientPayrollMonth, EmployeePayrollRecord } from "@/types/payroll"
+import { formatDate, label } from "@/lib/labels"
 
 function getCurrentDateTime(): string {
   const now = new Date()
@@ -35,8 +36,8 @@ export function exportEmployeePayrollToExcel(data: EmployeePayrollRecord[], empl
       
       return {
         Month: record.month,
-        "Salary Category": salaryData?.salaryCategory || "N/A",
-        "Salary Sub-Category": salaryData?.salarySubCategory || "N/A",
+        "Salary Category": label.salaryCategory(salaryData?.salaryCategory),
+        "Salary Sub-Category": label.salarySubCategory(salaryData?.salarySubCategory),
         "Rate (Per Day/Month)": rate,
         "Basic Duty": basicDuty,
         "Duty Done": dutyDone,
@@ -51,7 +52,7 @@ export function exportEmployeePayrollToExcel(data: EmployeePayrollRecord[], empl
         Bonus: bonus,
         "Total Deductions": totalDeductions,
         "Designation": information?.designation || salaryData?.designation || "N/A",
-        "Created At": new Date(record.createdAt).toLocaleDateString(),
+        "Created At": formatDate(record.createdAt),
       }
     })
 
@@ -100,7 +101,7 @@ export function exportEmployeePayrollToExcel(data: EmployeePayrollRecord[], empl
   }
 }
 
-export function exportCompanyPayrollToExcel(data: CompanyPayrollMonth[], companyName: string) {
+export function exportClientPayrollToExcel(data: ClientPayrollMonth[], clientName: string) {
   try {
     // Transform data for Excel export - flatten all months and records
     const excelData: any[] = []
@@ -135,9 +136,9 @@ export function exportCompanyPayrollToExcel(data: CompanyPayrollMonth[], company
           "Employee Name": record.employee
             ? `${record.employee.firstName} ${record.employee.lastName}`
             : information?.employeeName || record.employeeId,
-          Company: companyName || information?.companyName || "N/A",
-          "Salary Category": salaryData?.salaryCategory || "N/A",
-          "Salary Sub-Category": salaryData?.salarySubCategory || "N/A",
+          Client: clientName || information?.clientName || "N/A",
+          "Salary Category": label.salaryCategory(salaryData?.salaryCategory),
+          "Salary Sub-Category": label.salarySubCategory(salaryData?.salarySubCategory),
           "Rate (Per Day/Month)": rate,
           "Basic Duty": basicDuty,
           "Duty Done": dutyDone,
@@ -152,7 +153,7 @@ export function exportCompanyPayrollToExcel(data: CompanyPayrollMonth[], company
           Bonus: bonus,
           "Total Deductions": totalDeductions,
           "Designation": information?.designation || salaryData?.designation || "N/A",
-          "Created At": new Date(record.createdAt).toLocaleDateString(),
+          "Created At": formatDate(record.createdAt),
         })
       })
     })
@@ -166,7 +167,7 @@ export function exportCompanyPayrollToExcel(data: CompanyPayrollMonth[], company
       { wch: 12 }, // Month
       { wch: 15 }, // Employee ID
       { wch: 20 }, // Employee Name
-      { wch: 20 }, // Company
+      { wch: 20 }, // Client
       { wch: 18 }, // Salary Category
       { wch: 20 }, // Salary Sub-Category
       { wch: 18 }, // Rate (Per Day/Month)
@@ -187,7 +188,7 @@ export function exportCompanyPayrollToExcel(data: CompanyPayrollMonth[], company
     ]
     worksheet["!cols"] = columnWidths
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Company Payroll")
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Client Payroll")
 
     // Generate Excel file and download
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
@@ -195,7 +196,7 @@ export function exportCompanyPayrollToExcel(data: CompanyPayrollMonth[], company
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     })
 
-    const fileName = `${companyName.replace(/\s+/g, "_")}_Payroll_${getCurrentDateTime()}.xlsx`
+    const fileName = `${clientName.replace(/\s+/g, "_")}_Payroll_${getCurrentDateTime()}.xlsx`
     saveAs(blob, fileName)
 
     return { success: true, fileName }

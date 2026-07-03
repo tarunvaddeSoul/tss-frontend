@@ -107,6 +107,7 @@ function PaginationItem({ className, isActive, disabled, children, ...props }: P
           variant: isActive ? "default" : "outline",
           size: "icon",
         }),
+        "h-8 w-8 font-mono text-[13px] nums",
         disabled && "pointer-events-none opacity-50",
         className,
       )}

@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { EmployeeDocumentManager } from "@/components/employees/employee-document-manager"
+import { label, formatDate } from "@/lib/labels"
 
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
@@ -36,8 +37,8 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="flex flex-row items-center justify-between px-6 pt-6 pb-4 border-b shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <User className="h-5 w-5 text-primary" />
+            <div className="w-10 h-10 bg-surface rounded-full flex items-center justify-center">
+              <User className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <DialogTitle className="text-xl">
@@ -76,22 +77,22 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                       <div>
                         <p className="text-sm text-muted-foreground">Full Name</p>
                         <p className="font-medium">
-                          {employee.title} {employee.firstName} {employee.lastName}
+                          {[employee.title ? label.title(employee.title) : "", employee.firstName, employee.lastName].filter(Boolean).join(" ")}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Status</p>
-                        <Badge variant={employee.status === "ACTIVE" ? "default" : "secondary"}>
-                          {employee.status}
+                        <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"}>
+                          {label.status(employee.status)}
                         </Badge>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Date of Birth</p>
-                        <p className="font-medium">{employee.dateOfBirth || "Not specified"}</p>
+                        <p className="font-medium">{formatDate(employee.dateOfBirth)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Gender</p>
-                        <p className="font-medium">{employee.gender || "Not specified"}</p>
+                        <p className="font-medium">{employee.gender ? label.gender(employee.gender) : "Not specified"}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Blood Group</p>
@@ -99,7 +100,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Category</p>
-                        <p className="font-medium">{employee.category || "Not specified"}</p>
+                        <p className="font-medium">{employee.category ? label.category(employee.category) : "Not specified"}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Father's Name</p>
@@ -177,8 +178,8 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                       return (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-sm text-muted-foreground">Company</p>
-                            <p className="font-medium">{activeEmployment?.companyName || "Not specified"}</p>
+                            <p className="text-sm text-muted-foreground">Client</p>
+                            <p className="font-medium">{activeEmployment?.clientName || "Not specified"}</p>
                           </div>
                           <div>
                             <p className="text-sm text-muted-foreground">Department</p>
@@ -192,7 +193,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                             <p className="text-sm text-muted-foreground">Date of Joining</p>
                             <p className="font-medium flex items-center gap-2">
                               <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {activeEmployment?.joiningDate || "Not specified"}
+                              {formatDate(activeEmployment?.joiningDate)}
                             </p>
                           </div>
                           <div>
@@ -217,8 +218,8 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                           <p className="text-sm text-muted-foreground">Salary Category</p>
                           <p className="font-medium flex items-center gap-2">
                             <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            {employee.salaryCategory}
-                            {employee.salarySubCategory && ` - ${employee.salarySubCategory}`}
+                            {label.salaryCategory(employee.salaryCategory)}
+                            {employee.salarySubCategory && ` - ${label.salarySubCategory(employee.salarySubCategory)}`}
                           </p>
                         </div>
                         {employee.salaryCategory === SalaryCategory.SPECIALIZED && employee.monthlySalary ? (
@@ -235,17 +236,17 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
                             {employee.pfEnabled ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <CheckCircle2 className="h-4 w-4 text-success" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-gray-400" />
+                              <XCircle className="h-4 w-4 text-muted-foreground" />
                             )}
                             <span className="text-sm">PF</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {employee.esicEnabled ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <CheckCircle2 className="h-4 w-4 text-success" />
                             ) : (
-                              <XCircle className="h-4 w-4 text-gray-400" />
+                              <XCircle className="h-4 w-4 text-muted-foreground" />
                             )}
                             <span className="text-sm">ESIC</span>
                           </div>
@@ -323,7 +324,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                     <Table className="min-w-[1000px]">
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Company</TableHead>
+                          <TableHead>Client</TableHead>
                           <TableHead>Designation</TableHead>
                           <TableHead>Department</TableHead>
                           <TableHead>Joining Date</TableHead>
@@ -339,15 +340,15 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                         {employee.employmentHistories?.length ? (
                           employee.employmentHistories.map((history: IEmployeeEmploymentHistory) => (
                             <TableRow key={history.id}>
-                              <TableCell>{history.companyName}</TableCell>
+                              <TableCell>{history.clientName}</TableCell>
                               <TableCell>{history.designationName}</TableCell>
                               <TableCell>{history.departmentName}</TableCell>
-                              <TableCell>{history.joiningDate}</TableCell>
-                              <TableCell>{history.leavingDate || "-"}</TableCell>
+                              <TableCell className="font-mono text-[13px]">{formatDate(history.joiningDate)}</TableCell>
+                              <TableCell className="font-mono text-[13px]">{history.leavingDate ? formatDate(history.leavingDate) : "-"}</TableCell>
                               <TableCell>
                                 {history.salaryType ? (
                                   <Badge variant="outline" className="text-xs">
-                                    {history.salaryType === SalaryType.PER_DAY ? "Per Day" : "Per Month"}
+                                    {label.salaryType(history.salaryType)}
                                   </Badge>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">N/A</span>
@@ -356,7 +357,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                               <TableCell>
                                 {employee.salaryCategory ? (
                                   <Badge variant="outline" className="text-xs">
-                                    {employee.salaryCategory}
+                                    {label.salaryCategory(employee.salaryCategory)}
                                   </Badge>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">N/A</span>
@@ -365,13 +366,13 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                               <TableCell>
                                 {employee.salarySubCategory ? (
                                   <Badge variant="outline" className="text-xs">
-                                    {employee.salarySubCategory}
+                                    {label.salarySubCategory(employee.salarySubCategory)}
                                   </Badge>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">N/A</span>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="font-mono text-[13px]">
                                 {(() => {
                                   if (history.salaryType === SalaryType.PER_DAY && history.salaryPerDay) {
                                     return <span>₹{history.salaryPerDay.toLocaleString()}/day</span>
@@ -386,7 +387,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                                 })()}
                               </TableCell>
                               <TableCell>
-                                <Badge variant={history.status === "ACTIVE" ? "default" : "secondary"}>
+                                <Badge variant={history.status === "ACTIVE" ? "success" : "secondary"}>
                                   {history.status === "ACTIVE" ? "Current" : "Previous"}
                                 </Badge>
                               </TableCell>
@@ -432,7 +433,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
         onOpenChange={setPdfPreviewOpen}
         title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
         description={`Employee ID: ${employee.id}`}
-        fileName={`employee-${employee.firstName}-${employee.lastName}.pdf`}
+        fileName={`Employee-${employee.id}-${employee.firstName}-${employee.lastName}.pdf`}
         renderDocument={async () => {
           const { default: EmployeeViewPDF } = await import("./employee-view-pdf")
           return <EmployeeViewPDF employee={employee} />

@@ -1,33 +1,45 @@
 "use client"
 
 import type React from "react"
+import Image from "next/image"
 import { AuthProvider } from "@/hooks/use-auth"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { Shield } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
 
 export default function UsersLayout({ children }: { children: React.ReactNode }) {
+  const reduced = useReducedMotion()
+
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 flex flex-col items-center justify-center p-4">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.1),transparent_50%)]" />
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <div className="absolute inset-x-0 top-0 h-1 bg-brand" />
         <div className="absolute top-4 right-4 z-20">
           <ThemeToggle />
         </div>
+
+        <div className="mb-8 flex flex-col items-center gap-3">
+          <Image src="/tss-logo.png" alt="Tulsyan Security Services" width={44} height={44} className="object-contain" />
+          <div className="text-center">
+            <div className="font-display text-base font-bold tracking-tight">Tulsyan Security Services</div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Staff Portal</div>
+          </div>
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduced ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="z-10 w-full max-w-md relative"
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="z-10 w-full max-w-md"
         >
-          <div className="absolute inset-0 bg-card/50 backdrop-blur-sm rounded-lg -z-10" />
           {children}
         </motion.div>
-        <div className="mt-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} Tulsyan Security Services. All rights reserved.</p>
+
+        <div className="mt-8 text-center">
+          <p className="font-mono text-[11px] text-muted-foreground">
+            © {new Date().getFullYear()} Tulsyan Security Services. All rights reserved.
+          </p>
         </div>
       </div>
     </AuthProvider>
   )
 }
-

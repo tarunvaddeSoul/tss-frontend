@@ -6,14 +6,15 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Shield, Lock, ArrowLeft, Loader2, AlertCircle } from "lucide-react"
+import { Lock, ArrowLeft, Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PasswordRules } from "@/components/ui/password-rules"
 import { useAuth } from "@/hooks/use-auth"
-import { motion } from "framer-motion"
+import { clearTokens } from "@/services/token"
 import { AxiosError } from "axios"
 import { toast } from "@/components/ui/use-toast"
 
@@ -48,6 +49,7 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const token = searchParams.get("token")
+  const isInvite = searchParams.get("invite") === "1"
 
   const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -81,6 +83,7 @@ export default function ResetPasswordPage() {
         resetToken: token,
         newPassword: data.newPassword,
       })
+      clearTokens()
       setSuccess(true)
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string; statusCode?: number }>
@@ -120,13 +123,13 @@ export default function ResetPasswordPage() {
   // Show error if no token
   if (!token) {
     return (
-      <Card className="w-full border shadow-lg">
-          <CardHeader className="space-y-1">
-            <div className="flex justify-center mb-4">
-              <Shield className="h-12 w-12 text-primary" />
+      <Card className="w-full">
+          <CardHeader className="space-y-1.5">
+            <div className="registry-line mb-2">
+              <span className="registry-eyebrow"><strong>N° 03</strong> · Reset password</span>
             </div>
-            <CardTitle className="text-2xl font-bold text-center">Invalid Reset Link</CardTitle>
-            <CardDescription className="text-center">
+            <CardTitle className="text-xl">Invalid reset link</CardTitle>
+            <CardDescription>
               The password reset link is invalid or missing a token.
             </CardDescription>
           </CardHeader>
@@ -150,45 +153,39 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <Card className="w-full border shadow-lg">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Shield className="h-12 w-12 text-primary" />
-            </motion.div>
+    <Card className="w-full">
+        <CardHeader className="space-y-1.5">
+          <div className="registry-line mb-2">
+            <span className="registry-eyebrow"><strong>N° 03</strong> · {isInvite ? "Account activation" : "Reset password"}</span>
           </div>
-          <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
-          <CardDescription className="text-center">Enter your new password</CardDescription>
+          <CardTitle className="text-xl">{isInvite ? "Set your password" : "Reset password"}</CardTitle>
+          <CardDescription>
+            {isInvite
+              ? "Welcome to the TSS Ops Portal. Choose a password to activate your account."
+              : "Enter your new password"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {success ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-center space-y-4"
-            >
-              <Alert className="bg-green-500/10 border-green-500/20">
-                <AlertCircle className="h-4 w-4 text-green-500" />
-                <AlertDescription className="text-green-500">
-                  <strong>Password Reset Successful!</strong>
+            <div className="space-y-4 text-center">
+              <Alert variant="success" className="text-left">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>{isInvite ? "Your account is active." : "Password reset successful."}</strong>
                   <p className="mt-1 text-sm">
-                    Your password has been reset successfully. You will be redirected to the login page in a few
-                    seconds.
+                    {isInvite
+                      ? "Your password is set. Sign in with it on the login page, where you will be taken in a few seconds."
+                      : "Your password has been reset successfully. You will be redirected to the login page in a few seconds."}
                   </p>
                 </AlertDescription>
               </Alert>
               <Button asChild className="mt-4">
                 <Link href="/login">Go to Login</Link>
               </Button>
-            </motion.div>
+            </div>
           ) : (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 {error && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -209,11 +206,13 @@ export default function ResetPasswordPage() {
                         </div>
                       </FormControl>
                       <FormMessage />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Must be 6-20 characters with uppercase, lowercase, and number
-                      </p>
                     </FormItem>
                   )}
+                />
+
+                <PasswordRules
+                  password={form.watch("newPassword")}
+                  confirm={form.watch("confirmPassword")}
                 />
 
                 <FormField
@@ -240,7 +239,7 @@ export default function ResetPasswordPage() {
                       Resetting...
                     </>
                   ) : (
-                    "Reset Password"
+                    isInvite ? "Set password" : "Reset Password"
                   )}
                 </Button>
               </form>

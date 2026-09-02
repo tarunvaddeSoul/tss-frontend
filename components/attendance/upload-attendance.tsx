@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -45,6 +46,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import { PageHeader } from "@/components/layout/page-header"
 import { useClient } from "@/hooks/use-client"
@@ -64,7 +75,28 @@ const uploadAttendanceSchema = z.object({
 
 type UploadAttendanceFormValues = z.infer<typeof uploadAttendanceSchema>
 
-export function UploadAttendanceComponent() {
+const FILE_TYPE_LABELS: Record<string, string> = {
+  pdf: "PDF",
+  jpg: "JPG image",
+  jpeg: "JPG image",
+  png: "PNG image",
+  xlsx: "Excel (XLSX)",
+  xls: "Excel (XLS)",
+}
+
+function fileTypeLabel(file: File): string {
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? ""
+  return FILE_TYPE_LABELS[extension] ?? (extension ? extension.toUpperCase() : "Unknown type")
+}
+
+function monthParamToDate(value: string | null): Date | undefined {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value ?? "")
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, 1) : undefined
+}
+
+function UploadAttendanceContent() {
+  const searchParams = useSearchParams()
+
   // Sheet upload state
   const [selectedSheetFile, setSelectedSheetFile] = useState<File | null>(null)
   const [sheetDragActive, setSheetDragActive] = useState(false)
@@ -85,6 +117,7 @@ export function UploadAttendanceComponent() {
   const [existingExcelId, setExistingExcelId] = useState<string | null>(null)
   const [checkingExcel, setCheckingExcel] = useState(false)
   const [importResult, setImportResult] = useState<ImportAttendanceExcelResult | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<"sheet" | "excel" | null>(null)
 
   const { toast } = useToast()
   const { data, isLoading: clientsLoading, fetchClients } = useClient()
@@ -96,8 +129,8 @@ export function UploadAttendanceComponent() {
   const form = useForm<UploadAttendanceFormValues>({
     resolver: zodResolver(uploadAttendanceSchema),
     defaultValues: {
-      clientId: "",
-      month: undefined,
+      clientId: searchParams.get("clientId") ?? "",
+      month: monthParamToDate(searchParams.get("month")),
     },
   })
 
@@ -167,6 +200,7 @@ export function UploadAttendanceComponent() {
   useEffect(() => {
     const clientId = form.getValues("clientId")
     const monthDate = form.getValues("month")
+    setImportResult(null)
     if (clientId && monthDate) {
       loadExistingSheet(clientId, monthDate)
       loadExistingExcel(clientId, monthDate)
@@ -312,7 +346,6 @@ export function UploadAttendanceComponent() {
         description: `Attendance sheet uploaded for ${selectedClient.name} - ${format(selectedMonth, "MMMM yyyy")}.`,
       })
     } catch (error: any) {
-      console.error("Upload error:", error)
       toast({
         title: "Upload Failed",
         description: getErrorMessage(error),
@@ -334,38 +367,36 @@ export function UploadAttendanceComponent() {
       return
     }
 
+    setExcelUploadLoading(true)
+    setImportResult(null)
+    const formattedMonth = format(selectedMonth, "yyyy-MM")
+    const uploadDto = { clientId: selectedClient.id!, month: formattedMonth }
+    const fileToImport = selectedExcelFile
+
+    let result: ImportAttendanceExcelResult
     try {
-      setExcelUploadLoading(true)
-      setImportResult(null)
-      const formattedMonth = format(selectedMonth, "yyyy-MM")
-      const fileToImport = selectedExcelFile
+      result = await attendanceService.importAttendanceExcel(uploadDto, fileToImport)
+    } catch (error: any) {
+      toast({
+        title: "Attendance not saved",
+        description: `${getErrorMessage(error)} Fix the file and upload it again. Nothing was changed.`,
+        variant: "destructive",
+      })
+      setExcelUploadLoading(false)
+      return
+    }
 
-      await attendanceService.uploadAttendanceExcel(
-        {
-          clientId: selectedClient.id!,
-          month: formattedMonth,
-        },
-        fileToImport,
-      )
+    setImportResult(result)
+    setSelectedExcelFile(null)
+    const fileInput = document.querySelector('input[type="file"][accept=".xlsx,.xls"]') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ""
+    }
 
-      const result = await attendanceService.importAttendanceExcel(
-        {
-          clientId: selectedClient.id!,
-          month: formattedMonth,
-        },
-        fileToImport,
-      )
-      setImportResult(result)
-
-      // Clear selected file and reset input
-      setSelectedExcelFile(null)
-      const fileInput = document.querySelector('input[type="file"][accept=".xlsx,.xls"]') as HTMLInputElement
-      if (fileInput) {
-        fileInput.value = ""
-      }
-
+    // The stored copy is only worth keeping once the import went through
+    try {
+      await attendanceService.uploadAttendanceExcel(uploadDto, fileToImport)
       await loadExistingExcel(selectedClient.id!, selectedMonth)
-
       if (result.skipped > 0) {
         toast({
           title: "Attendance saved with some skipped rows",
@@ -378,10 +409,9 @@ export function UploadAttendanceComponent() {
         })
       }
     } catch (error: any) {
-      console.error("Upload error:", error)
       toast({
-        title: "Upload Failed",
-        description: getErrorMessage(error),
+        title: "Attendance saved, but the file copy was not stored",
+        description: `${result.imported} rows were saved. ${getErrorMessage(error)}`,
         variant: "destructive",
       })
     } finally {
@@ -392,6 +422,7 @@ export function UploadAttendanceComponent() {
   // Delete sheet
   const handleDeleteSheet = async () => {
     if (!existingSheetId || !selectedClient || !selectedMonth) return
+    setPendingDelete(null)
 
     try {
       setCheckingSheet(true)
@@ -408,6 +439,7 @@ export function UploadAttendanceComponent() {
   // Delete Excel
   const handleDeleteExcel = async () => {
     if (!existingExcelId || !selectedClient || !selectedMonth) return
+    setPendingDelete(null)
 
     try {
       setCheckingExcel(true)
@@ -616,7 +648,7 @@ export function UploadAttendanceComponent() {
                         <Eye className="h-4 w-4 mr-2" />
                         View
                       </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={handleDeleteSheet} disabled={checkingSheet}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setPendingDelete("sheet")} disabled={checkingSheet}>
                         {checkingSheet ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
@@ -669,7 +701,7 @@ export function UploadAttendanceComponent() {
                                 {formatFileSize(selectedSheetFile.size)}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {selectedSheetFile.type || "Unknown type"}
+                                {fileTypeLabel(selectedSheetFile)}
                               </Badge>
                             </div>
                           </div>
@@ -836,7 +868,7 @@ export function UploadAttendanceComponent() {
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={handleDeleteExcel} disabled={checkingExcel}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setPendingDelete("excel")} disabled={checkingExcel}>
                         {checkingExcel ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
@@ -889,7 +921,7 @@ export function UploadAttendanceComponent() {
                                 {formatFileSize(selectedExcelFile.size)}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {selectedExcelFile.type || "Unknown type"}
+                                {fileTypeLabel(selectedExcelFile)}
                               </Badge>
                             </div>
                           </div>
@@ -1013,6 +1045,33 @@ export function UploadAttendanceComponent() {
         </form>
       </Form>
 
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingDelete === "excel" ? "Delete this Excel file?" : "Delete this attendance sheet?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete === "excel"
+                ? "The stored Excel file for "
+                : "The uploaded attendance sheet for "}
+              <strong>{selectedClient?.name}</strong>
+              {selectedMonth ? ` (${format(selectedMonth, "MMMM yyyy")})` : ""} will be removed. Attendance already
+              saved for this month stays as it is. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={pendingDelete === "excel" ? handleDeleteExcel : handleDeleteSheet}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Document Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] p-0">
@@ -1125,5 +1184,13 @@ export function UploadAttendanceComponent() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export function UploadAttendanceComponent(): JSX.Element {
+  return (
+    <Suspense fallback={null}>
+      <UploadAttendanceContent />
+    </Suspense>
   )
 }

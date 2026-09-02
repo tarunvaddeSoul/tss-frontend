@@ -53,7 +53,15 @@ export function PdfPreviewDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const handleGenerate = async () => {
+  // Drop the rendered document on close so the next open renders the current data
+  useEffect(() => {
+    if (!open) {
+      setPdfUrl(null)
+      setGenerationError(null)
+    }
+  }, [open])
+
+  const handleGenerate = async (): Promise<string | null> => {
     try {
       setIsGenerating(true)
       setGenerationError(null)
@@ -65,22 +73,22 @@ export function PdfPreviewDialog({
       const blob = await pdf(documentElement).toBlob()
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
+      return url
     } catch (err) {
       console.error("Failed to generate PDF", err)
       setPdfUrl(null)
       setGenerationError(err instanceof Error ? err.message : "The document could not be generated.")
+      return null
     } finally {
       setIsGenerating(false)
     }
   }
 
-  const handleDownload = async () => {
-    if (!pdfUrl) {
-      await handleGenerate()
-    }
-    if (!pdfUrl) return
+  const handleDownload = async (): Promise<void> => {
+    const url = pdfUrl ?? (await handleGenerate())
+    if (!url) return
     const link = document.createElement("a")
-    link.href = pdfUrl
+    link.href = url
     link.download = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`
     document.body.appendChild(link)
     link.click()
@@ -113,7 +121,7 @@ export function PdfPreviewDialog({
                   <p className="text-sm font-medium text-destructive">The PDF could not be generated.</p>
                   <p className="mt-1 max-w-md break-words font-mono text-xs text-muted-foreground">{generationError}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleGenerate}>
+                <Button variant="outline" size="sm" onClick={() => void handleGenerate()}>
                   <RefreshCw className="mr-2 h-3.5 w-3.5" />
                   Try again
                 </Button>

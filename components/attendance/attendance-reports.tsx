@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { format, parse } from "date-fns"
 import {
   Download,
   FileText,
@@ -12,10 +12,10 @@ import {
   Loader2,
   BarChart3,
   TrendingUp,
-  Clock,
   CheckCircle2,
   AlertCircle,
   Calendar,
+  CalendarCheck,
   Eye,
   Minus,
   Maximize2,
@@ -28,15 +28,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { Badge } from "@/components/ui/badge"
+import { Pagination } from "@/components/ui/pagination"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 import { PageHeader } from "@/components/layout/page-header"
 import { useClient } from "@/hooks/use-client"
 import { attendanceService } from "@/services/attendanceService"
-import { getErrorMessage } from "@/services/api"
+import api, { getErrorMessage } from "@/services/api"
+import { downloadFileName } from "@/lib/filenames"
+import { formatMonth } from "@/lib/labels"
 import type { Client } from "@/types/client"
-import type { AttendanceReportResponse } from "@/types/attendance"
+import type { AttendanceListResponse, AttendanceReportResponse } from "@/types/attendance"
 import dynamic from "next/dynamic"
 import {
   Dialog,
@@ -71,8 +74,13 @@ const reportsSchema = z.object({
 
 type ReportsFormValues = z.infer<typeof reportsSchema>
 
-export function AttendanceReportsComponent() {
+const TABLE_PAGE_SIZE = 25
+
+function AttendanceReportsContent() {
+  const searchParams = useSearchParams()
+  const appliedUrlParams = useRef(false)
   const [reportData, setReportData] = useState<AttendanceReportResponse["data"] | null>(null)
+  const [tablePage, setTablePage] = useState(1)
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMonths, setLoadingMonths] = useState(false)
@@ -115,19 +123,21 @@ export function AttendanceReportsComponent() {
 
     try {
       setLoadingMonths(true)
-      const response = await attendanceService.getAttendanceByClientId(clientId)
-      // Extract unique months from the response
-      const months = response.data?.map((record) => record.month) || []
-      const uniqueMonths = [...new Set(months)].sort().reverse() // Sort in descending order (newest first)
-      setAvailableMonths(uniqueMonths)
+      // A client with no attendance yet is the normal case, so keep the global 404 toast quiet
+      const response = await api.get<AttendanceListResponse>(`/attendance/records-by-client/${clientId}`, {
+        skipErrorToast: true,
+      } as Parameters<typeof api.get>[1])
+      const months = response.data.data?.map((record) => record.month) || []
+      setAvailableMonths([...new Set(months)].sort().reverse())
     } catch (error: any) {
-      console.error("Error fetching available months:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch available months for this client.",
-        variant: "destructive",
-      })
       setAvailableMonths([])
+      if (error?.response?.status !== 404) {
+        toast({
+          title: "Could not load months",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        })
+      }
     } finally {
       setLoadingMonths(false)
     }
@@ -144,6 +154,7 @@ export function AttendanceReportsComponent() {
 
       setReportData(response.data)
       setReportGenerated(true)
+      setTablePage(1)
 
       // Fetch Excel file for this client and month
       try {
@@ -173,7 +184,7 @@ export function AttendanceReportsComponent() {
 
       toast({
         title: "Report Generated",
-        description: `Found ${response.data.records.length} attendance records for ${response.data.client.name} - ${format(parse(response.data.month, "yyyy-MM", new Date()), "MMMM yyyy")}.`,
+        description: `Found ${response.data.records.length} attendance records for ${response.data.client.name}, ${formatMonth(response.data.month)}.`,
       })
     } catch (error: any) {
       console.error("Error generating report:", error)
@@ -189,6 +200,19 @@ export function AttendanceReportsComponent() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (appliedUrlParams.current) return
+    appliedUrlParams.current = true
+    const clientId = searchParams.get("clientId")
+    const month = searchParams.get("month")
+    if (!clientId) return
+    void handleClientChange(clientId).then(() => {
+      if (!month) return
+      form.setValue("month", month)
+      void onSubmit({ clientId, month })
+    })
+  }, [])
 
   // Generate CSV content
   const generateCSV = () => {
@@ -230,10 +254,7 @@ export function AttendanceReportsComponent() {
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob)
       link.setAttribute("href", url)
-      const monthDisplay = reportData?.month
-        ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
-        : "report"
-      link.setAttribute("download", `attendance-report-${reportData?.client.name || "report"}-${monthDisplay}.csv`)
+      link.setAttribute("download", downloadFileName("attendance-report", reportData?.client.name, reportData?.month, "csv"))
       link.style.visibility = "hidden"
       document.body.appendChild(link)
       link.click()
@@ -257,13 +278,7 @@ export function AttendanceReportsComponent() {
   }
 
   const getSelectedMonthDisplay = () => {
-    if (!reportData?.month) return ""
-    try {
-      const date = parse(reportData.month, "yyyy-MM", new Date())
-      return format(date, "MMMM yyyy")
-    } catch {
-      return reportData.month
-    }
+    return reportData?.month ? formatMonth(reportData.month) : ""
   }
 
   // Helper function to add cache-busting query parameter to URL
@@ -314,7 +329,6 @@ export function AttendanceReportsComponent() {
         setSheetPreviewType("image")
       }
     } catch (error) {
-      console.log("HEAD request failed, using URL detection:", error)
       const urlLower = reportData.attendanceSheet.attendanceSheetUrl.toLowerCase()
 
       if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
@@ -351,10 +365,7 @@ export function AttendanceReportsComponent() {
         else extension = ".jpg"
       }
 
-      const monthDisplay = reportData.month
-        ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
-        : "sheet"
-      const filename = `attendance-sheet-${reportData.client.name}-${monthDisplay}${extension}`
+      const filename = downloadFileName("attendance-sheet", reportData.client.name, reportData.month, extension.replace(".", ""))
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -387,10 +398,7 @@ export function AttendanceReportsComponent() {
       if (!response.ok) throw new Error("Failed to download")
 
       const blob = await response.blob()
-      const monthDisplay = reportData?.month
-        ? format(parse(reportData.month, "yyyy-MM", new Date()), "MMMM-yyyy")
-        : "excel"
-      const filename = `attendance-excel-${reportData?.client.name || "file"}-${monthDisplay}.xlsx`
+      const filename = downloadFileName("attendance-excel", reportData?.client.name, reportData?.month, "xlsx")
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = downloadUrl
@@ -493,7 +501,7 @@ export function AttendanceReportsComponent() {
                             <SelectItem key={month} value={month}>
                               <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 text-muted-foreground" />
-                                {format(parse(month, "yyyy-MM", new Date()), "MMMM yyyy")}
+                                {formatMonth(month)}
                               </div>
                             </SelectItem>
                           ))}
@@ -549,11 +557,8 @@ export function AttendanceReportsComponent() {
                 <div>
                   <h3 className="text-lg font-semibold text-success">Report Generated Successfully</h3>
                   <p className="text-foreground">
-                    {reportData.client.name} - {getSelectedMonthDisplay()}
+                    {reportData.client.name}, {getSelectedMonthDisplay()}
                   </p>
-                  {reportData.client.address && (
-                    <p className="text-sm text-muted-foreground mt-1">{reportData.client.address}</p>
-                  )}
                 </div>
                 <CheckCircle2 className="w-8 h-8 text-success" />
               </div>
@@ -614,7 +619,7 @@ export function AttendanceReportsComponent() {
 
           {/* Statistics Cards */}
           <div className="flex justify-center">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl w-full">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-6xl w-full">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -623,6 +628,31 @@ export function AttendanceReportsComponent() {
                       <p className="font-display text-2xl font-bold tabular-nums text-brand">{reportData.totals.totalEmployees}</p>
                     </div>
                     <Users className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total Present Days</p>
+                      <p className="font-display text-2xl font-bold tabular-nums text-brand">{reportData.totals.totalPresent}</p>
+                    </div>
+                    <CalendarCheck className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Average Present</p>
+                      <p className="font-display text-2xl font-bold tabular-nums">{Number(reportData.totals.averageAttendance || 0).toFixed(1)}</p>
+                      <p className="text-xs text-muted-foreground">days per employee</p>
+                    </div>
+                    <TrendingUp className="w-8 h-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -678,7 +708,11 @@ export function AttendanceReportsComponent() {
             <Card>
               <CardHeader>
                 <CardTitle>Attendance Records</CardTitle>
-                <CardDescription>Detailed attendance data for {getSelectedMonthDisplay()}</CardDescription>
+                <CardDescription>
+                  Showing {(tablePage - 1) * TABLE_PAGE_SIZE + 1} to{" "}
+                  {Math.min(tablePage * TABLE_PAGE_SIZE, reportData.records.length)} of {reportData.records.length} employees for{" "}
+                  {getSelectedMonthDisplay()}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border overflow-x-auto scrollbar-sleek">
@@ -693,7 +727,9 @@ export function AttendanceReportsComponent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reportData.records.map((record, index) => (
+                      {reportData.records
+                        .slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE)
+                        .map((record, index) => (
                         <TableRow key={`${record.employeeID}-${index}`}>
                           <TableCell>
                             <Badge variant="outline">{record.employeeID}</Badge>
@@ -711,6 +747,15 @@ export function AttendanceReportsComponent() {
                     </TableBody>
                   </Table>
                 </div>
+                {reportData.records.length > TABLE_PAGE_SIZE && (
+                  <div className="flex justify-center mt-6">
+                    <Pagination
+                      currentPage={tablePage}
+                      totalPages={Math.ceil(reportData.records.length / TABLE_PAGE_SIZE)}
+                      onPageChange={setTablePage}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -727,28 +772,20 @@ export function AttendanceReportsComponent() {
       {/* PDF Preview Dialog */}
       {reportData && (
         <DynamicPdfPreviewDialog
+          key={`${reportData.client.id}-${reportData.month}`}
           open={pdfOpen}
           onOpenChange={setPdfOpen}
           title={`${reportData.client.name} - Attendance Report`}
           description={getSelectedMonthDisplay()}
-          fileName={`attendance-report-${reportData.client.name}-${reportData.month}`}
+          fileName={downloadFileName("attendance-report", reportData.client.name, reportData.month, "pdf")}
           renderDocument={async () => {
-            // Dynamically import the component to ensure it's loaded
             const { default: AttendanceReportPDF } = await import("@/components/pdf/attendance-report-pdf")
-            const records = reportData.records.map((r) => ({
-              employeeID: r.employeeID,
-              employeeName: r.employeeName,
-              clientName: reportData.client.name,
-              designationName: r.designationName,
-              departmentName: r.departmentName,
-              presentCount: r.presentCount,
-              attendanceSheetUrl: reportData.attendanceSheet?.attendanceSheetUrl || "",
-            }))
             return (
               <AttendanceReportPDF
                 title={`${reportData.client.name} Attendance`}
                 month={getSelectedMonthDisplay()}
-                records={records}
+                records={reportData.records}
+                totals={reportData.totals}
               />
             )
           }}
@@ -806,9 +843,6 @@ export function AttendanceReportsComponent() {
                         setSheetPreviewType("pdf")
                       }
                     }}
-                    onLoad={() => {
-                      console.log("✅ Image loaded successfully:", sheetPreviewUrl)
-                    }}
                   />
                 </div>
               ) : (
@@ -831,5 +865,13 @@ export function AttendanceReportsComponent() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export function AttendanceReportsComponent(): JSX.Element {
+  return (
+    <Suspense fallback={null}>
+      <AttendanceReportsContent />
+    </Suspense>
   )
 }

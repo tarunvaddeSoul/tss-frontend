@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { format } from "date-fns"
 import { AlertTriangle, XCircle, Loader2, Users } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -24,6 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { DatePicker } from "@/components/ui/date-picker"
+import { Label } from "@/components/ui/label"
 import { clientService } from "@/services/clientService"
 import { getErrorMessage } from "@/services/api"
 import { useToast } from "@/components/ui/use-toast"
@@ -42,6 +45,7 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [terminationDate, setTerminationDate] = useState<Date>(new Date())
   const [employeeCount, setEmployeeCount] = useState<number | null>(null)
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
   const [countError, setCountError] = useState(false)
@@ -73,6 +77,7 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
 
       const updateData: Partial<Client> = {
         status: ClientStatus.INACTIVE,
+        clientTerminationDate: format(terminationDate, "dd-MM-yyyy"),
       }
 
       await clientService.updateClient(client.id!, updateData)
@@ -173,6 +178,16 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="mb-4 space-y-2">
+            <Label>Termination Date</Label>
+            <DatePicker
+              date={terminationDate}
+              onSelect={(date) => date && setTerminationDate(date)}
+              className="w-full"
+            />
+            <p className="text-sm text-muted-foreground">The date the client's contract with TSS ends</p>
           </div>
 
           <DialogFooter>

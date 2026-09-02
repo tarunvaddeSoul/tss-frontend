@@ -122,7 +122,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
     if (activeEmployment) {
       toast({
         title: "Cannot Assign New Employment",
-        description: "Employee already has an active employment. Please terminate the current employment first.",
+        description: "Employee already has an active assignment. Please end the current assignment first.",
         variant: "destructive",
       })
       return
@@ -166,7 +166,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
       if (errorMessage.toLowerCase().includes("active") || errorMessage.toLowerCase().includes("already")) {
         toast({
           title: "Cannot Assign",
-          description: "This employee already has an active employment. Please terminate it first.",
+          description: "This employee already has an active assignment. Please end it first.",
           variant: "destructive",
         })
       } else {
@@ -226,7 +226,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                   <div className="text-sm">
                     This employee is currently assigned to <strong>{activeEmployment.clientName}</strong>.
                     <br />
-                    Please terminate the current employment before assigning a new one.
+                    Please end the current assignment before assigning a new one.
                   </div>
                 </AlertDescription>
               </Alert>

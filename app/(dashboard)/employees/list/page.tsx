@@ -185,7 +185,7 @@ export default function EmployeeListPage() {
 
   const handleTerminate = (employee: Employee) => {
     if (employee.status === "INACTIVE") {
-      toast.error("Employee is already terminated from TSS")
+      toast.error("Employee is already marked inactive")
       return
     }
     setEmployeeToTerminate(employee)
@@ -483,7 +483,7 @@ export default function EmployeeListPage() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleTerminate(employee)}
-                                title="Terminate from TSS"
+                                title="Mark inactive"
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <XCircle className="h-4 w-4" />

@@ -127,8 +127,8 @@ export default function ClientsPage() {
     if (client.status === "INACTIVE") {
       toast({
         variant: "destructive",
-        title: "Already Terminated",
-        description: "This client is already terminated from TSS.",
+        title: "Already Inactive",
+        description: "This client is already marked inactive.",
       })
       return
     }
@@ -367,7 +367,7 @@ export default function ClientsPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleTerminate(client)}
-                              title="Terminate from TSS"
+                              title="Mark inactive"
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
                               <XCircle className="h-4 w-4" />

@@ -83,8 +83,8 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
       await clientService.updateClient(client.id!, updateData)
 
       toast({
-        title: "Client Terminated",
-        description: `${client.name} has been terminated from TSS successfully.`,
+        title: "Client Marked Inactive",
+        description: `${client.name} is now inactive.`,
       })
 
       onSuccess()
@@ -110,29 +110,29 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <XCircle className="h-5 w-5" />
-              Terminate Client from TSS
+              Mark Client Inactive
             </DialogTitle>
             <DialogDescription>
-              Terminate this client from Tulsyan Security Services. This will mark the client as INACTIVE in the system.
+              Mark this client as inactive and record the contract end date. The record stays, and the client can be reactivated later.
             </DialogDescription>
           </DialogHeader>
 
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="warning" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <div className="font-semibold mb-1">Critical: Terminating Client from TSS</div>
+              <div className="font-semibold mb-1">What marking a client inactive does</div>
               <div className="text-sm space-y-1">
-                <p>Terminating a client from TSS will:</p>
+                <p>Marking this client inactive will:</p>
                 <ul className="list-disc list-inside ml-2 space-y-1">
                   <li>Mark the client status as <strong>INACTIVE</strong> (not deleted)</li>
                   <li>Prevent new employee assignments to this client</li>
                   <li>Keep all historical records and payroll data intact</li>
-                  <li>Existing employee-client relationships remain (they should be terminated separately)</li>
+                  <li>Keep existing employee assignments (end them separately if needed)</li>
                 </ul>
                 {employeeCount !== null && employeeCount > 0 && (
                   <div className="mt-2 p-2 bg-destructive/10 rounded border border-destructive/20">
                     <strong>Warning:</strong> This client has <strong>{employeeCount} employee(s)</strong> assigned. 
-                    Consider terminating their employment relationships first.
+                    Consider ending their assignments first.
                   </div>
                 )}
                 <p className="mt-2 font-medium">Please verify before confirming.</p>
@@ -181,13 +181,13 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
           </div>
 
           <div className="mb-4 space-y-2">
-            <Label>Termination Date</Label>
+            <Label>Contract End Date</Label>
             <DatePicker
               date={terminationDate}
               onSelect={(date) => date && setTerminationDate(date)}
               className="w-full"
             />
-            <p className="text-sm text-muted-foreground">The date the client's contract with TSS ends</p>
+            <p className="text-sm text-muted-foreground">The date the client's contract ends</p>
           </div>
 
           <DialogFooter>
@@ -213,11 +213,11 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Confirm Client Termination from TSS
+              Mark this client inactive?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                You are about to terminate <strong>{client.name}</strong> from Tulsyan Security Services.
+                You are about to mark <strong>{client.name}</strong> as inactive.
               </p>
               <div className="rounded-md border bg-surface p-3 space-y-1 text-sm">
                 <p>
@@ -225,7 +225,7 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
                 </p>
                 {employeeCount !== null && employeeCount > 0 && (
                   <p className="text-destructive font-medium">
-                    <strong>Active Employees:</strong> {employeeCount} (may need separate termination)
+                    <strong>Active Employees:</strong> {employeeCount} (assignments may need to be ended separately)
                   </p>
                 )}
               </div>
@@ -250,10 +250,10 @@ export function TerminateClientDialog({ client, open, onOpenChange, onSuccess }:
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Terminating...
+                  Saving...
                 </>
               ) : (
-                "Confirm Termination from TSS"
+                "Mark Inactive"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

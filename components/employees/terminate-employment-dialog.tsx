@@ -35,7 +35,7 @@ import { employeeName, formatDate, humanize } from "@/lib/labels"
 import type { Employee, IEmployeeEmploymentHistory, LeavingDateDto } from "@/types/employee"
 
 const terminateEmploymentSchema = z.object({
-  leavingDate: z.date({ required_error: "Termination date is required" }),
+  leavingDate: z.date({ required_error: "Last working day is required" }),
 })
 
 interface TerminateEmploymentDialogProps {
@@ -76,7 +76,7 @@ export function TerminateEmploymentDialog({
     if (joiningDate && data.leavingDate < joiningDate) {
       toast({
         title: "Invalid Date",
-        description: "Termination date cannot be before the joining date.",
+        description: "Last working day cannot be before the joining date.",
         variant: "destructive",
       })
       return
@@ -97,8 +97,8 @@ export function TerminateEmploymentDialog({
 
       if (response.statusCode === 200) {
         toast({
-          title: "Employment Terminated",
-          description: `Employment at ${employment.clientName} has been terminated successfully.`,
+          title: "Assignment Ended",
+          description: `Assignment at ${employment.clientName} has ended.`,
         })
 
         onSuccess()
@@ -106,10 +106,10 @@ export function TerminateEmploymentDialog({
         setShowConfirmDialog(false)
         form.reset()
       } else {
-        throw new Error(response.message || "Failed to terminate employment")
+        throw new Error(response.message || "Failed to end assignment")
       }
     } catch (error: any) {
-      let errorMessage = "Failed to terminate employment. Please try again."
+      let errorMessage = "Failed to end assignment. Please try again."
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message
       } else if (error?.message) {
@@ -133,26 +133,26 @@ export function TerminateEmploymentDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <XCircle className="h-5 w-5" />
-              Terminate Employment
+              End Assignment
             </DialogTitle>
             <DialogDescription>
-              Terminate this employee's current employment. This action will mark the employment as inactive.
+              End this employee's current assignment. It stays in the history, and the employee can be assigned to another client.
             </DialogDescription>
           </DialogHeader>
 
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="warning" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <div className="font-semibold mb-1">Important: This is a Termination Action</div>
+              <div className="font-semibold mb-1">What ending an assignment does</div>
               <div className="text-sm space-y-1">
-                <p>Terminating employment will:</p>
+                <p>Ending this assignment will:</p>
                 <ul className="list-disc list-inside ml-2 space-y-1">
                   <li>Mark this employment as <strong>INACTIVE</strong> (not deleted)</li>
-                  <li>Set the termination date</li>
+                  <li>Record the last working day</li>
                   <li>Prevent the employee from being assigned to payroll for this client</li>
-                  <li>Allow assignment to a new client after termination</li>
+                  <li>Allow assignment to a new client afterwards</li>
                 </ul>
-                <p className="mt-2 font-medium">This cannot be undone easily. Please verify before confirming.</p>
+                <p className="mt-2 font-medium">Check the date before confirming.</p>
               </div>
             </AlertDescription>
           </Alert>
@@ -191,7 +191,7 @@ export function TerminateEmploymentDialog({
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Termination Date <span className="text-destructive">*</span>
+                      Last Working Day <span className="text-destructive">*</span>
                     </FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormDescription>
@@ -231,16 +231,16 @@ export function TerminateEmploymentDialog({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Confirm Employment Termination
+              End this assignment?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                You are about to terminate the employment of <strong>{employeeName(employee)}</strong> at{" "}
+                You are about to end the assignment of <strong>{employeeName(employee)}</strong> at{" "}
                 <strong>{employment.clientName}</strong>.
               </p>
               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
                 <p>
-                  <strong>Termination Date:</strong> {form.getValues("leavingDate") ? format(form.getValues("leavingDate"), "dd MMM yyyy") : "Not set"}
+                  <strong>Last Working Day:</strong> {form.getValues("leavingDate") ? format(form.getValues("leavingDate"), "dd MMM yyyy") : "Not set"}
                 </p>
               </div>
               <Alert variant="destructive" className="mt-2">
@@ -262,10 +262,10 @@ export function TerminateEmploymentDialog({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Terminating...
+                  Saving...
                 </>
               ) : (
-                "Confirm Termination"
+                "End Assignment"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

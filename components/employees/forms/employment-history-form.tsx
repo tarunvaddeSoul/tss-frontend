@@ -299,8 +299,8 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
   const handleOpenTerminate = (history: IEmployeeEmploymentHistory) => {
     if (history.status !== Status.ACTIVE) {
       toast({
-        title: "Cannot Terminate",
-        description: "Only active employment can be terminated.",
+        title: "Cannot End Assignment",
+        description: "Only an active assignment can be ended.",
         variant: "destructive"
       });
       return;
@@ -533,7 +533,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                           <Button
                             variant="ghost"
                             size="icon"
-                            title="Terminate employment"
+                            title="End assignment"
                             onClick={() => handleOpenTerminate(history)}
                             className="text-destructive hover:text-destructive shrink-0"
                           >

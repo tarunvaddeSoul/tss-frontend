@@ -36,7 +36,7 @@ import type { Employee, UpdateEmployeeDto } from "@/types/employee"
 import { Status } from "@/enums/employee.enum"
 
 const terminateEmployeeSchema = z.object({
-  employeeRelievingDate: z.date({ required_error: "Termination date is required" }),
+  employeeRelievingDate: z.date({ required_error: "Relieving date is required" }),
 })
 
 interface TerminateEmployeeDialogProps {
@@ -74,17 +74,17 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
       const response = await employeeService.updateEmployee(employee.id, updateData)
 
       if (response.statusCode === 200 || response.data) {
-        toast.success(`${employeeName(employee)} has been terminated from TSS successfully.`)
+        toast.success(`${employeeName(employee)} has been marked inactive.`)
 
         onSuccess()
         onOpenChange(false)
         setShowConfirmDialog(false)
         form.reset()
       } else {
-        throw new Error(response.message || "Failed to terminate employee")
+        throw new Error(response.message || "Failed to mark employee inactive")
       }
     } catch (error: any) {
-      let errorMessage = "Failed to terminate employee. Please try again."
+      let errorMessage = "Failed to mark employee inactive. Please try again."
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message
       } else if (error?.message) {
@@ -109,19 +109,19 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <UserX className="h-5 w-5" />
-              Terminate Employee from TSS
+              Mark Employee Inactive
             </DialogTitle>
             <DialogDescription>
-              Terminate this employee from Tulsyan Security Services. This will mark the employee as INACTIVE in the system.
+              Mark this employee as inactive and record the relieving date. The record stays, and the employee can rejoin later.
             </DialogDescription>
           </DialogHeader>
 
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="warning" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <div className="font-semibold mb-1">Critical: Terminating Employee from TSS</div>
+              <div className="font-semibold mb-1">What marking an employee inactive does</div>
               <div className="text-sm space-y-1">
-                <p>Terminating an employee from TSS will:</p>
+                <p>Marking this employee inactive will:</p>
                 <ul className="list-disc list-inside ml-2 space-y-1">
                   <li>Mark the employee status as <strong>INACTIVE</strong> (not deleted)</li>
                   <li>Remove employee from active payroll processing</li>
@@ -130,10 +130,10 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
                 </ul>
                 {hasActiveEmployment && (
                   <div className="mt-2 p-2 bg-destructive/10 rounded border border-destructive/20">
-                    <strong>Warning:</strong> This employee has active employment(s). Consider terminating those first.
+                    <strong>Warning:</strong> This employee has an active assignment. Consider ending it first.
                   </div>
                 )}
-                <p className="mt-2 font-medium">This is a permanent action. Please verify before confirming.</p>
+                <p className="mt-2 font-medium">The employee can be marked active again when they rejoin.</p>
               </div>
             </AlertDescription>
           </Alert>
@@ -170,11 +170,11 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
                   <FormItem className="flex flex-col">
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      Termination Date <span className="text-destructive">*</span>
+                      Relieving Date <span className="text-destructive">*</span>
                     </FormLabel>
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormDescription>
-                      Select the last working day with Tulsyan Security Services.
+                      The employee's last day with Tulsyan Security Services.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -210,15 +210,15 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Confirm Employee Termination from TSS
+              Mark this employee inactive?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                You are about to terminate <strong>{employeeName(employee)}</strong> from Tulsyan Security Services.
+                You are about to mark <strong>{employeeName(employee)}</strong> as inactive.
               </p>
               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
                 <p>
-                  <strong>Termination Date:</strong>{" "}
+                  <strong>Relieving Date:</strong>{" "}
                   {form.getValues("employeeRelievingDate") ? format(form.getValues("employeeRelievingDate"), "dd MMM yyyy") : "Not set"}
                 </p>
               </div>
@@ -243,10 +243,10 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Terminating...
+                  Saving...
                 </>
               ) : (
-                "Confirm Termination from TSS"
+                "Mark Inactive"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -422,7 +422,7 @@ export function EmployeeDocumentManager({ employeeId, onDocumentsUpdate }: Emplo
                   />
                 ) : (
                   <img
-                    src={previewUrl || "/placeholder.svg"}
+                    src={previewUrl}
                     alt={previewTitle}
                     className="max-w-full max-h-[60vh] object-contain rounded"
                   />

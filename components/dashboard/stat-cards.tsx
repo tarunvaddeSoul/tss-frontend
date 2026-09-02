@@ -2,7 +2,8 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, Building2, UserPlus, Building, TrendingUp, TrendingDown } from "lucide-react"
+import { Users, Building2, UserPlus, Building, TrendingUp } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { DashboardReportData, ClientEmployeeCount } from "@/types/dashboard"
 
 interface StatCardsProps {
@@ -10,40 +11,42 @@ interface StatCardsProps {
   clientEmployeeCounts: ClientEmployeeCount[]
 }
 
-export function StatCards({ data, clientEmployeeCounts }: StatCardsProps) {
-  const { summary, employeeStats, clientStats } = data
+interface Stat {
+  title: string
+  value: number
+  icon: LucideIcon
+  newThisMonth?: number
+  note?: string
+}
 
-  // Calculate clients with employees vs without employees
+export function StatCards({ data, clientEmployeeCounts }: StatCardsProps): JSX.Element {
+  const { summary } = data
+
   const clientsWithEmployees = clientEmployeeCounts.filter((client) => client.employeeCount > 0).length
-  const clientsWithoutEmployees = clientEmployeeCounts.filter((client) => client.employeeCount === 0).length
 
-  const stats = [
+  const stats: Stat[] = [
     {
       title: "Total Employees",
       value: summary.totalEmployees,
-      change: summary.newEmployeesThisMonth,
-      changeLabel: "new this month",
+      newThisMonth: summary.newEmployeesThisMonth,
       icon: Users,
     },
     {
       title: "Active Employees",
       value: summary.activeEmployees,
-      change: summary.inactiveEmployees,
-      changeLabel: "inactive",
+      note: `${summary.inactiveEmployees.toLocaleString("en-IN")} inactive`,
       icon: UserPlus,
     },
     {
       title: "Total Clients",
       value: summary.totalClients,
-      change: summary.newClientsThisMonth,
-      changeLabel: "new this month",
+      newThisMonth: summary.newClientsThisMonth,
       icon: Building2,
     },
     {
       title: "Active Clients",
       value: summary.activeClients,
-      change: clientsWithEmployees,
-      changeLabel: "with employees",
+      note: `${clientsWithEmployees.toLocaleString("en-IN")} with employees deployed`,
       icon: Building,
     },
   ]
@@ -52,8 +55,7 @@ export function StatCards({ data, clientEmployeeCounts }: StatCardsProps) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat) => {
         const Icon = stat.icon
-        const isPositive = stat.change > 0
-        const TrendIcon = isPositive ? TrendingUp : TrendingDown
+        const grew = (stat.newThisMonth ?? 0) > 0
 
         return (
           <Card key={stat.title}>
@@ -65,21 +67,20 @@ export function StatCards({ data, clientEmployeeCounts }: StatCardsProps) {
                     <p className="font-display font-expanded text-4xl font-bold tracking-tight tabular-nums">
                       {stat.value.toLocaleString("en-IN")}
                     </p>
-                    {stat.change > 0 && (
+                    {grew && (
                       <Badge variant="success">
                         <TrendingUp />
-                        +{stat.change}
+                        +{stat.newThisMonth}
                       </Badge>
                     )}
                   </div>
-                  {stat.change !== undefined && (
-                    <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
-                      <TrendIcon className={`h-3.5 w-3.5 ${isPositive ? 'text-success' : 'text-muted-foreground'}`} />
-                      <span className="font-medium">
-                        {stat.change} {stat.changeLabel}
-                      </span>
-                    </div>
-                  )}
+                  <p className="pt-1 text-xs font-medium text-muted-foreground">
+                    {stat.newThisMonth === undefined
+                      ? stat.note
+                      : grew
+                        ? `${stat.newThisMonth} new this month`
+                        : "None added this month"}
+                  </p>
                 </div>
                 <div className="rounded-md bg-surface p-2.5 text-muted-foreground">
                   <Icon className="h-5 w-5" />

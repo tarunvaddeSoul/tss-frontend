@@ -4,51 +4,15 @@ import type React from "react"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { User, Shield, ChevronRight, Building2, Briefcase, DollarSign, Users, ShieldCheck, Factory } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
-import { Role } from "@/types/auth"
+import { visibleSettingsGroups } from "@/components/settings/settings-groups"
 
-interface SettingsNavItem {
-  title: string
-  href: string
-  icon: React.ReactNode
-}
-
-interface SettingsGroup {
-  label: string
-  items: SettingsNavItem[]
-}
-
-const settingsGroups: SettingsGroup[] = [
-  {
-    label: "My Account",
-    items: [
-      { title: "My Profile", href: "/settings/profile", icon: <User className="h-4 w-4" /> },
-      { title: "Password", href: "/settings/security", icon: <Shield className="h-4 w-4" /> },
-    ],
-  },
-  {
-    label: "Company Setup",
-    items: [
-      { title: "Departments", href: "/settings/department", icon: <Building2 className="h-4 w-4" /> },
-      { title: "Designations", href: "/settings/designation", icon: <Briefcase className="h-4 w-4" /> },
-      { title: "Service Types", href: "/settings/service-type", icon: <ShieldCheck className="h-4 w-4" /> },
-      { title: "Sectors", href: "/settings/sector", icon: <Factory className="h-4 w-4" /> },
-      { title: "Salary Rate Schedule", href: "/settings/salary-rate-schedule", icon: <DollarSign className="h-4 w-4" /> },
-    ],
-  },
-]
-
-const adminGroup: SettingsGroup = {
-  label: "Administration",
-  items: [{ title: "Users", href: "/settings/users", icon: <Users className="h-4 w-4" /> }],
-}
-
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+export default function SettingsLayout({ children }: { children: React.ReactNode }): JSX.Element {
   const pathname = usePathname()
   const { user } = useAuth()
-  const groups = user?.role === Role.ADMIN ? [...settingsGroups, adminGroup] : settingsGroups
+  const groups = visibleSettingsGroups(user?.role)
 
   return (
     <div className="mx-auto w-full max-w-[1400px] py-8">
@@ -63,22 +27,25 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                     <p className="px-3 pb-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                       {group.label}
                     </p>
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                          pathname === item.href
-                            ? "bg-brand/10 text-brand font-medium"
-                            : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                        )}
-                      >
-                        {item.icon}
-                        <span>{item.title}</span>
-                        {pathname === item.href && <ChevronRight className="ml-auto h-4 w-4" />}
-                      </Link>
-                    ))}
+                    {group.links.map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                            pathname === item.href
+                              ? "bg-brand/10 text-brand font-medium"
+                              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                          {pathname === item.href && <ChevronRight className="ml-auto h-4 w-4" />}
+                        </Link>
+                      )
+                    })}
                   </div>
                 ))}
               </nav>

@@ -245,6 +245,7 @@ export function MarkAttendanceBySite(): JSX.Element {
 
   const reportHref = selectedClientId && monthString ? `/attendance/reports?clientId=${selectedClientId}&month=${monthString}` : "/attendance/reports"
   const recordsHref = selectedClientId && monthString ? `/attendance/records?clientId=${selectedClientId}&month=${monthString}` : "/attendance/records"
+  const payrollHref = selectedClientId && monthString ? `/payroll/calculate?clientId=${selectedClientId}&month=${monthString}` : "/payroll/calculate"
 
   useEffect(() => {
     void fetchClients()
@@ -1263,7 +1264,7 @@ export function MarkAttendanceBySite(): JSX.Element {
                       </Link>
                     </Button>
                     <Button variant="outline" asChild>
-                      <Link href="/payroll/calculate">
+                      <Link href={payrollHref}>
                         <Calculator className="h-4 w-4" />
                         Run payroll
                       </Link>

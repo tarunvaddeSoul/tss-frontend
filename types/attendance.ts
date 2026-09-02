@@ -111,8 +111,6 @@ export interface AttendanceSearchParams {
   clientId?: string
   employeeId?: string
   month?: string
-  startMonth?: string
-  endMonth?: string
   page?: number
   limit?: number
   sortBy?: string

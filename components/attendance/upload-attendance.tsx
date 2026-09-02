@@ -17,7 +17,6 @@ import {
   RotateCcw,
   Loader2,
   UploadCloud,
-  Users,
   Eye,
   Trash2,
   Download,
@@ -29,7 +28,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -526,23 +525,18 @@ export function UploadAttendanceComponent() {
                         <Building2 className="h-4 w-4" />
                         Client *
                       </FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={clientsLoading}>
-                        <FormControl>
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select a client" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id ?? ""}>
-                              <div className="flex items-center gap-2">
-                                <Users className="w-4 h-4 text-muted-foreground" />
-                                {client.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={clients.map((client) => ({ value: client.id ?? "", label: client.name }))}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select a client"
+                          searchPlaceholder="Search clients..."
+                          emptyText="No clients found."
+                          disabled={clientsLoading}
+                          className="h-11"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

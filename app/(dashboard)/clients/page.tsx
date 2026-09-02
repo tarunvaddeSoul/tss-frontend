@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Search, Edit, Trash2, Eye, ArrowUpDown, XCircle } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Eye, ArrowUpDown, XCircle, FileText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -339,6 +339,14 @@ export default function ClientsPage() {
                             title="Edit Client"
                           >
                             <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => client.id && router.push(`/clients/salary-slips?clientId=${client.id}`)}
+                            title="Salary Slip"
+                          >
+                            <FileText className="h-4 w-4" />
                           </Button>
                           {client.status !== "INACTIVE" && (
                             <Button

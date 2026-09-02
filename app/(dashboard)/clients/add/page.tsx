@@ -13,13 +13,10 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
 import { label } from "@/lib/labels"
 import { clientService } from "@/services/clientService"
-import { ClientSalarySetup } from "@/components/clients/client-salary-setup"
-import { SalarySlipPreview } from "@/components/clients/salary-slip-preview"
-import { ClientStatus, type SalaryTemplateConfig, getDefaultSalaryTemplateConfig } from "@/types/client"
+import { ClientStatus, getDefaultSalaryTemplateConfig } from "@/types/client"
 import { DatePicker } from "@/components/ui/date-picker"
 import { PageHeader } from "@/components/layout/page-header"
 
@@ -34,11 +31,7 @@ const clientFormSchema = z.object({
 })
 
 export default function AddClientPage() {
-  const [activeTab, setActiveTab] = useState("basic")
   const [isLoading, setIsLoading] = useState(false)
-  const [salaryTemplateConfig, setSalaryTemplateConfig] = useState<SalaryTemplateConfig>(
-    getDefaultSalaryTemplateConfig(),
-  )
 
   const router = useRouter()
 
@@ -63,21 +56,24 @@ export default function AddClientPage() {
       // Format the date as DD-MM-YYYY
       const formattedDate = format(values.clientOnboardingDate, "dd-MM-yyyy")
 
-      // Prepare the client data with the required structure
+      // Prepare the client data with the required structure.
+      // A default salary slip template is applied; it is edited on the
+      // dedicated Salary Slips page, not here.
       const clientData = {
         ...values,
         clientOnboardingDate: formattedDate,
-        salaryTemplates: salaryTemplateConfig,
+        salaryTemplates: getDefaultSalaryTemplateConfig(),
       }
 
-      await clientService.createClient(clientData)
+      const response = await clientService.createClient(clientData)
+      const createdId = (response as any)?.data?.id
 
       toast({
-        title: "Success",
-        description: "Client created successfully",
+        title: "Client created",
+        description: "Now set up their salary slip template.",
       })
 
-      router.push("/clients")
+      router.push(createdId ? `/clients/salary-slips?clientId=${createdId}` : "/clients")
     } catch (error) {
       console.error("Error creating client:", error)
       toast({
@@ -90,23 +86,13 @@ export default function AddClientPage() {
     }
   }
 
-  // Handle salary template updates
-  const handleSalaryTemplateChange = (config: SalaryTemplateConfig) => {
-    setSalaryTemplateConfig(config)
-  }
-
-  // Handle tab change
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
         no="05"
         eyebrow="Client register"
         title="Add New Client"
-        description="Add a client and set up their salary slip"
+        description="Add a client, then set up their salary slip on the Salary Slips page"
         actions={
           <Button variant="outline" onClick={() => router.push("/clients")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -115,15 +101,7 @@ export default function AddClientPage() {
         }
       />
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="w-full">
-          <TabsTrigger value="basic">Basic Information</TabsTrigger>
-          <TabsTrigger value="salary-templates">Salary Slip</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="basic" className="space-y-4 pt-4">
-          <Card>
+      <Card>
             <CardHeader>
               <CardTitle>Client Information</CardTitle>
               <CardDescription>Enter the basic details of the client</CardDescription>
@@ -234,89 +212,12 @@ export default function AddClientPage() {
               <Button variant="outline" onClick={() => router.push("/clients")}>
                 Cancel
               </Button>
-              <div className="flex gap-2">
-                <Button onClick={() => handleTabChange("salary-templates")}>Next: Set Up Salary Slip</Button>
-              </div>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="salary-templates" className="space-y-4 pt-4">
-          <ClientSalarySetup config={salaryTemplateConfig} onChange={handleSalaryTemplateChange} />
-
-          <div className="flex justify-end gap-3 mt-6">
-            <Button variant="outline" onClick={() => handleTabChange("basic")}>
-              Back to Basic Information
-            </Button>
-            <Button variant="outline" onClick={() => handleTabChange("preview")}>
-              Preview Salary Slip
-            </Button>
-            <Button
-              type="submit"
-              form="client-form"
-              disabled={isLoading}
-              onClick={() => {
-                // Validate the form before submission
-                form.trigger().then((isValid) => {
-                  if (isValid) {
-                    form.handleSubmit(onSubmit)()
-                  } else {
-                    // If form is invalid, switch back to basic tab
-                    handleTabChange("basic")
-                    toast({
-                      variant: "destructive",
-                      title: "Validation Error",
-                      description: "Please fill in all required fields in the Basic Information tab.",
-                    })
-                  }
-                })
-              }}
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {isLoading ? "Saving..." : "Save Client"}
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="preview" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Salary Slip Preview</CardTitle>
-              <CardDescription>Preview how the salary slip will look with your configuration</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SalarySlipPreview config={salaryTemplateConfig} />
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={() => handleTabChange("salary-templates")}>
-                Back to Salary Templates
-              </Button>
-              <Button
-                type="submit"
-                form="client-form"
-                disabled={isLoading}
-                onClick={() => {
-                  form.trigger().then((isValid) => {
-                    if (isValid) {
-                      form.handleSubmit(onSubmit)()
-                    } else {
-                      handleTabChange("basic")
-                      toast({
-                        variant: "destructive",
-                        title: "Validation Error",
-                        description: "Please fill in all required fields in the Basic Information tab.",
-                      })
-                    }
-                  })
-                }}
-              >
+              <Button type="submit" form="client-form" disabled={isLoading}>
                 <Save className="mr-2 h-4 w-4" />
                 {isLoading ? "Saving..." : "Save Client"}
               </Button>
             </CardFooter>
           </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   )
 }

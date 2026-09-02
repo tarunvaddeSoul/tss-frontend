@@ -226,6 +226,15 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
                         {formatDate(client.clientOnboardingDate)}
                       </div>
                     </div>
+                    {client.clientTerminationDate && (
+                      <div>
+                        <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Termination Date</div>
+                        <div className="flex items-center font-mono text-[13px]">
+                          <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                          {formatDate(client.clientTerminationDate)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

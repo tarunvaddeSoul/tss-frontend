@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -500,25 +500,17 @@ export function PayrollReports() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="md:col-span-1 lg:col-span-1">
                   <Label htmlFor="client-select">Client *</Label>
-                  <Select
+                  <Combobox
+                    id="client-select"
+                    options={clients.map((client) => ({ value: client.id ?? "", label: client.name }))}
                     value={filters.clientId || ""}
-                    onValueChange={(value) => updateFilter("clientId", value || undefined)}
+                    onChange={(value) => updateFilter("clientId", value || undefined)}
+                    placeholder="Select a client"
+                    searchPlaceholder="Search clients..."
+                    emptyText="No clients found."
                     disabled={loadingClients}
-                  >
-                    <SelectTrigger id="client-select" className="h-12">
-                      <SelectValue placeholder="Select a client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id ?? ""}>
-                          <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span className="truncate">{client.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    className="h-12"
+                  />
                 </div>
 
                 <div className="md:col-span-1 lg:col-span-1">
@@ -654,23 +646,20 @@ export function PayrollReports() {
 
                 <div>
                   <Label htmlFor="employee-client">Client (Optional)</Label>
-                  <Select
+                  <Combobox
+                    id="employee-client"
+                    options={[
+                      { value: "all", label: "All clients" },
+                      ...clients.map((client) => ({ value: client.id ?? "", label: client.name })),
+                    ]}
                     value={filters.clientId || "all"}
-                    onValueChange={(value) => updateFilter("clientId", value === "all" ? undefined : value)}
+                    onChange={(value) => updateFilter("clientId", value === "all" ? undefined : value)}
+                    placeholder="All clients"
+                    searchPlaceholder="Search clients..."
+                    emptyText="No clients found."
                     disabled={loadingClients}
-                  >
-                    <SelectTrigger id="employee-client" className="h-12">
-                      <SelectValue placeholder="All clients" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All clients</SelectItem>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id ?? ""}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    className="h-12"
+                  />
                 </div>
 
                 <div>

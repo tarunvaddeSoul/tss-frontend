@@ -1,7 +1,7 @@
 import type React from "react"
 
 import Link from "next/link"
-import { User, Shield, Building2, Briefcase, DollarSign, ChevronRight } from "lucide-react"
+import { User, Shield, Building2, Briefcase, DollarSign, ChevronRight, ShieldCheck, Factory } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { PageHeader } from "@/components/layout/page-header"
 
@@ -27,6 +27,8 @@ const groups: { label: string; description: string; links: SettingsLink[] }[] = 
     links: [
       { title: "Departments", description: "Manage employee and user departments", href: "/settings/department", icon: Building2 },
       { title: "Designations", description: "Manage job designations", href: "/settings/designation", icon: Briefcase },
+      { title: "Service Types", description: "Manage the services TSS offers", href: "/settings/service-type", icon: ShieldCheck },
+      { title: "Sectors", description: "Manage client industry sectors", href: "/settings/sector", icon: Factory },
       {
         title: "Salary Rate Schedule",
         description: "Per-day rates for Central and State categories",

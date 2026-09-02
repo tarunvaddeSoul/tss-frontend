@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { InlineLoader } from "@/components/ui/loader"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -1729,23 +1729,17 @@ export function MarkAttendanceBySite() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Client</FormLabel>
-                      <Select onValueChange={handleClientChange} value={field.value} disabled={loading || isSubmitted}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a client" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id ?? ""}>
-                              <div className="flex items-center gap-2">
-                                <Building2 className="h-4 w-4" />
-                                {client.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={clients.map((client) => ({ value: client.id ?? "", label: client.name }))}
+                          value={field.value}
+                          onChange={handleClientChange}
+                          placeholder="Select a client"
+                          searchPlaceholder="Search clients..."
+                          emptyText="No clients found."
+                          disabled={loading || isSubmitted}
+                        />
+                      </FormControl>
                       <FormDescription>Select the client where employees work</FormDescription>
                       <FormMessage />
                     </FormItem>

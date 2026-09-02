@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -175,21 +175,20 @@ export function EmployeeReports() {
                                 <label htmlFor="employee-client" className="text-sm font-medium mb-2 block truncate">
                                     Client (Optional)
                                 </label>
-                                <Select value={selectedClientId} onValueChange={setSelectedClientId} disabled={loadingClients}>
-                                    <SelectTrigger id="employee-client" className="h-12 w-full">
-                                        <SelectValue placeholder="All Clients" className="truncate" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all" className="truncate">
-                                            <span className="truncate block">All Clients</span>
-                                        </SelectItem>
-                                        {clients.map((client) => (
-                                            <SelectItem key={client.id} value={client.id ?? ""} className="truncate">
-                                                <span className="truncate block">{client.name}</span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    id="employee-client"
+                                    options={[
+                                        { value: "all", label: "All Clients" },
+                                        ...clients.map((client) => ({ value: client.id ?? "", label: client.name })),
+                                    ]}
+                                    value={selectedClientId}
+                                    onChange={setSelectedClientId}
+                                    placeholder="All Clients"
+                                    searchPlaceholder="Search clients..."
+                                    emptyText="No clients found."
+                                    disabled={loadingClients}
+                                    className="h-12 w-full"
+                                />
                             </div>
 
                             <div className="min-w-0">
@@ -197,20 +196,21 @@ export function EmployeeReports() {
                                     Employee
                                 </label>
                                 {selectedClientId !== "all" ? (
-                                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={loadingEmployees}>
-                                        <SelectTrigger id="employee-select" className="h-12 w-full">
-                                            <SelectValue placeholder="Select an employee" className="truncate" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {employees.map((employee) => (
-                                                <SelectItem key={employee.id} value={employee.id} className="truncate">
-                                                    <span className="truncate block">
-                                                        {employee.firstName} {employee.lastName} ({employee.id})
-                                                    </span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Combobox
+                                        id="employee-select"
+                                        options={employees.map((employee) => ({
+                                            value: employee.id,
+                                            label: `${employee.firstName} ${employee.lastName}`,
+                                            description: employee.id,
+                                        }))}
+                                        value={selectedEmployeeId}
+                                        onChange={setSelectedEmployeeId}
+                                        placeholder="Select an employee"
+                                        searchPlaceholder="Search employees..."
+                                        emptyText="No employees found."
+                                        disabled={loadingEmployees}
+                                        className="h-12 w-full"
+                                    />
                                 ) : (
                                     <div className="flex gap-2 min-w-0">
                                         <Input

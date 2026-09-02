@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { DatePicker } from "@/components/ui/date-picker"
 import {
   Dialog,
@@ -187,7 +188,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
   const clientOptions = clients
     .filter((c) => c.status === "ACTIVE") // Only show active clients
     .map((client) => ({
-      value: client.id,
+      value: client.id ?? "",
       label: client.name,
     }))
 
@@ -254,24 +255,18 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                           <Building2 className="h-4 w-4" />
                           Client <span className="text-destructive">*</span>
                         </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          disabled={!!activeEmployment}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select client" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {clientOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value as string}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Combobox
+                            options={clientOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select client"
+                            searchPlaceholder="Search clients..."
+                            emptyText="No clients found."
+                            disabled={!!activeEmployment}
+                            modal={true}
+                          />
+                        </FormControl>
                         <FormDescription>Only active clients are shown</FormDescription>
                         <FormMessage />
                       </FormItem>

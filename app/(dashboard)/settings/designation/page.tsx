@@ -190,7 +190,7 @@ export default function DesignationSettingsPage() {
                           <Briefcase className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <h3 className="font-medium">{designation.name}</h3>
+                          <h3 className="text-sm font-medium">{designation.name}</h3>
                         </div>
                       </div>
                       <Button

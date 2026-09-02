@@ -12,6 +12,7 @@ import { label } from "@/lib/labels"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Slider } from "@/components/ui/slider"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -279,19 +280,18 @@ export default function AdvancedEmployeeSearch() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="clientId">Client</Label>
-                  <Select onValueChange={(value) => setValue("clientId", value)} value={formValues.clientId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {clients.map((c) => (
-                        <SelectItem key={c.id ?? ""} value={c.id ?? ""}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    id="clientId"
+                    options={[
+                      { value: "all", label: "All" },
+                      ...clients.map((c) => ({ value: c.id ?? "", label: c.name })),
+                    ]}
+                    value={formValues.clientId}
+                    onChange={(value) => setValue("clientId", value)}
+                    placeholder="Select client"
+                    searchPlaceholder="Search clients..."
+                    emptyText="No clients found."
+                  />
                 </div>
 
                 <div className="space-y-2">

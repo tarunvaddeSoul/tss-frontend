@@ -113,6 +113,7 @@ export interface Client {
   contactPersonNumber: string
   status: ClientStatus
   clientOnboardingDate: string
+  clientTerminationDate?: string | null
   salaryTemplates?: SalaryTemplateConfig
 }
 
@@ -194,6 +195,48 @@ export const convertSalaryTemplatesToConfig = (salaryTemplates: any[]): SalaryTe
     customFields: template.customFields || [],
   }
 }
+
+// The backend DTO whitelists field properties (forbidNonWhitelisted), so stored
+// extras like id/clientId/timestamps and rules.minValue/maxValue 400 on resubmit.
+// rules.allowedValues is validated as SalaryPaidStatus on the backend, so any
+// other option strings the Advanced editor put there would also 400.
+const SALARY_PAID_STATUSES = ["PAID", "PENDING", "HOLD"]
+
+const pickFieldForSubmit = (field: any): any => {
+  const out: any = {
+    key: field.key,
+    label: field.label,
+    type: field.type,
+    category: field.category,
+    purpose: field.purpose,
+    enabled: !!field.enabled,
+  }
+  if (field.rules) {
+    const rules: any = {}
+    if (field.rules.defaultValue !== undefined) rules.defaultValue = field.rules.defaultValue
+    if (
+      Array.isArray(field.rules.allowedValues) &&
+      field.rules.allowedValues.length > 0 &&
+      field.rules.allowedValues.every((v: any) => SALARY_PAID_STATUSES.includes(v))
+    ) {
+      rules.allowedValues = field.rules.allowedValues
+    }
+    if (field.rules.requireRemarks !== undefined) rules.requireRemarks = field.rules.requireRemarks
+    if (Object.keys(rules).length > 0) out.rules = rules
+  }
+  if (field.defaultValue !== undefined && field.defaultValue !== null) {
+    out.defaultValue = String(field.defaultValue)
+  }
+  if (field.description !== undefined) out.description = field.description
+  if (field.requiresAdminInput !== undefined) out.requiresAdminInput = field.requiresAdminInput
+  return out
+}
+
+export const sanitizeSalaryTemplateConfigForSubmit = (config: SalaryTemplateConfig): SalaryTemplateConfig => ({
+  mandatoryFields: config.mandatoryFields.map(pickFieldForSubmit),
+  optionalFields: config.optionalFields.map(pickFieldForSubmit),
+  customFields: (config.customFields || []).map(pickFieldForSubmit),
+})
 
 // Helper function to get default config if none exists
 export const getDefaultSalaryTemplateConfig = (): SalaryTemplateConfig => {

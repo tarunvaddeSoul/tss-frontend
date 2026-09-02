@@ -135,6 +135,7 @@ export const navSections: NavSection[] = [
         subItems: [
           { title: "All Clients", href: "/clients" },
           { title: "Add Client", href: "/clients/add" },
+          { title: "Salary Slips", href: "/clients/salary-slips" },
         ],
       },
     ],

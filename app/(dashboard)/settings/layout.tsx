@@ -4,7 +4,7 @@ import type React from "react"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { User, Shield, ChevronRight, Building2, Briefcase, DollarSign, Users } from "lucide-react"
+import { User, Shield, ChevronRight, Building2, Briefcase, DollarSign, Users, ShieldCheck, Factory } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { Role } from "@/types/auth"
@@ -33,6 +33,8 @@ const settingsGroups: SettingsGroup[] = [
     items: [
       { title: "Departments", href: "/settings/department", icon: <Building2 className="h-4 w-4" /> },
       { title: "Designations", href: "/settings/designation", icon: <Briefcase className="h-4 w-4" /> },
+      { title: "Service Types", href: "/settings/service-type", icon: <ShieldCheck className="h-4 w-4" /> },
+      { title: "Sectors", href: "/settings/sector", icon: <Factory className="h-4 w-4" /> },
       { title: "Salary Rate Schedule", href: "/settings/salary-rate-schedule", icon: <DollarSign className="h-4 w-4" /> },
     ],
   },

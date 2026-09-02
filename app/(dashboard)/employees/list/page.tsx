@@ -402,7 +402,7 @@ export default function EmployeeListPage() {
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar>
-                              <AvatarImage src={employee.avatar || "/placeholder.svg"} />
+                              {employee.avatar && <AvatarImage src={employee.avatar} />}
                               <AvatarFallback>{initialsOf(employee)}</AvatarFallback>
                             </Avatar>
                             <div>
@@ -539,7 +539,7 @@ export default function EmployeeListPage() {
             <div className="space-y-4 pt-2">
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedEmployee.avatar || "/placeholder.svg"} />
+                  {selectedEmployee.avatar && <AvatarImage src={selectedEmployee.avatar} />}
                   <AvatarFallback className="text-lg">{initialsOf(selectedEmployee)}</AvatarFallback>
                 </Avatar>
                 <div>

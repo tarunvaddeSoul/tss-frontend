@@ -54,34 +54,47 @@ export function Combobox({
   const [open, setOpen] = React.useState(false)
 
   const selected = options.find((option) => option.value === value)
+  const showClear = clearable && !!selected && !disabled
+
+  const clear = (): void => {
+    onClear ? onClear() : onChange("")
+    setOpen(false)
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal={modal}>
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className={cn("w-full justify-between font-normal", !selected && "text-muted-foreground", className)}
-        >
-          <span className="truncate text-left">{selected ? selected.label : placeholder}</span>
-          <span className="ml-2 flex shrink-0 items-center gap-1">
-            {clearable && selected && (
-              <X
-                className="h-4 w-4 opacity-50 hover:opacity-100"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClear ? onClear() : onChange("")
-                }}
-              />
-            )}
-            <ChevronsUpDown className="h-4 w-4 opacity-50" />
-          </span>
-        </Button>
-      </PopoverTrigger>
+      <div className="relative w-full">
+        <PopoverTrigger asChild>
+          <Button
+            id={id}
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            disabled={disabled}
+            onKeyDown={(e) => {
+              if (showClear && (e.key === "Backspace" || e.key === "Delete")) {
+                e.preventDefault()
+                clear()
+              }
+            }}
+            className={cn("w-full justify-between font-normal", !selected && "text-muted-foreground", className)}
+          >
+            <span className={cn("truncate text-left", showClear && "pr-7")}>{selected ? selected.label : placeholder}</span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        {showClear && (
+          <button
+            type="button"
+            aria-label="Clear selection"
+            onClick={clear}
+            className="absolute right-10 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[240px] p-0" align="start">
         <Command
           filter={(itemValue, search) => (itemValue.toLowerCase().includes(search.toLowerCase().trim()) ? 1 : 0)}

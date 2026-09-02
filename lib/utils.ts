@@ -5,11 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function convertToCustomDateFormat(date: Date): string {
-  // Format: YYYY-MM-DD
-  return date.toISOString().split("T")[0]
-}
-
 
 export function formatDate(dateString?: string): string {
   if (!dateString) return "N/A"

@@ -25,6 +25,13 @@ export interface PayrollSalaryInformation {
   monthlyPay: number
   fatherName: string
   uanNumber: string | number
+  salaryCategory?: SalaryCategory
+  salarySubCategory?: SalarySubCategory
+  pfUanNumber?: string | null
+  bankAccountNumber?: string | null
+  ifscCode?: string | null
+  bankName?: string | null
+  esicNumber?: string | null
   // Allow for additional information fields from template
   [key: string]: any
 }
@@ -98,6 +105,7 @@ export interface PayrollRecord {
   employeeId: string
   employeeName: string
   presentDays: number
+  hasAttendance?: boolean
   salary: PayrollSalaryData
   error?: string
 }
@@ -110,6 +118,8 @@ export interface CalculatePayrollResponse {
     payrollMonth: string
     totalEmployees: number
     payrollResults: PayrollRecord[]
+    missingAttendance?: string[]
+    excludedNotActive?: number
   }
 }
 
@@ -126,7 +136,9 @@ export interface FinalizePayrollResponse {
   data: {
     clientId: string
     payrollMonth: string
-    totalRecords: number
+    finalized: number
+    skipped: string[]
+    missingAttendance?: string[]
   }
 }
 
@@ -213,8 +225,6 @@ export interface PayrollStep {
   id: number
   title: string
   description: string
-  completed: boolean
-  current: boolean
 }
 
 export interface AdminInputField {
@@ -235,6 +245,9 @@ export interface PayrollReportRecord {
   clientName: string;
   month: string;
   salaryData: PayrollSalaryData;
+  status?: string | null;
+  finalizedAt?: string | null;
+  employee?: { title?: string | null; firstName: string; lastName: string; fatherName?: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -278,6 +291,8 @@ export interface PayrollByMonthRecord {
   clientId: string
   month: string
   salaryData: PayrollSalaryData
+  status?: string
+  finalizedAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -286,8 +301,6 @@ export interface PayrollByMonthData {
   clientName: string
   payrollMonth: string
   summary: PayrollByMonthSummary
-  createdAt: string
-  updatedAt: string
   records: PayrollByMonthRecord[]
 }
 

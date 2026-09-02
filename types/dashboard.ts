@@ -159,7 +159,7 @@ export interface ClientAnniversaryInfo {
 // Recent Activity
 export interface RecentActivity {
   recentJoinees: RecentJoinee[]
-  recentPayrolls: RecentPayroll[]
+  recentPayrolls: RecentPayrollRun[]
 }
 
 export interface RecentJoinee {
@@ -173,27 +173,13 @@ export interface RecentJoinee {
   [key: string]: any
 }
 
-export interface RecentPayroll {
-  id: string
-  employeeId: string
+export interface RecentPayrollRun {
   clientId: string
+  clientName: string
   month: string // Format: YYYY-MM
-  salaryData: any // JSON object with salary details
-  createdAt: string // ISO date string
-  updatedAt: string // ISO date string
-  employee: {
-    id: string
-    firstName: string
-    lastName: string
-    // ... other employee fields
-    [key: string]: any
-  }
-  client: {
-    id: string
-    name: string
-    // ... other client fields
-    [key: string]: any
-  }
+  recordCount: number
+  totalNet?: number
+  finalizedAt: string | null
 }
 
 // Legacy types for backward compatibility (deprecated - use DashboardReportData instead)

@@ -1,6 +1,6 @@
 "use client"
 import { format } from "date-fns"
-import { CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react"
+import { CalendarIcon, X } from "lucide-react"
 import { useState } from "react"
 
 import { cn } from "@/lib/utils"
@@ -21,7 +21,7 @@ export function DatePicker({
   onSelect,
   className,
   yearRange = { from: 1900, to: 2100 }
-}: DatePickerProps) {
+}: DatePickerProps): JSX.Element {
   const [currentMonth, setCurrentMonth] = useState(date || new Date())
   const [open, setOpen] = useState(false)
 
@@ -47,44 +47,48 @@ export function DatePicker({
     setCurrentMonth(newDate)
   }
 
-  const handleDateSelect = (selectedDate: Date | undefined) => {
-    if (selectedDate) {
-      // Create a new date at midnight to avoid timezone issues
-      const dateOnly = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
-      onSelect(dateOnly)
-    } else {
-      onSelect(null)
-    }
+  const clear = (): void => {
+    onSelect(null)
+    setOpen(false)
   }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-full justify-start text-left font-normal h-10 min-w-0",
-            !date && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-          <span className="truncate flex-1 text-left">
-            {date ? format(date, "PPP") : <span>Pick a date</span>}
-          </span>
-          {date && (
-            <X
-              className="ml-2 h-4 w-4 shrink-0 hover:text-destructive transition-colors"
-              onClick={(e) => {
+      <div className="relative w-full">
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant={"outline"}
+            onKeyDown={(e) => {
+              if (date && (e.key === "Backspace" || e.key === "Delete")) {
                 e.preventDefault()
-                e.stopPropagation()
-                onSelect(null)
-                setOpen(false)
-              }}
-            />
-          )}
-        </Button>
-      </PopoverTrigger>
+                clear()
+              }
+            }}
+            className={cn(
+              "w-full justify-start text-left font-normal h-10 min-w-0",
+              !date && "text-muted-foreground",
+              date && "pr-9",
+              className
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+            <span className="truncate flex-1 text-left">
+              {date ? format(date, "PPP") : <span>Pick a date</span>}
+            </span>
+          </Button>
+        </PopoverTrigger>
+        {date && (
+          <button
+            type="button"
+            aria-label="Clear date"
+            onClick={clear}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
       <PopoverContent className="w-auto p-0" align="start">
         <div className="p-3 border-b border-border">
           <div className="flex items-center justify-between space-x-2">

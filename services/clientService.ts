@@ -31,6 +31,24 @@ export const clientService = {
     }
   },
 
+  // Every client, for pickers. Pages through the API so the default page size never truncates the list.
+  async getAllClients(params: Pick<ClientSearchParams, "status"> = {}): Promise<Client[]> {
+    const pageSize = 100
+    const all: Client[] = []
+    let page = 1
+    while (true) {
+      const response = await api.get<{ data?: Client[]; meta?: { total?: number } }>(CLIENT_ENDPOINTS.BASE, {
+        params: { ...params, page, limit: pageSize, sortBy: "name", sortOrder: "asc" },
+      })
+      const batch = response.data.data ?? []
+      all.push(...batch)
+      const total = response.data.meta?.total ?? all.length
+      if (batch.length < pageSize || all.length >= total) break
+      page += 1
+    }
+    return all
+  },
+
   // Get a single client by ID
   async getClientById(id: string): Promise<ClientResponse> {
     try {

@@ -275,21 +275,21 @@ const employeeFormSchema = z.object({
   district: z.string().min(1, "District is required"),
   state: z.string().min(1, "State is required"),
   pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6 digit pincode"),
-  referenceName: z.string().optional(),
-  referenceAddress: z.string().optional(),
-  referenceNumber: z.string().optional(),
-  bankAccountNumber: z.string().optional(),
-  ifscCode: z.string().optional(),
-  bankCity: z.string().optional(),
-  bankName: z.string().optional(),
-  pfUanNumber: z.string().optional(),
-  esicNumber: z.string().optional(),
-  policeVerificationNumber: z.string().optional(),
-  policeVerificationDate: z.date().optional(),
-  trainingCertificateNumber: z.string().optional(),
-  trainingCertificateDate: z.date().optional(),
-  medicalCertificateNumber: z.string().optional(),
-  medicalCertificateDate: z.date().optional(),
+  referenceName: z.string().min(1, "Reference name is required"),
+  referenceAddress: z.string().min(1, "Reference address is required"),
+  referenceNumber: z.string().min(1, "Reference number is required"),
+  bankAccountNumber: z.string().min(1, "Bank account number is required"),
+  ifscCode: z.string().min(1, "IFSC code is required"),
+  bankCity: z.string().min(1, "Bank city is required"),
+  bankName: z.string().min(1, "Bank name is required"),
+  pfUanNumber: z.string().min(1, "PF UAN number is required"),
+  esicNumber: z.string().min(1, "ESIC number is required"),
+  policeVerificationNumber: z.string().min(1, "Police verification number is required"),
+  policeVerificationDate: z.date({ required_error: "Police verification date is required" }),
+  trainingCertificateNumber: z.string().min(1, "Training certificate number is required"),
+  trainingCertificateDate: z.date({ required_error: "Training certificate date is required" }),
+  medicalCertificateNumber: z.string().min(1, "Medical certificate number is required"),
+  medicalCertificateDate: z.date({ required_error: "Medical certificate date is required" }),
   photo: z.any().optional(),
   aadhaar: z.any().optional(),
   panCard: z.any().optional(),
@@ -319,14 +319,13 @@ const employeeFormSchema = z.object({
   }
 ).refine(
   (data) => {
-    // If salaryCategory is CENTRAL or STATE, salaryPerDay is required
-    if (data.salaryCategory === SalaryCategory.CENTRAL || data.salaryCategory === SalaryCategory.STATE) {
+    if ((data.salaryCategory === SalaryCategory.CENTRAL || data.salaryCategory === SalaryCategory.STATE) && data.salarySubCategory) {
       return data.salaryPerDay !== null && data.salaryPerDay !== undefined && data.salaryPerDay > 0
     }
     return true
   },
   {
-    message: "Rate per day is required for CENTRAL and STATE categories",
+    message: "No rate found for this category and onboarding date. Check the onboarding date or add a salary rate schedule.",
     path: ["salaryPerDay"],
   }
 ).refine(
@@ -602,13 +601,10 @@ export function EmployeeForm({
             // Get the first active rate (or find the one with effectiveTo === null for current active)
             const activeRateSchedule = response.data.find((rate) => rate.effectiveTo === null) || response.data[0]
             setActiveRate(activeRateSchedule.ratePerDay)
-            // Auto-populate salaryPerDay if not manually set
-            const currentSalaryPerDay = form.getValues("salaryPerDay")
-            if (!currentSalaryPerDay || currentSalaryPerDay === 0) {
-              form.setValue("salaryPerDay", activeRateSchedule.ratePerDay)
-            }
+            form.setValue("salaryPerDay", activeRateSchedule.ratePerDay)
           } else {
             setActiveRate(null)
+            form.setValue("salaryPerDay", null)
             setRateError("No active rate schedule found for this category and date")
           }
         } catch (error: any) {
@@ -769,15 +765,9 @@ export function EmployeeForm({
         ...restValues,
         dateOfBirth: formatDateToDDMMYYYY(values.dateOfBirth),
         employeeOnboardingDate: formatDateToDDMMYYYY(values.employeeOnboardingDate),
-        policeVerificationDate: values.policeVerificationDate
-          ? formatDateToDDMMYYYY(values.policeVerificationDate)
-          : undefined,
-        trainingCertificateDate: values.trainingCertificateDate
-          ? formatDateToDDMMYYYY(values.trainingCertificateDate)
-          : undefined,
-        medicalCertificateDate: values.medicalCertificateDate
-          ? formatDateToDDMMYYYY(values.medicalCertificateDate)
-          : undefined,
+        policeVerificationDate: formatDateToDDMMYYYY(values.policeVerificationDate),
+        trainingCertificateDate: formatDateToDDMMYYYY(values.trainingCertificateDate),
+        medicalCertificateDate: formatDateToDDMMYYYY(values.medicalCertificateDate),
         currentClientJoiningDate: values.currentClientJoiningDate
           ? formatDateToDDMMYYYY(values.currentClientJoiningDate)
           : undefined,
@@ -1024,6 +1014,21 @@ export function EmployeeForm({
         Boolean(formValues.district),
         Boolean(formValues.state),
         Boolean(formValues.pincode && /^\d{6}$/.test(String(formValues.pincode))),
+        Boolean(formValues.bankAccountNumber),
+        Boolean(formValues.ifscCode),
+        Boolean(formValues.bankName),
+        Boolean(formValues.bankCity),
+        Boolean(formValues.pfUanNumber),
+        Boolean(formValues.esicNumber),
+        Boolean(formValues.policeVerificationNumber),
+        Boolean(formValues.policeVerificationDate),
+        Boolean(formValues.trainingCertificateNumber),
+        Boolean(formValues.trainingCertificateDate),
+        Boolean(formValues.medicalCertificateNumber),
+        Boolean(formValues.medicalCertificateDate),
+        Boolean(formValues.referenceName),
+        Boolean(formValues.referenceAddress),
+        Boolean(formValues.referenceNumber),
       ]
 
       const completedFields = checks.filter(Boolean).length
@@ -1725,10 +1730,7 @@ export function EmployeeForm({
                     <Alert variant="info">
                       <Info className="h-4 w-4" />
                       <AlertDescription>
-                        Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString()}/day
-                        {form.getValues("salaryPerDay") !== activeRate && (
-                          <span className="ml-2 text-xs">(You can override this value manually)</span>
-                        )}
+                        Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString("en-IN")}/day
                       </AlertDescription>
                     </Alert>
                   )}
@@ -1745,24 +1747,22 @@ export function EmployeeForm({
                     name="salaryPerDay"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Rate Per Day (₹) *</FormLabel>
+                        <FormLabel>Rate Per Day (₹)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
-                            step="0.01"
-                            min="0.01"
-                            placeholder="Enter rate per day"
-                            {...field}
-                            value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : null)}
+                            readOnly
+                            placeholder="Set from the salary rate schedule"
+                            name={field.name}
+                            ref={field.ref}
+                            value={field.value ?? ""}
+                            className="bg-muted"
                           />
                         </FormControl>
                         <FormMessage />
-                        {activeRate && !loadingActiveRate && (
-                          <p className="text-xs text-muted-foreground">
-                            Leave empty to use active rate: ₹{activeRate.toLocaleString()}/day
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Comes from the salary rate schedule for the onboarding date. Change the schedule to change this.
+                        </p>
                       </FormItem>
                     )}
                   />
@@ -1873,13 +1873,18 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Designation</FormLabel>
-                    <ClearableSelect field={field} placeholder="Select designation">
-                      {designations.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </ClearableSelect>
+                    <FormControl>
+                      <Combobox
+                        options={designations}
+                        value={field.value ? String(field.value) : undefined}
+                        onChange={field.onChange}
+                        placeholder="Select designation"
+                        searchPlaceholder="Search designations..."
+                        emptyText="No designations found."
+                        clearable
+                        onClear={() => field.onChange(undefined)}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1890,13 +1895,18 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employee Department</FormLabel>
-                    <ClearableSelect field={field} placeholder="Select department">
-                      {employeeDepartments.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </ClearableSelect>
+                    <FormControl>
+                      <Combobox
+                        options={employeeDepartments}
+                        value={field.value ? String(field.value) : undefined}
+                        onChange={field.onChange}
+                        placeholder="Select department"
+                        searchPlaceholder="Search departments..."
+                        emptyText="No departments found."
+                        clearable
+                        onClear={() => field.onChange(undefined)}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

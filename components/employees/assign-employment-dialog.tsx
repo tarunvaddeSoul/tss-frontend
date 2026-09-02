@@ -10,7 +10,6 @@ import { AlertCircle, Building2, Briefcase, Users, Calendar, DollarSign, Loader2
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { DatePicker } from "@/components/ui/date-picker"
 import {
@@ -23,12 +22,14 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertTriangle } from "lucide-react"
+import api from "@/services/api"
 import { employeeService } from "@/services/employeeService"
 import { clientService } from "@/services/clientService"
 import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import { useToast } from "@/components/ui/use-toast"
-import type { Employee, Designation, EmployeeDepartments, CreateEmploymentHistoryDto } from "@/types/employee"
+import { humanize } from "@/lib/labels"
+import type { Employee, Designation, EmployeeDepartments, CreateEmploymentHistoryDto, IEmployeeEmploymentHistory } from "@/types/employee"
 import type { Client } from "@/types/client"
 import { Status } from "@/enums/employee.enum"
 
@@ -50,7 +51,7 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [activeEmployment, setActiveEmployment] = useState<any>(null)
+  const [activeEmployment, setActiveEmployment] = useState<IEmployeeEmploymentHistory | null>(null)
   const [clients, setClients] = useState<Client[]>([])
   const [designations, setDesignations] = useState<Designation[]>([])
   const [departments, setDepartments] = useState<EmployeeDepartments[]>([])
@@ -73,29 +74,24 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
       try {
         setIsLoading(true)
         
-        // Check for active employment first - don't treat 404 as an error (no active employment is expected)
+        // A 404 here is the normal "no active employment" case, so the global toast stays quiet
         try {
-          const activeEmploymentResponse = await employeeService.getActiveEmployment(employee.id)
-          setActiveEmployment(activeEmploymentResponse.data || null)
-        } catch (activeEmploymentError: any) {
-          // If 404 (no active employment), that's fine - just set to null
-          if (activeEmploymentError?.response?.status === 404 || activeEmploymentError?.response?.statusCode === 404) {
-            setActiveEmployment(null)
-          } else {
-            // Only log other errors, but don't block the process
-            console.warn("Could not check active employment:", activeEmploymentError)
-            setActiveEmployment(null)
-          }
+          const activeEmploymentResponse = await api.get<{ data?: IEmployeeEmploymentHistory | null }>(
+            `/employees/active/${employee.id}`,
+            { skipErrorToast: true } as Parameters<typeof api.get>[1],
+          )
+          setActiveEmployment(activeEmploymentResponse.data?.data || null)
+        } catch {
+          setActiveEmployment(null)
         }
 
-        // Load dropdown options - these should always load regardless of active employment check
         const [clientsResponse, designationsResponse, departmentsResponse] = await Promise.all([
-          clientService.getClients({ page: 1, limit: 100 }),
+          clientService.getAllClients(),
           designationService.getDesignations(),
           departmentService.getEmployeeDepartments(),
         ])
 
-        setClients(clientsResponse.data?.clients || [])
+        setClients(clientsResponse)
         setDesignations(designationsResponse || [])
         setDepartments(departmentsResponse || [])
 
@@ -194,12 +190,12 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
 
   const designationOptions = designations.map((designation) => ({
     value: designation.id,
-    label: designation.name,
+    label: humanize(designation.name),
   }))
 
   const departmentOptions = departments.map((department) => ({
     value: department.id,
-    label: department.name,
+    label: humanize(department.name),
   }))
 
   return (
@@ -282,24 +278,18 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                           <Briefcase className="h-4 w-4" />
                           Job Role <span className="text-destructive">*</span>
                         </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          disabled={!!activeEmployment}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select job role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {designationOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value as string}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Combobox
+                            options={designationOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select job role"
+                            searchPlaceholder="Search job roles..."
+                            emptyText="No job roles found."
+                            disabled={!!activeEmployment}
+                            modal={true}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -314,24 +304,18 @@ export function AssignEmploymentDialog({ employee, open, onOpenChange, onSuccess
                           <Users className="h-4 w-4" />
                           Department <span className="text-destructive">*</span>
                         </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          disabled={!!activeEmployment}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {departmentOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Combobox
+                            options={departmentOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select department"
+                            searchPlaceholder="Search departments..."
+                            emptyText="No departments found."
+                            disabled={!!activeEmployment}
+                            modal={true}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Search, Edit, Trash2, Eye, ArrowUpDown, XCircle, FileText } from "lucide-react"
+import { Plus, Search, Edit, Eye, ArrowUpDown, XCircle, FileText, AlertCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,6 +35,8 @@ import { TerminateClientDialog } from "@/components/clients/terminate-client-dia
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [searchInput, setSearchInput] = useState("")
   const [searchParams, setSearchParams] = useState<ClientSearchParams>({
     page: 1,
     limit: 10,
@@ -58,6 +60,7 @@ export default function ClientsPage() {
   const fetchClients = async () => {
     try {
       setIsLoading(true)
+      setError(false)
       const response = await clientService.getClients(searchParams)
       setClients(response.data?.clients || [])
       const total = response.data?.total || 0
@@ -66,11 +69,8 @@ export default function ClientsPage() {
       setTotalPages(Math.ceil(total / limit))
     } catch (error) {
       console.error("Error fetching clients:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch clients. Please try again.",
-      })
+      setClients([])
+      setError(true)
     } finally {
       setIsLoading(false)
     }
@@ -79,13 +79,20 @@ export default function ClientsPage() {
   // Handle search
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const searchText = formData.get("searchText") as string
-
     setSearchParams({
       ...searchParams,
-      searchText: searchText || undefined,
+      searchText: searchInput.trim() || undefined,
       page: 1, // Reset to first page on new search
+    })
+  }
+
+  const handleClear = () => {
+    setSearchInput("")
+    setSearchParams({
+      ...searchParams,
+      searchText: undefined,
+      status: undefined,
+      page: 1,
     })
   }
 
@@ -162,7 +169,8 @@ export default function ClientsPage() {
                 <Input
                   name="searchText"
                   placeholder="Search clients..."
-                  defaultValue={searchParams.searchText || ""}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="pl-8"
                 />
               </div>
@@ -186,17 +194,7 @@ export default function ClientsPage() {
                 </SelectContent>
               </Select>
               <Button type="submit">Search</Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setSearchParams({
-                    ...searchParams,
-                    searchText: undefined,
-                    status: undefined,
-                  })
-                }
-              >
+              <Button type="button" variant="outline" onClick={handleClear}>
                 Clear
               </Button>
             </div>
@@ -213,7 +211,9 @@ export default function ClientsPage() {
               <CardDescription>
                 {isLoading
                   ? "Loading clients..."
-                  : `Showing ${clients.length} of ${totalCount} clients`}
+                  : error
+                    ? "Could not load clients."
+                    : `Showing ${clients.length} of ${totalCount} clients`}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -305,6 +305,20 @@ export default function ClientsPage() {
                       </TableCell>
                     </TableRow>
                   ))
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-10">
+                      <div className="flex flex-col items-center justify-center gap-3 text-center">
+                        <AlertCircle className="h-8 w-8 text-destructive" />
+                        <p className="text-sm text-muted-foreground">
+                          Could not load clients. Check your connection and try again.
+                        </p>
+                        <Button variant="outline" size="sm" onClick={() => fetchClients()}>
+                          Retry
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : clients.length > 0 ? (
                   clients.map((client) => (
                     <TableRow key={client.id}>

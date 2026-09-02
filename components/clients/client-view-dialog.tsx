@@ -19,7 +19,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
 import { Pagination } from "@/components/ui/pagination"
-import { label, formatDate } from "@/lib/labels"
+import { displayValue, employeeName, formatDate, humanize, label } from "@/lib/labels"
+import { downloadFileName } from "@/lib/filenames"
 import { clientService } from "@/services/clientService"
 import type { Client, ClientEmployee } from "@/types/client"
 import { SalaryCategory, SalaryType } from "@/types/salary"
@@ -127,9 +128,9 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
       const worksheet = XLSX.utils.json_to_sheet(
         activeEmployees.map((emp) => ({
           "Employee ID": emp.employeeId || "N/A",
-          Name: `${emp.title || ""} ${emp.firstName} ${emp.lastName}`.trim(),
-          Designation: emp.designation || "N/A",
-          Department: emp.department || "N/A",
+          Name: employeeName(emp),
+          Designation: humanize(emp.designation),
+          Department: humanize(emp.department),
           "Joining Date": formatDate(emp.joiningDate),
           "Salary Type": emp.salaryType ? label.salaryType(emp.salaryType) : "N/A",
           "Salary Category": emp.salaryCategory ? label.salaryCategory(emp.salaryCategory) : "N/A",
@@ -138,16 +139,17 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
         })),
       )
 
-      // Create workbook and add worksheet
+      // Excel caps sheet names at 31 characters, so the client goes in the file name instead
       const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, `${client.name} Employees`)
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Employees")
 
-      // Generate Excel file
-      XLSX.writeFile(workbook, `${client.name.replace(/\s+/g, "_").toLowerCase()}_employees.xlsx`)
+      const fileName = downloadFileName("employees", client.name, null, "xlsx")
+      XLSX.writeFile(workbook, fileName)
 
       toast({
-        title: "Success",
-        description: "Active employee list exported to Excel",
+        variant: "success",
+        title: `Exported ${activeEmployees.length} active employees`,
+        description: fileName,
       })
     } catch (error) {
       console.error("Error exporting to Excel:", error)
@@ -211,7 +213,7 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
                     </div>
                     <div>
                       <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Address</div>
-                      <div>{client.address}</div>
+                      <div>{displayValue(client.address)}</div>
                     </div>
                     <div>
                       <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Status</div>
@@ -249,13 +251,13 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Contact Person</div>
-                      <div className="font-medium">{client.contactPersonName}</div>
+                      <div className="font-medium">{displayValue(client.contactPersonName)}</div>
                     </div>
                     <div>
                       <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Contact Number</div>
                       <div className="flex items-center font-mono text-[13px]">
                         <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                        {client.contactPersonNumber}
+                        {displayValue(client.contactPersonNumber)}
                       </div>
                     </div>
                   </div>
@@ -379,11 +381,9 @@ export function ClientViewDialog({ client, isOpen, onClose }: ClientViewDialogPr
                     {paginatedEmployees.map((employee) => (
                       <tr key={employee.id} className="border-b transition-colors hover:bg-muted/50">
                         <td className="p-4 align-middle font-mono text-[13px]">{employee.employeeId}</td>
-                        <td className="p-4 align-middle font-medium">
-                          {employee.title} {employee.firstName} {employee.lastName}
-                        </td>
-                        <td className="p-4 align-middle">{employee.designation || "N/A"}</td>
-                        <td className="p-4 align-middle">{employee.department || "N/A"}</td>
+                        <td className="p-4 align-middle font-medium">{employeeName(employee)}</td>
+                        <td className="p-4 align-middle">{humanize(employee.designation)}</td>
+                        <td className="p-4 align-middle">{humanize(employee.department)}</td>
                         <td className="p-4 align-middle font-mono text-[13px]">{formatDate(employee.joiningDate)}</td>
                         <td className="p-4 align-middle">
                           {employee.salaryType ? (

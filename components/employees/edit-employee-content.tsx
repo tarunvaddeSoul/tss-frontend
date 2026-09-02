@@ -27,6 +27,7 @@ import { designationService } from "@/services/designationService"
 import { departmentService } from "@/services/departmentService"
 import type { Employee, IEmployeeEmploymentHistory, Designation, EmployeeDepartments } from "@/types/employee"
 import type { Client } from "@/types/client"
+import { employeeName, formatDate, humanize, label } from "@/lib/labels"
 
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
@@ -66,7 +67,6 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
             departmentService.getEmployeeDepartments(),
             employeeService.getEmployeeEmploymentHistory(employeeId),
           ])
-          console.log("employeeResponse.data", JSON.stringify(employeeResponse.data, null, 2))
         setEmployee(employeeResponse.data)
         setClients(clientsResponse.data?.clients || [])
         setDesignations(designationsResponse || [])
@@ -190,11 +190,11 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
               <div className="flex items-center gap-2 min-w-0">
                 <User className="h-5 w-5 text-muted-foreground shrink-0" />
                 <h1 className="font-display text-xl sm:text-2xl font-bold tracking-[-0.02em] truncate">
-                  Edit: {employee.firstName} {employee.lastName}
+                  Edit: {employeeName(employee)}
                 </h1>
               </div>
               <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"} className="shrink-0">
-                {employee.status}
+                {label.status(employee.status)}
               </Badge>
             </div>
             <p className="text-sm sm:text-base text-muted-foreground">Update employee information and employment details</p>
@@ -318,10 +318,10 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
                   <User className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">
-                    {employee.firstName} {employee.lastName}
+                  <p className="font-medium truncate">{employeeName(employee)}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    {humanize(employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName)}
                   </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">{employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "No designation"}</p>
                 </div>
               </div>
 
@@ -341,13 +341,13 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Department:</span>
                   <span className="font-medium truncate text-right min-w-0">
-                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "Not assigned"}
+                    {humanize(employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName)}
                   </span>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Joining Date:</span>
                   <span className="font-mono text-[13px] font-medium truncate text-right">
-                    {employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.joiningDate || "Not specified"}
+                    {formatDate(employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.joiningDate)}
                   </span>
                 </div>
                 <div className="flex justify-between gap-2">
@@ -437,9 +437,9 @@ export function EditEmployeeContent({ employeeId }: EditEmployeeContentProps) {
         <DynamicPdfPreviewDialog
           open={pdfPreviewOpen}
           onOpenChange={setPdfPreviewOpen}
-          title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+          title={`Employee Profile - ${employeeName(employee)}`}
           description={`Employee ID: ${employee.id}`}
-          fileName={`employee-${employee.firstName}-${employee.lastName}.pdf`}
+          fileName={`employee-${employee.id}.pdf`}
           renderDocument={async () => {
             const { default: EmployeeViewPDF } = await import("@/components/employees/employee-view-pdf")
             return <EmployeeViewPDF employee={employee} />

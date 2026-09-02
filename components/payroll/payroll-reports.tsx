@@ -25,8 +25,9 @@ import { payrollService } from "@/services/payrollService"
 import { useClient } from "@/hooks/use-client"
 import { employeeService } from "@/services/employeeService"
 import { MonthPicker } from "@/components/ui/month-picker"
-import { exportPayrollToExcel, formatCurrency, formatDate, getCurrentDateTime, type PayrollReportRecord } from "@/utils/payroll-export"
-import { label } from "@/lib/labels"
+import { exportPayrollToExcel, resolveEmployeeName, type PayrollReportRecord } from "@/utils/payroll-export"
+import { formatDate, formatMoney, formatMonth, humanize, label, employeeName as employeeDisplayName } from "@/lib/labels"
+import { downloadFileName } from "@/lib/filenames"
 import { PayrollReportResponseData, ReportFilters, ReportType } from "@/types/payroll"
 import type { Employee } from "@/types/employee"
 import dynamic from "next/dynamic"
@@ -63,9 +64,11 @@ interface ColumnField {
 }
 
 const COLUMN_FIELDS: ColumnField[] = [
+  { key: "employeeName", label: "Employee Name", category: "essential", defaultVisible: true },
   { key: "employeeId", label: "Employee ID", category: "essential", defaultVisible: true },
   { key: "client", label: "Client", category: "essential", defaultVisible: true },
   { key: "month", label: "Month", category: "essential", defaultVisible: true },
+  { key: "status", label: "Status", category: "essential", defaultVisible: true },
   { key: "category", label: "Category", category: "essential", defaultVisible: true },
   { key: "rate", label: "Rate", category: "essential", defaultVisible: true },
   { key: "basicPay", label: "Basic Pay", category: "essential", defaultVisible: true },
@@ -79,29 +82,34 @@ const COLUMN_FIELDS: ColumnField[] = [
   { key: "lwf", label: "LWF", category: "deductions", defaultVisible: false },
   { key: "designation", label: "Designation", category: "information", defaultVisible: false },
   { key: "department", label: "Department", category: "information", defaultVisible: false },
-  { key: "createdAt", label: "Created", category: "information", defaultVisible: true },
+  { key: "finalizedAt", label: "Finalized On", category: "information", defaultVisible: true },
+  { key: "createdAt", label: "Created", category: "information", defaultVisible: false },
 ]
 
 const STORAGE_KEY = "payroll-reports-column-preferences"
 
-// Load column preferences from localStorage
-const loadColumnPreferences = (): Record<string, boolean> => {
-  if (typeof window === "undefined") {
-    return {}
-  }
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (error) {
-    console.error("Error loading column preferences:", error)
-  }
-  // Return default preferences
+const defaultColumnPreferences = (): Record<string, boolean> => {
   const defaults: Record<string, boolean> = {}
   COLUMN_FIELDS.forEach((field) => {
     defaults[field.key] = field.defaultVisible
   })
+  return defaults
+}
+
+// Load column preferences from localStorage
+const loadColumnPreferences = (): Record<string, boolean> => {
+  const defaults = defaultColumnPreferences()
+  if (typeof window === "undefined") {
+    return defaults
+  }
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      return { ...defaults, ...JSON.parse(stored) }
+    }
+  } catch (error) {
+    console.error("Error loading column preferences:", error)
+  }
   return defaults
 }
 
@@ -169,7 +177,7 @@ export function PayrollReports() {
         const response = await employeeService.getEmployees({
           searchText: searchTerm,
         })
-        setEmployeeSuggestions(response.data?.data || [])
+        setEmployeeSuggestions(response.data || [])
       } catch (error) {
         console.error("Error searching employees:", error)
         setEmployeeSuggestions([])
@@ -329,11 +337,7 @@ export function PayrollReports() {
   }
 
   const handleResetCustomize = () => {
-    const defaults: Record<string, boolean> = {}
-    COLUMN_FIELDS.forEach((field) => {
-      defaults[field.key] = field.defaultVisible
-    })
-    setTempPreferences(defaults)
+    setTempPreferences(defaultColumnPreferences())
   }
 
   const handleToggleField = (key: string) => {
@@ -369,11 +373,28 @@ export function PayrollReports() {
           return !!(information?.designation ?? salaryData?.designation)
         case "department":
           return !!(information?.department ?? salaryData?.department)
+        case "finalizedAt":
+          return !!(record as PayrollReportRecord).finalizedAt
         default:
           return true
       }
     })
   }
+
+  // The client is already in the report title when a single client is selected
+  const singleClient = Boolean(filters.clientId)
+  const isColumnVisible = (field: ColumnField): boolean => {
+    if (field.key === "client" && singleClient) return false
+    const hasValue = hasFieldValue(field.key)
+    const isAutoShowField = ["bonus", "lwf", "advanceTaken"].includes(field.key)
+    return Boolean(
+      columnPreferences[field.key] ||
+        (field.category === "essential" && columnPreferences[field.key] !== false) ||
+        (isAutoShowField && hasValue) ||
+        (field.category !== "essential" && hasValue && columnPreferences[field.key]),
+    )
+  }
+  const visibleColumns = COLUMN_FIELDS.filter(isColumnVisible)
 
   // Export functions
   const handleExportExcel = () => {
@@ -386,13 +407,14 @@ export function PayrollReports() {
       return
     }
 
-    const filename =
-      reportType === "client"
-        ? `Client_Payroll_Report_${clients.find((c) => c.id === filters.clientId)?.name || "Report"}`
-        : `Employee_${filters.employeeId}_Payroll_Report`
-
     const exportRecords = allRecords.length ? allRecords : reportData.records
-    const result = exportPayrollToExcel(exportRecords, filename)
+    const fileName = downloadFileName(
+      "payroll-report",
+      getReportTitle(),
+      exportRecords.map((record) => record.month),
+      "xlsx",
+    )
+    const result = exportPayrollToExcel(exportRecords, fileName)
 
     if (result.success) {
       toast({
@@ -457,9 +479,9 @@ export function PayrollReports() {
   // Get period text for PDF
   const getPeriodText = () => {
     if (filters.startMonth && filters.endMonth) {
-      return `${format(new Date(filters.startMonth), "MMM yyyy")} - ${format(new Date(filters.endMonth), "MMM yyyy")}`
+      return `${formatMonth(filters.startMonth)} to ${formatMonth(filters.endMonth)}`
     } else if (filters.startMonth) {
-      return format(new Date(filters.startMonth), "MMMM yyyy")
+      return formatMonth(filters.startMonth)
     }
     return undefined
   }
@@ -727,19 +749,19 @@ export function PayrollReports() {
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatCurrency(summaryStats.totalGrossSalary)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatMoney(summaryStats.totalGrossSalary)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Gross Salary</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="font-display text-xl sm:text-2xl font-bold nums truncate text-brand">{formatCurrency(summaryStats.totalNetSalary)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate text-brand">{formatMoney(summaryStats.totalNetSalary)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Net Salary</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatCurrency(summaryStats.totalDeductions)}</div>
+                <div className="font-display text-xl sm:text-2xl font-bold nums truncate">{formatMoney(summaryStats.totalDeductions)}</div>
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Deductions</p>
               </CardContent>
             </Card>
@@ -822,28 +844,18 @@ export function PayrollReports() {
                   <Table className="min-w-[1200px]">
                     <TableHeader>
                       <TableRow>
-                        {COLUMN_FIELDS.map((field) => {
-                          // Show column if:
-                          // 1. User preference is true, OR
-                          // 2. It's essential and not explicitly hidden, OR
-                          // 3. It's bonus/LWF/advanceTaken and has value (auto-show when data exists)
-                          const hasValue = hasFieldValue(field.key)
-                          const isAutoShowField = ["bonus", "lwf", "advanceTaken"].includes(field.key)
-                          const shouldShow = columnPreferences[field.key] || 
-                            (field.category === "essential" && columnPreferences[field.key] !== false) ||
-                            (isAutoShowField && hasValue) ||
-                            (field.category !== "essential" && hasValue && columnPreferences[field.key])
-                          
-                          if (!shouldShow) return null
-                          
+                        {visibleColumns.map((field) => {
                           const isRightAligned = ["basicPay", "grossSalary", "netSalary", "pf", "esic", "totalDeductions", "bonus", "advanceTaken", "lwf"].includes(field.key)
                           
                           // Get min-width class based on field key
                           const getMinWidthClass = (key: string) => {
                             const widthMap: Record<string, string> = {
+                              employeeName: "min-w-[170px]",
                               employeeId: "min-w-[120px]",
                               client: "min-w-[120px]",
                               month: "min-w-[100px]",
+                              status: "min-w-[100px]",
+                              finalizedAt: "min-w-[110px]",
                               category: "min-w-[100px]",
                               rate: "min-w-[100px]",
                               basicPay: "min-w-[110px]",
@@ -888,6 +900,9 @@ export function PayrollReports() {
                         const pfAmount = deductions?.pf ?? salaryData?.pf ?? 0
                         const esicAmount = deductions?.esic ?? salaryData?.esic ?? 0
                         const grossSalary = calculations?.grossSalary ?? salaryData?.grossSalary ?? 0
+                        const netSalary = calculations?.netSalary ?? salaryData?.netSalary ?? 0
+                        const zeroPay = Number(netSalary) <= 0
+                        const meta = record as PayrollReportRecord
                         const showPF = pfAmount > 0
                         const showESIC = esicAmount > 0
                         const pfDisabled = pfAmount === 0 && grossSalary > 15000
@@ -899,12 +914,36 @@ export function PayrollReports() {
                           const cellClassName = `${isRightAligned ? "text-right whitespace-nowrap font-mono text-[13px]" : ""} ${fieldKey === "employeeId" ? "font-medium" : ""} ${fieldKey === "createdAt" ? "text-muted-foreground whitespace-nowrap font-mono text-[13px]" : ""}`
                           
                           switch (fieldKey) {
+                            case "employeeName": {
+                              const name = resolveEmployeeName(record)
+                              return (
+                                <TableCell key={fieldKey} className="font-medium">
+                                  {name ?? <span className="text-muted-foreground">-</span>}
+                                </TableCell>
+                              )
+                            }
                             case "employeeId":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
                                   <Badge variant="outline" className="truncate max-w-[120px] inline-block">
                                     {record.employeeId}
                                   </Badge>
+                                </TableCell>
+                              )
+                            case "status":
+                              return (
+                                <TableCell key={fieldKey} className={cellClassName}>
+                                  {meta.status ? (
+                                    <Badge variant={meta.status === "FINALIZED" ? "success" : "warning"}>{label.status(meta.status)}</Badge>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                              )
+                            case "finalizedAt":
+                              return (
+                                <TableCell key={fieldKey} className="text-muted-foreground whitespace-nowrap font-mono text-[13px]">
+                                  {formatDate(meta.finalizedAt)}
                                 </TableCell>
                               )
                             case "client":
@@ -918,7 +957,7 @@ export function PayrollReports() {
                             case "month":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  <Badge variant="outline">{record.month}</Badge>
+                                  <Badge variant="outline">{formatMonth(record.month)}</Badge>
                                 </TableCell>
                               )
                             case "category":
@@ -945,17 +984,17 @@ export function PayrollReports() {
                                 <TableCell key={fieldKey} className={cellClassName}>
                                   {isSpecialized && salaryData?.monthlySalary ? (
                                     <div className="flex flex-col">
-                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(salaryData.monthlySalary)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatMoney(salaryData.monthlySalary)}</span>
                                       <span className="text-xs text-muted-foreground">/month</span>
                                     </div>
                                   ) : salaryData?.salaryPerDay ? (
                                     <div className="flex flex-col">
-                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(salaryData.salaryPerDay)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatMoney(salaryData.salaryPerDay)}</span>
                                       <span className="text-xs text-muted-foreground">/day</span>
                                     </div>
                                   ) : calculations?.wagesPerDay ?? calculations?.rate ? (
                                     <div className="flex flex-col">
-                                      <span className="font-mono text-[13px] font-medium">{formatCurrency(calculations?.wagesPerDay ?? calculations?.rate ?? 0)}</span>
+                                      <span className="font-mono text-[13px] font-medium">{formatMoney(calculations?.wagesPerDay ?? calculations?.rate ?? 0)}</span>
                                       <span className="text-xs text-muted-foreground">/day</span>
                                     </div>
                                   ) : (
@@ -966,20 +1005,20 @@ export function PayrollReports() {
                             case "basicPay":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {formatCurrency(calculations?.basicPay ?? salaryData?.basicPay ?? 0)}
+                                  {formatMoney(calculations?.basicPay ?? salaryData?.basicPay ?? 0)}
                                 </TableCell>
                               )
                             case "grossSalary":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {formatCurrency(grossSalary)}
+                                  {formatMoney(grossSalary)}
                                 </TableCell>
                               )
                             case "pf":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
                                   {showPF ? (
-                                    formatCurrency(pfAmount)
+                                    formatMoney(pfAmount)
                                   ) : pfDisabled ? (
                                     <div className="flex items-center justify-end gap-1" title="PF disabled: Gross salary > ₹15,000">
                                       <span className="text-xs text-muted-foreground">-</span>
@@ -994,7 +1033,7 @@ export function PayrollReports() {
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
                                   {showESIC ? (
-                                    formatCurrency(esicAmount)
+                                    formatMoney(esicAmount)
                                   ) : esicDisabled ? (
                                     <div className="flex items-center justify-end gap-1" title="ESIC disabled: Gross salary > ₹21,000">
                                       <span className="text-xs text-muted-foreground">-</span>
@@ -1007,47 +1046,47 @@ export function PayrollReports() {
                               )
                             case "netSalary":
                               return (
-                                <TableCell key={fieldKey} className={`${cellClassName} font-medium`}>
-                                  {formatCurrency(calculations?.netSalary ?? salaryData?.netSalary ?? 0)}
+                                <TableCell key={fieldKey} className={`${cellClassName} font-medium ${zeroPay ? "text-warning" : ""}`}>
+                                  {formatMoney(netSalary)}
                                 </TableCell>
                               )
                             case "totalDeductions":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {formatCurrency(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0)}
+                                  {formatMoney(deductions?.totalDeductions ?? salaryData?.totalDeductions ?? 0)}
                                 </TableCell>
                               )
                             case "bonus":
                               const bonusAmount = allowances?.bonus ?? salaryData?.bonus ?? 0
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {bonusAmount > 0 ? formatCurrency(bonusAmount) : "-"}
+                                  {bonusAmount > 0 ? formatMoney(bonusAmount) : "-"}
                                 </TableCell>
                               )
                             case "advanceTaken":
                               const advanceAmount = deductions?.advanceTaken ?? salaryData?.advanceTaken ?? 0
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {advanceAmount > 0 ? formatCurrency(advanceAmount) : "-"}
+                                  {advanceAmount > 0 ? formatMoney(advanceAmount) : "-"}
                                 </TableCell>
                               )
                             case "lwf":
                               const lwfAmount = deductions?.lwf ?? salaryData?.lwf ?? 0
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {lwfAmount > 0 ? formatCurrency(lwfAmount) : "-"}
+                                  {lwfAmount > 0 ? formatMoney(lwfAmount) : "-"}
                                 </TableCell>
                               )
                             case "designation":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {information?.designation ?? salaryData?.designation ?? "N/A"}
+                                  {humanize(information?.designation ?? salaryData?.designation)}
                                 </TableCell>
                               )
                             case "department":
                               return (
                                 <TableCell key={fieldKey} className={cellClassName}>
-                                  {information?.department ?? salaryData?.department ?? "N/A"}
+                                  {humanize(information?.department ?? salaryData?.department)}
                                 </TableCell>
                               )
                             case "createdAt":
@@ -1062,23 +1101,12 @@ export function PayrollReports() {
                         }
                         
                         return (
-                          <TableRow key={record.id}>
-                            {COLUMN_FIELDS.map((field) => {
-                              // Show column if:
-                              // 1. User preference is true, OR
-                              // 2. It's essential and not explicitly hidden, OR
-                              // 3. It's bonus/LWF/advanceTaken and has value (auto-show when data exists)
-                              const hasValue = hasFieldValue(field.key)
-                              const isAutoShowField = ["bonus", "lwf", "advanceTaken"].includes(field.key)
-                              const shouldShow = columnPreferences[field.key] || 
-                                (field.category === "essential" && columnPreferences[field.key] !== false) ||
-                                (isAutoShowField && hasValue) ||
-                                (field.category !== "essential" && hasValue && columnPreferences[field.key])
-                              
-                              if (!shouldShow) return null
-
-                              return renderCell(field.key)
-                            })}
+                          <TableRow
+                            key={record.id}
+                            className={zeroPay ? "bg-warning/[0.08] hover:bg-warning/[0.12]" : undefined}
+                            title={zeroPay ? "Net pay is ₹0 for this month" : undefined}
+                          >
+                            {visibleColumns.map((field) => renderCell(field.key))}
                             <TableCell className="text-right">
                               <DynamicPayslipButton
                                 record={record}
@@ -1132,21 +1160,26 @@ export function PayrollReports() {
           onOpenChange={setPdfOpen}
           title={`${getReportTitle()} - Payroll Report`}
           description={getPeriodText() || "All Periods"}
-          fileName={`payroll-report-${getReportTitle().replace(/\s+/g, "_")}-${getCurrentDateTime()}`}
+          fileName={downloadFileName(
+            "payroll-report",
+            getReportTitle(),
+            (allRecords.length ? allRecords : reportData.records).map((record) => record.month),
+            "pdf",
+          )}
           renderDocument={async () => {
             const { default: PayrollReportPDF } = await import("./pdf/payroll-report-pdf")
             const pdfRecords = allRecords.length ? allRecords : reportData.records
             // Get employee name for single employee reports
             const employeeName = pdfRecords.length === 1 && selectedEmployee
-              ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}`
+              ? employeeDisplayName(selectedEmployee)
               : undefined
             return (
               <PayrollReportPDF
                 data={pdfRecords}
                 title={getReportTitle()}
                 totalRecords={reportData.total}
-                startMonth={filters.startMonth ? format(new Date(filters.startMonth), "MMM yyyy") : undefined}
-                endMonth={filters.endMonth ? format(new Date(filters.endMonth), "MMM yyyy") : undefined}
+                startMonth={filters.startMonth}
+                endMonth={filters.endMonth}
                 employeeName={employeeName}
               />
             )

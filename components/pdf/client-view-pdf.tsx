@@ -1,28 +1,28 @@
 import { Document, Text, View } from "@react-pdf/renderer"
-import type { Client } from "@/types/client"
-import { label, formatDate } from "@/lib/labels"
+import type { Client, SalaryTemplateField } from "@/types/client"
+import { displayValue, formatDate, humanize, label } from "@/lib/labels"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
-import { SalarySlipPDFPage, type SalarySlipData } from "@/components/pdf/salary-slip-pdf"
 
 interface ClientViewPDFProps {
   client: Client
 }
 
-const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
-  // Get enabled salary template fields for display
-  const getEnabledFields = () => {
-    // salaryTemplates is an array, so get the first template
-    const template = Array.isArray(client.salaryTemplates) ? client.salaryTemplates[0] : client.salaryTemplates
-    if (!template) return []
+const PURPOSE_ORDER = ["INFORMATION", "CALCULATION", "ALLOWANCE", "DEDUCTION"]
+const COL = { field: "40%", purpose: "22%", type: "18%", input: "20%" }
 
-    return [
-      ...(template.mandatoryFields || []),
-      ...(template.optionalFields || []),
-      ...(template.customFields || []),
-    ].filter((field) => field.enabled)
-  }
+const getEnabledFields = (client: Client): SalaryTemplateField[] => {
+  const templates = client.salaryTemplates as unknown
+  const template = Array.isArray(templates) ? templates[0] : templates
+  if (!template || typeof template !== "object") return []
+  const config = template as Partial<Record<"mandatoryFields" | "optionalFields" | "customFields", SalaryTemplateField[]>>
 
-  const enabledFields = getEnabledFields()
+  return [...(config.mandatoryFields || []), ...(config.optionalFields || []), ...(config.customFields || [])]
+    .filter((field) => field.enabled)
+    .sort((a, b) => PURPOSE_ORDER.indexOf(String(a.purpose)) - PURPOSE_ORDER.indexOf(String(b.purpose)))
+}
+
+const ClientViewPDF = ({ client }: ClientViewPDFProps): JSX.Element => {
+  const enabledFields = getEnabledFields(client)
 
   return (
     <Document
@@ -41,7 +41,7 @@ const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Address:</Text>
-            <Text style={[brandStyles.value, { textAlign: "left" }]}>{client.address || "-"}</Text>
+            <Text style={[brandStyles.value, { textAlign: "left" }]}>{displayValue(client.address)}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Status:</Text>
@@ -60,88 +60,39 @@ const ClientViewPDF = ({ client }: ClientViewPDFProps) => {
         <Section title="Contact Information">
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Contact Person:</Text>
-            <Text style={[brandStyles.value, { textAlign: "left" }]}>{client.contactPersonName || "-"}</Text>
+            <Text style={[brandStyles.value, { textAlign: "left" }]}>{displayValue(client.contactPersonName)}</Text>
           </View>
           <View style={brandStyles.row}>
             <Text style={brandStyles.label}>Contact Number:</Text>
-            <Text style={[brandStyles.value, { fontFamily: "IBMPlexMono", fontSize: 9 }]}>{client.contactPersonNumber || "-"}</Text>
+            <Text style={[brandStyles.value, { fontFamily: "IBMPlexMono", fontSize: 9 }]}>{displayValue(client.contactPersonNumber)}</Text>
           </View>
+        </Section>
+
+        <Section title="Salary Template">
+          {enabledFields.length === 0 ? (
+            <Text style={{ fontSize: 9, color: BRAND.colors.muted }}>No salary template fields are enabled for this client.</Text>
+          ) : (
+            <View style={[brandStyles.table, { marginTop: 0 }]}>
+              <View style={[brandStyles.tableRow, brandStyles.tableHeader]} fixed>
+                <Text style={[brandStyles.tableHeaderCell, { width: COL.field }]}>Field</Text>
+                <Text style={[brandStyles.tableHeaderCell, { width: COL.purpose }]}>Purpose</Text>
+                <Text style={[brandStyles.tableHeaderCell, { width: COL.type }]}>Type</Text>
+                <Text style={[brandStyles.tableHeaderCell, { width: COL.input }]}>Filled By</Text>
+              </View>
+              {enabledFields.map((field) => (
+                <View key={field.key} style={brandStyles.tableRow} wrap={false}>
+                  <Text style={[brandStyles.tableCell, { width: COL.field }]}>{field.label || humanize(field.key)}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL.purpose }]}>{humanize(String(field.purpose))}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL.type }]}>{humanize(String(field.type))}</Text>
+                  <Text style={[brandStyles.tableCell, { width: COL.input }]}>{field.requiresAdminInput ? "Admin each month" : "System"}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </Section>
 
         <PdfFooter rightNote="This is a computer-generated document" />
       </BrandPage>
-
-      {/* Page 2: Sample Salary Slip in New Format */}
-      {enabledFields.length > 0 && (() => {
-        // Create sample salary slip data
-        const getNumericValue = (field: any) => {
-          if (field.type === "NUMBER") {
-            return Number(field.rules?.defaultValue || field.defaultValue || 0)
-          }
-          return 0
-        }
-
-        const calculationFields = enabledFields.filter((f) => f.purpose === "CALCULATION")
-        const allowanceFields = enabledFields.filter((f) => f.purpose === "ALLOWANCE")
-        const deductionFields = enabledFields.filter((f) => f.purpose === "DEDUCTION")
-
-        const basicField = calculationFields.find((f) => f.key === "basic" || f.key === "basicSalary" || f.key === "basicPay")
-        const basic = basicField ? getNumericValue(basicField) : 15000
-        const allowance = allowanceFields.reduce((sum, field) => sum + getNumericValue(field), 0)
-        const grossEarning = basic + allowance
-
-        const epfContribution = deductionFields
-          .filter((f) => f.key === "pf" || f.key === "epfContribution12Percent")
-          .reduce((sum, field) => sum + getNumericValue(field), 0)
-        const esicContribution = deductionFields
-          .filter((f) => f.key === "esic" || f.key === "esic075Percent")
-          .reduce((sum, field) => sum + getNumericValue(field), 0)
-        const advance = deductionFields
-          .filter((f) => f.key === "advance")
-          .reduce((sum, field) => sum + getNumericValue(field), 0)
-        const grossDeduction = epfContribution + esicContribution + advance
-        const netPay = grossEarning - grossDeduction
-
-        const currentDate = new Date()
-        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-        const month = `${monthNames[currentDate.getMonth()]}-${currentDate.getFullYear().toString().slice(-2)}`
-        const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
-        const monthNum = String(currentDate.getMonth() + 1).padStart(2, "0")
-        const payPeriod = `01-${monthNum}-${currentDate.getFullYear()} to ${String(lastDay).padStart(2, "0")}-${monthNum}-${currentDate.getFullYear()}`
-
-        const sampleSalarySlipData: SalarySlipData = {
-          client: client.name,
-          month,
-          pay_period: payPeriod,
-          employee: {
-            name: "SAMPLE (template preview only)",
-            employee_id: "SAMPLE",
-            category: "Sample",
-            department: "Sample Department",
-            location: "Sample Location",
-            working_days: 27,
-            account_no: "",
-            esic_no: "",
-            uan_no: "",
-          },
-          earnings: {
-            basic,
-            allowance,
-            other_allowance: 0,
-            other: 0,
-            gross_earning: grossEarning,
-          },
-          deductions: {
-            epf_contribution_12_percent: epfContribution,
-            esic_0_75_percent: esicContribution,
-            advance,
-            gross_deduction: grossDeduction,
-          },
-          net_pay: netPay,
-        }
-
-        return <SalarySlipPDFPage key="sample" data={sampleSalarySlipData} />
-      })()}
     </Document>
   )
 }

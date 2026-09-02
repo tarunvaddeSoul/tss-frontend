@@ -26,6 +26,7 @@ try {
       { src: "/fonts/IBMPlexMono-SemiBold.ttf", fontWeight: 600 },
     ],
   })
+  Font.registerHyphenationCallback((word) => [word])
 } catch (e) {
   // Fallback will be used by renderer if registration fails
 }
@@ -193,9 +194,21 @@ export const brandStyles = StyleSheet.create({
   },
 })
 
-export function PdfHeader({ title, subtitle, tag, logoSrc = "/tss-logo.png" }: { title: string; subtitle?: string; tag?: string; logoSrc?: string }) {
+export function PdfHeader({
+  title,
+  subtitle,
+  tag,
+  logoSrc = "/tss-logo.png",
+  fixed = false,
+}: {
+  title: string
+  subtitle?: string
+  tag?: string
+  logoSrc?: string
+  fixed?: boolean
+}): JSX.Element {
   return (
-    <View style={brandStyles.header}>
+    <View style={brandStyles.header} fixed={fixed}>
       <View style={brandStyles.headerLeft}>
         <View style={brandStyles.headerBrandRow}>
           {logoSrc ? <Image src={logoSrc} style={brandStyles.logo} /> : null}

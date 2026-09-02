@@ -2,7 +2,8 @@ import { Document, Text, View, StyleSheet, Image } from "@react-pdf/renderer"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { BRAND, BrandPage, PdfFooter, PdfHeader, Section, brandStyles } from "@/components/pdf/brand"
 import { SalaryCategory, SalaryType } from "@/types/salary"
-import { label, formatDate } from "@/lib/labels"
+import { label, formatDate, employeeName, humanize, isPlaceholder } from "@/lib/labels"
+import { ageFromDateOfBirth } from "@/components/employees/employee-age"
 
 const styles = StyleSheet.create({
   headerSection: {
@@ -161,17 +162,19 @@ const styles = StyleSheet.create({
   },
 })
 
-// Helper function to check if value exists
-const hasValue = (value: any): boolean => {
-  return value !== null && value !== undefined && value !== ""
+// Import placeholders (PENDING, NA, 0000000000, 2000-01-01) count as missing so they never print as facts
+const hasValue = (value: unknown): boolean => {
+  if (typeof value === "string" || typeof value === "number") return !isPlaceholder(value)
+  return value !== null && value !== undefined
 }
 
-// Helper function to get value with fallback
-const getValue = (primary: any, fallback: any = null): string => {
+const getValue = (primary: unknown, fallback: unknown = null): string => {
   if (hasValue(primary)) return String(primary)
   if (hasValue(fallback)) return String(fallback)
   return "N/A"
 }
+
+const humanized = (value?: string | null): string => (isPlaceholder(value) ? "N/A" : humanize(value))
 
 const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
   const currentEmployment = employee.employmentHistories?.find(
@@ -180,8 +183,15 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
 
   const rawPhoto = employee.documentUploads?.photo || employee.photo
   const photoUrl = typeof rawPhoto === "string" && rawPhoto.trim() !== "" ? rawPhoto : ""
+  const fullName = employeeName(employee)
   const initials =
-    `${(employee.firstName?.[0] ?? "")}${(employee.lastName?.[0] ?? "")}`.toUpperCase() || "?"
+    fullName
+      .split(" ")
+      .map((part) => part[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?"
+  const age = ageFromDateOfBirth(employee.dateOfBirth)
   const generatedDate = new Date().toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "long",
@@ -190,24 +200,21 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
 
   return (
     <Document
-      title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+      title={`Employee Profile - ${fullName}`}
       author={BRAND.name}
       subject="Employee Profile"
       keywords="Tulsyan Security Services, Employee, Profile"
     >
       <BrandPage>
         {/* Client Branding Header */}
-        <PdfHeader 
-          title="Employee Profile" 
-          subtitle={`${employee.firstName} ${employee.lastName}`}
-        />
+        <PdfHeader title="Employee Profile" subtitle={fullName} />
 
         {/* Header Section */}
         <View style={styles.headerSection}>
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <Text style={styles.textBold}>
-                {[employee.title ? label.title(employee.title) : "", employee.firstName, employee.lastName].filter(Boolean).join(" ")}
+                {[employee.title ? label.title(employee.title) : "", fullName].filter(Boolean).join(" ")}
               </Text>
               <Text style={styles.heading}>Employee ID: {employee.id}</Text>
               <Text style={styles.text}>{generatedDate}</Text>
@@ -235,7 +242,7 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
             </View>
             <View style={styles.column}>
               <Text style={styles.heading}>Age</Text>
-              <Text style={styles.text}>{employee.age || "N/A"}</Text>
+              <Text style={styles.text}>{age ?? "N/A"}</Text>
             </View>
           </View>
           <View style={brandStyles.row}>
@@ -379,13 +386,13 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
               </View>
               <View style={styles.column}>
                 <Text style={styles.heading}>Designation</Text>
-                <Text style={styles.text}>{getValue(currentEmployment.designationName, employee.designationName)}</Text>
+                <Text style={styles.text}>{humanized(getValue(currentEmployment.designationName, employee.designationName))}</Text>
               </View>
             </View>
             <View style={brandStyles.row}>
               <View style={styles.column}>
                 <Text style={styles.heading}>Department</Text>
-                <Text style={styles.text}>{getValue(currentEmployment.departmentName, employee.employeeDepartmentName)}</Text>
+                <Text style={styles.text}>{humanized(getValue(currentEmployment.departmentName, employee.employeeDepartmentName))}</Text>
               </View>
               <View style={styles.column}>
                 <Text style={styles.heading}>Joining Date</Text>
@@ -560,8 +567,8 @@ const EmployeeViewPDF = ({ employee }: { employee: Employee }) => {
                 return (
                   <View key={index} style={styles.tableRow} wrap={false}>
                     <Text style={[styles.tableCell, { flex: 2 }]}>{history.clientName || "N/A"}</Text>
-                    <Text style={[styles.tableCell, { flex: 1.6 }]}>{history.designationName || "N/A"}</Text>
-                    <Text style={[styles.tableCell, { flex: 1.6 }]}>{history.departmentName || "N/A"}</Text>
+                    <Text style={[styles.tableCell, { flex: 1.6 }]}>{humanized(history.designationName)}</Text>
+                    <Text style={[styles.tableCell, { flex: 1.6 }]}>{humanized(history.departmentName)}</Text>
                     <Text style={[styles.tableCell, { flex: 1.3 }]}>{formatDate(history.joiningDate)}</Text>
                     <Text style={[styles.tableCell, { flex: 1.3 }]}>
                       {history.leavingDate ? formatDate(history.leavingDate) : "Present"}

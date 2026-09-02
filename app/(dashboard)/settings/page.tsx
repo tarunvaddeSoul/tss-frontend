@@ -1,45 +1,16 @@
-import type React from "react"
+"use client"
 
 import Link from "next/link"
-import { User, Shield, Building2, Briefcase, DollarSign, ChevronRight, ShieldCheck, Factory } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { PageHeader } from "@/components/layout/page-header"
+import { useAuth } from "@/hooks/use-auth"
+import { visibleSettingsGroups } from "@/components/settings/settings-groups"
 
-interface SettingsLink {
-  title: string
-  description: string
-  href: string
-  icon: React.ElementType
-}
+export default function SettingsOverviewPage(): JSX.Element {
+  const { user } = useAuth()
+  const groups = visibleSettingsGroups(user?.role)
 
-const groups: { label: string; description: string; links: SettingsLink[] }[] = [
-  {
-    label: "My Account",
-    description: "Your personal login and profile.",
-    links: [
-      { title: "My Profile", description: "Name, email, mobile and department", href: "/settings/profile", icon: User },
-      { title: "Password", description: "Change your login password", href: "/settings/security", icon: Shield },
-    ],
-  },
-  {
-    label: "Company Setup",
-    description: "Shared configuration for the whole company.",
-    links: [
-      { title: "Departments", description: "Manage employee and user departments", href: "/settings/department", icon: Building2 },
-      { title: "Designations", description: "Manage job designations", href: "/settings/designation", icon: Briefcase },
-      { title: "Service Types", description: "Manage the services TSS offers", href: "/settings/service-type", icon: ShieldCheck },
-      { title: "Sectors", description: "Manage client industry sectors", href: "/settings/sector", icon: Factory },
-      {
-        title: "Salary Rate Schedule",
-        description: "Per-day rates for Central and State categories",
-        href: "/settings/salary-rate-schedule",
-        icon: DollarSign,
-      },
-    ],
-  },
-]
-
-export default function SettingsOverviewPage() {
   return (
     <div className="space-y-8">
       <PageHeader

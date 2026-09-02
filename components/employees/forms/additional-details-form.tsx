@@ -5,10 +5,12 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
+import { format, isValid, parse } from "date-fns"
 import { Save, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { employeeService } from "@/services/employeeService"
@@ -18,71 +20,107 @@ const additionalDetailsSchema = z.object({
   pfUanNumber: z.string().min(1, "PF UAN number is required"),
   esicNumber: z.string().min(1, "ESIC number is required"),
   policeVerificationNumber: z.string().min(1, "Police verification number is required"),
-  policeVerificationDate: z.string().optional(),
+  policeVerificationDate: z.date().nullable(),
   trainingCertificateNumber: z.string().min(1, "Training certificate number is required"),
-  trainingCertificateDate: z.string().optional(),
+  trainingCertificateDate: z.date().nullable(),
   medicalCertificateNumber: z.string().min(1, "Medical certificate number is required"),
-  medicalCertificateDate: z.string().optional(),
+  medicalCertificateDate: z.date().nullable(),
 })
+
+type AdditionalDetailsValues = z.infer<typeof additionalDetailsSchema>
+type DateFieldName = "policeVerificationDate" | "trainingCertificateDate" | "medicalCertificateDate"
+
+function parseStoredDate(value?: string | null): Date | null {
+  if (!value) return null
+  const date = /^\d{2}-\d{2}-\d{4}$/.test(value) ? parse(value, "dd-MM-yyyy", new Date()) : new Date(value)
+  return isValid(date) ? date : null
+}
+
+function toApiDate(date: Date | null): string | undefined {
+  return date ? format(date, "dd-MM-yyyy") : undefined
+}
 
 interface AdditionalDetailsFormProps {
   employee: Employee
   onUpdate: (updatedData: Partial<Employee>) => void
 }
 
-export function AdditionalDetailsForm({ employee, onUpdate }: AdditionalDetailsFormProps) {
+export function AdditionalDetailsForm({ employee, onUpdate }: AdditionalDetailsFormProps): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
   const additionalDetails = employee.additionalDetails || {}
 
-  const form = useForm<z.infer<typeof additionalDetailsSchema>>({
+  const form = useForm<AdditionalDetailsValues>({
     resolver: zodResolver(additionalDetailsSchema),
     defaultValues: {
       pfUanNumber: additionalDetails.pfUanNumber || employee.pfUanNumber || "",
       esicNumber: additionalDetails.esicNumber || employee.esicNumber || "",
       policeVerificationNumber: additionalDetails.policeVerificationNumber || employee.policeVerificationNumber || "",
-      policeVerificationDate: additionalDetails.policeVerificationDate || employee.policeVerificationDate || "",
+      policeVerificationDate: parseStoredDate(additionalDetails.policeVerificationDate || employee.policeVerificationDate),
       trainingCertificateNumber:
         additionalDetails.trainingCertificateNumber || employee.trainingCertificateNumber || "",
-      trainingCertificateDate: additionalDetails.trainingCertificateDate || employee.trainingCertificateDate || "",
+      trainingCertificateDate: parseStoredDate(additionalDetails.trainingCertificateDate || employee.trainingCertificateDate),
       medicalCertificateNumber: additionalDetails.medicalCertificateNumber || employee.medicalCertificateNumber || "",
-      medicalCertificateDate: additionalDetails.medicalCertificateDate || employee.medicalCertificateDate || "",
+      medicalCertificateDate: parseStoredDate(additionalDetails.medicalCertificateDate || employee.medicalCertificateDate),
     },
   })
 
-  const handleSubmit = async (values: z.infer<typeof additionalDetailsSchema>) => {
+  const handleSubmit = async (values: AdditionalDetailsValues): Promise<void> => {
+    const updateData: UpdateEmployeeAdditionalDetailsDto = {
+      pfUanNumber: values.pfUanNumber,
+      esicNumber: values.esicNumber,
+      policeVerificationNumber: values.policeVerificationNumber,
+      trainingCertificateNumber: values.trainingCertificateNumber,
+      medicalCertificateNumber: values.medicalCertificateNumber,
+    }
+    const policeVerificationDate = toApiDate(values.policeVerificationDate)
+    const trainingCertificateDate = toApiDate(values.trainingCertificateDate)
+    const medicalCertificateDate = toApiDate(values.medicalCertificateDate)
+    if (policeVerificationDate) updateData.policeVerificationDate = policeVerificationDate
+    if (trainingCertificateDate) updateData.trainingCertificateDate = trainingCertificateDate
+    if (medicalCertificateDate) updateData.medicalCertificateDate = medicalCertificateDate
+
     try {
       setIsSubmitting(true)
-
-      // Optimistic update
-      onUpdate({
-        additionalDetails: values,
-        pfUanNumber: values.pfUanNumber,
-        esicNumber: values.esicNumber,
-        policeVerificationNumber: values.policeVerificationNumber,
-        policeVerificationDate: values.policeVerificationDate,
-        trainingCertificateNumber: values.trainingCertificateNumber,
-        trainingCertificateDate: values.trainingCertificateDate,
-        medicalCertificateNumber: values.medicalCertificateNumber,
-        medicalCertificateDate: values.medicalCertificateDate,
-      })
-
-      const updateData: UpdateEmployeeAdditionalDetailsDto = values
-
       await employeeService.updateEmployeeAdditionalDetails(employee.id, updateData)
+
+      const stored = {
+        ...updateData,
+        policeVerificationDate: values.policeVerificationDate?.toISOString(),
+        trainingCertificateDate: values.trainingCertificateDate?.toISOString(),
+        medicalCertificateDate: values.medicalCertificateDate?.toISOString(),
+      }
+      onUpdate({ additionalDetails: stored, ...stored })
 
       toast.success("Additional details updated successfully!")
       setHasChanges(false)
     } catch (error) {
-      console.error("Error updating additional details:", error)
-      toast.error("Failed to update additional details")
-      // Revert optimistic update on error
-      form.reset()
+      toast.error(error instanceof Error ? error.message : "Failed to update additional details")
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  const renderDateField = (name: DateFieldName, fieldLabel: string): JSX.Element => (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className="flex flex-col">
+          <FormLabel>{fieldLabel}</FormLabel>
+          <DatePicker
+            date={field.value}
+            onSelect={(date) => {
+              field.onChange(date)
+              setHasChanges(true)
+            }}
+          />
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
 
   return (
     <Card>
@@ -150,19 +188,7 @@ export function AdditionalDetailsForm({ employee, onUpdate }: AdditionalDetailsF
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="policeVerificationDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Police Verification Date</FormLabel>
-                    <FormControl>
-                      <Input placeholder="DD-MM-YYYY" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {renderDateField("policeVerificationDate", "Police Verification Date")}
 
               <FormField
                 control={form.control}
@@ -178,19 +204,7 @@ export function AdditionalDetailsForm({ employee, onUpdate }: AdditionalDetailsF
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="trainingCertificateDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Training Certificate Date</FormLabel>
-                    <FormControl>
-                      <Input placeholder="DD-MM-YYYY" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {renderDateField("trainingCertificateDate", "Training Certificate Date")}
 
               <FormField
                 control={form.control}
@@ -206,19 +220,7 @@ export function AdditionalDetailsForm({ employee, onUpdate }: AdditionalDetailsF
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="medicalCertificateDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Medical Certificate Date</FormLabel>
-                    <FormControl>
-                      <Input placeholder="DD-MM-YYYY" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {renderDateField("medicalCertificateDate", "Medical Certificate Date")}
             </div>
           </form>
         </Form>

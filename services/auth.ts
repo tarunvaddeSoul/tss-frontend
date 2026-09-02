@@ -68,7 +68,7 @@ const authService = {
 
   async refreshToken(refreshToken: string): Promise<AuthAPIResponse> {
     try {
-      const response = await api.post<AuthAPIResponse>(`${AUTH_ENDPOINTS.REFRESH_TOKEN}/${refreshToken}`)
+      const response = await api.post<AuthAPIResponse>(AUTH_ENDPOINTS.REFRESH_TOKEN, { refreshToken })
       // Do not set tokens here; handled in api.ts after refresh
       return response.data
     } catch (error) {

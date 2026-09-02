@@ -100,7 +100,7 @@ export const navSections: NavSection[] = [
         subItems: [
           { title: "Mark by Site", href: "/attendance/mark-by-site" },
           { title: "Upload Attendance", href: "/attendance/upload" },
-          { title: "Records", href: "/attendance/records" },
+          { title: "Files", href: "/attendance/records" },
           { title: "Reports", href: "/attendance/reports" },
         ],
       },

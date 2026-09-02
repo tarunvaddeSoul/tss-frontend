@@ -1,5 +1,5 @@
 import api, { getErrorMessage } from "./api"
-import { convertToCustomDateFormat } from "@/lib/utils"
+import { format } from "date-fns"
 
 // Types will be imported from types/employee.ts
 import type {
@@ -48,7 +48,7 @@ export const employeeService = {
       // Process form values
       Object.entries(employeeData).forEach(([key, value]) => {
         if (value instanceof Date) {
-          formData.append(key, convertToCustomDateFormat(value))
+          formData.append(key, format(value, "dd-MM-yyyy"))
         } else if (value instanceof File) {
           // Only append the file if a file has been selected
           if (value.name) {

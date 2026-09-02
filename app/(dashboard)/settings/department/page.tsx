@@ -5,16 +5,28 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Building2, Loader2, Users, UserPlus, Search, Plus, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { departmentService } from "@/services/departmentService"
+import { departmentService, type Department } from "@/services/departmentService"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/layout/page-header"
+import { humanize, isPlaceholder } from "@/lib/labels"
 
 const departmentSchema = z.object({
   name: z.string().min(2, { message: "Department name must be at least 2 characters" }),
@@ -22,14 +34,17 @@ const departmentSchema = z.object({
 
 type DepartmentFormValues = z.infer<typeof departmentSchema>
 
+const displayName = (name: string): string => (isPlaceholder(name) ? name : humanize(name))
+
 export default function DepartmentSettingsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("users")
-  const [userDepartments, setUserDepartments] = useState<any[]>([])
-  const [employeeDepartments, setEmployeeDepartments] = useState<any[]>([])
+  const [userDepartments, setUserDepartments] = useState<Department[]>([])
+  const [employeeDepartments, setEmployeeDepartments] = useState<Department[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isAddingDepartment, setIsAddingDepartment] = useState(false)
+  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null)
 
   const form = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
@@ -78,23 +93,27 @@ export default function DepartmentSettingsPage() {
     }
   }
 
-  const handleDeleteDepartment = async (name: string) => {
+  const handleDeleteDepartment = async () => {
+    if (!departmentToDelete) return
+
     try {
       if (activeTab === "users") {
-        await departmentService.deleteUserDepartment(name)
+        await departmentService.deleteUserDepartment(departmentToDelete.name)
         toast.success("User department deleted successfully")
       } else {
-        await departmentService.deleteEmployeeDepartment(name)
+        await departmentService.deleteEmployeeDepartment(departmentToDelete.name)
         toast.success("Employee department deleted successfully")
       }
+      setDepartmentToDelete(null)
       fetchDepartments()
     } catch (err: any) {
       toast.error("Failed to delete department")
     }
   }
 
+  const query = searchQuery.toLowerCase()
   const filteredDepartments = (activeTab === "users" ? userDepartments : employeeDepartments)
-    .filter(dept => dept.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(dept => [dept.name, displayName(dept.name)].some((text) => text.toLowerCase().includes(query)))
 
   return (
     <div>
@@ -205,14 +224,21 @@ export default function DepartmentSettingsPage() {
                               <Building2 className="h-5 w-5 text-muted-foreground" />
                             </div>
                             <div>
-                              <h3 className="text-sm font-medium">{dept.name}</h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-medium">{displayName(dept.name)}</h3>
+                                {isPlaceholder(dept.name) && <Badge variant="warning">Import placeholder</Badge>}
+                              </div>
+                              {displayName(dept.name) !== dept.name && (
+                                <p className="font-mono text-[11px] text-muted-foreground">{dept.name}</p>
+                              )}
                             </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteDepartment(dept.name)}
+                            onClick={() => setDepartmentToDelete(dept)}
+                            aria-label={`Delete ${displayName(dept.name)}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -226,6 +252,27 @@ export default function DepartmentSettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!departmentToDelete} onOpenChange={(open) => !open && setDepartmentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this department?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the {activeTab === "users" ? "user" : "employee"} department "
+              {departmentToDelete ? displayName(departmentToDelete.name) : ""}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDepartment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
-} 
+}

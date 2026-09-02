@@ -10,10 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { designationService } from "@/services/designationService"
+import { designationService, type Designation } from "@/services/designationService"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/layout/page-header"
+import { Badge } from "@/components/ui/badge"
+import { humanize, isPlaceholder } from "@/lib/labels"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,13 +33,15 @@ const designationSchema = z.object({
 
 type DesignationFormValues = z.infer<typeof designationSchema>
 
+const displayName = (name: string): string => (isPlaceholder(name) ? name : humanize(name))
+
 export default function DesignationSettingsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [designations, setDesignations] = useState<any[]>([])
+  const [designations, setDesignations] = useState<Designation[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isAddingDesignation, setIsAddingDesignation] = useState(false)
-  const [designationToDelete, setDesignationToDelete] = useState<any | null>(null)
+  const [designationToDelete, setDesignationToDelete] = useState<Designation | null>(null)
 
   const form = useForm<DesignationFormValues>({
     resolver: zodResolver(designationSchema),
@@ -90,8 +94,9 @@ export default function DesignationSettingsPage() {
     }
   }
 
-  const filteredDesignations = designations.filter(designation =>
-    designation.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const query = searchQuery.toLowerCase()
+  const filteredDesignations = designations.filter((designation) =>
+    [designation.name, displayName(designation.name)].some((text) => text.toLowerCase().includes(query)),
   )
 
   return (
@@ -190,7 +195,13 @@ export default function DesignationSettingsPage() {
                           <Briefcase className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-medium">{designation.name}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-medium">{displayName(designation.name)}</h3>
+                            {isPlaceholder(designation.name) && <Badge variant="warning">Import placeholder</Badge>}
+                          </div>
+                          {displayName(designation.name) !== designation.name && (
+                            <p className="font-mono text-[11px] text-muted-foreground">{designation.name}</p>
+                          )}
                         </div>
                       </div>
                       <Button
@@ -198,6 +209,7 @@ export default function DesignationSettingsPage() {
                         size="icon"
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setDesignationToDelete(designation)}
+                        aria-label={`Delete ${displayName(designation.name)}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -213,9 +225,10 @@ export default function DesignationSettingsPage() {
       <AlertDialog open={!!designationToDelete} onOpenChange={() => setDesignationToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this designation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the designation "{designationToDelete?.name}". This action cannot be undone.
+              This will permanently delete the designation "
+              {designationToDelete ? displayName(designationToDelete.name) : ""}". This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

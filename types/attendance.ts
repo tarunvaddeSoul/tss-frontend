@@ -177,6 +177,8 @@ export interface ActiveEmployee {
     joiningDate: string
     leavingDate: string | null
     status: string
+    designationName?: string | null
+    departmentName?: string | null
     designation?: {
       name: string
     }
@@ -269,6 +271,7 @@ export interface ImportAttendanceExcelResult {
   imported: number
   skipped: number
   errors: ImportAttendanceExcelRowError[]
+  removed?: string[]
 }
 
 // Attendance Excel List Query Parameters

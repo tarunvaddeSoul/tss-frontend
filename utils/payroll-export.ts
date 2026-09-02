@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx"
 import { saveAs } from "file-saver"
-import { formatDate as formatLabelDate, label } from "@/lib/labels"
+import { employeeName, formatDate, formatMonth, humanize, isPlaceholder, label } from "@/lib/labels"
 
 export interface PayrollReportRecord {
   id: string
@@ -9,27 +9,69 @@ export interface PayrollReportRecord {
   clientId: string
   month: string
   salaryData: Record<string, any>
+  status?: string | null
+  finalizedAt?: string | null
+  employee?: { title?: string | null; firstName: string; lastName: string; fatherName?: string | null } | null
   createdAt: string
   updatedAt: string
 }
 
-export function getCurrentDateTime(): string {
-  const now = new Date()
-  return now.toISOString().replace(/[:.]/g, "-").slice(0, 19)
+export interface PayslipSourceRecord {
+  employeeId: string
+  month: string
+  clientName?: string | null
+  salaryData: Record<string, any> | null | undefined
+  employee?: { title?: string | null; firstName: string; lastName: string; fatherName?: string | null } | null
 }
 
-export function exportPayrollToExcel(data: PayrollReportRecord[], filename: string) {
+export function resolveEmployeeName(record: PayslipSourceRecord): string | null {
+  const salaryData = record.salaryData ?? {}
+  const stored = salaryData.information?.employeeName ?? salaryData.employeeName
+  if (stored && !isPlaceholder(String(stored))) {
+    const cleaned = String(stored).split(/\s+/).filter((word) => !isPlaceholder(word)).join(" ")
+    if (cleaned) return cleaned
+  }
+  const fromEmployee = employeeName(record.employee)
+  return fromEmployee === "-" ? null : fromEmployee
+}
+
+const INR_FORMAT = '[>=10000000]"₹"##\\,##\\,##\\,##0.00;[>=100000]"₹"##\\,##\\,##0.00;"₹"#,##0.00'
+const MONEY_COLUMNS = new Set([
+  "Rate (Per Day/Month)",
+  "Basic Pay",
+  "Monthly Pay",
+  "Gross Salary",
+  "Net Salary",
+  "PF",
+  "ESIC",
+  "LWF",
+  "Advance Taken",
+  "Bonus",
+  "Total Deductions",
+])
+
+function applyMoneyFormat(worksheet: XLSX.WorkSheet, headers: string[], rowCount: number): void {
+  headers.forEach((header, col) => {
+    if (!MONEY_COLUMNS.has(header)) return
+    for (let row = 1; row <= rowCount; row += 1) {
+      const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: col })]
+      if (cell && typeof cell.v === "number") cell.z = INR_FORMAT
+    }
+  })
+}
+
+export function exportPayrollToExcel(
+  data: PayrollReportRecord[],
+  fileName: string,
+): { success: true; fileName: string } | { success: false; error: string } {
   try {
-    // Transform data for Excel export using grouped salary structure
     const excelData = data.map((record) => {
       const salaryData = record.salaryData as any
-      // Access grouped salary data with fallbacks
       const calculations = salaryData?.calculations || {}
       const deductions = salaryData?.deductions || {}
       const allowances = salaryData?.allowances || {}
       const information = salaryData?.information || {}
-      
-      // Get all values with proper fallbacks
+
       const basicPay = calculations?.basicPay ?? salaryData?.basicPay ?? 0
       const grossSalary = calculations?.grossSalary ?? salaryData?.grossSalary ?? 0
       const netSalary = calculations?.netSalary ?? salaryData?.netSalary ?? 0
@@ -43,13 +85,16 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
       const basicDuty = calculations?.basicDuty ?? salaryData?.basicDuty ?? 0
       const monthlyPay = information?.monthlyPay ?? salaryData?.monthlyPay ?? 0
       const rate = calculations?.rate ?? calculations?.wagesPerDay ?? salaryData?.rate ?? salaryData?.wagesPerDay ?? 0
-      
+
       return {
         "Employee ID": record.employeeId,
-        Client: record.clientName || information?.clientName || "N/A",
-        Month: record.month,
-        "Salary Category": label.salaryCategory(salaryData?.salaryCategory),
-        "Salary Sub-Category": label.salarySubCategory(salaryData?.salarySubCategory),
+        "Employee Name": resolveEmployeeName(record) ?? "-",
+        Client: record.clientName || information?.clientName || "-",
+        Month: formatMonth(record.month),
+        Status: label.status(record.status),
+        "Finalized On": formatDate(record.finalizedAt),
+        "Salary Category": label.salaryCategory(information?.salaryCategory ?? salaryData?.salaryCategory),
+        "Salary Sub-Category": label.salarySubCategory(information?.salarySubCategory ?? salaryData?.salarySubCategory),
         "Rate (Per Day/Month)": rate,
         "Basic Duty": basicDuty,
         "Duty Done": dutyDone,
@@ -63,51 +108,52 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
         "Advance Taken": advanceTaken,
         Bonus: bonus,
         "Total Deductions": totalDeductions,
-        "Designation": information?.designation || salaryData?.designation || "N/A",
-        "Employee Name": information?.employeeName || "N/A",
-        "Created At": formatLabelDate(record.createdAt),
+        Designation: humanize(information?.designation ?? salaryData?.designation),
+        Department: humanize(information?.department ?? salaryData?.department),
+        "Created At": formatDate(record.createdAt),
       }
     })
 
-    // Create workbook and worksheet
     const worksheet = XLSX.utils.json_to_sheet(excelData)
     const workbook = XLSX.utils.book_new()
 
-    // Set column widths for better readability
-    const columnWidths = [
-      { wch: 15 }, // Employee ID
-      { wch: 20 }, // Client
-      { wch: 12 }, // Month
-      { wch: 18 }, // Salary Category
-      { wch: 20 }, // Salary Sub-Category
-      { wch: 18 }, // Rate (Per Day/Month)
-      { wch: 12 }, // Basic Duty
-      { wch: 12 }, // Duty Done
-      { wch: 12 }, // Basic Pay
-      { wch: 12 }, // Monthly Pay
-      { wch: 12 }, // Gross Salary
-      { wch: 12 }, // Net Salary
-      { wch: 10 }, // PF
-      { wch: 10 }, // ESIC
+    const headers = excelData.length ? Object.keys(excelData[0]) : []
+    applyMoneyFormat(worksheet, headers, excelData.length)
+
+    worksheet["!cols"] = [
+      { wch: 14 }, // Employee ID
+      { wch: 24 }, // Employee Name
+      { wch: 28 }, // Client
+      { wch: 10 }, // Month
+      { wch: 10 }, // Status
+      { wch: 13 }, // Finalized On
+      { wch: 14 }, // Salary Category
+      { wch: 18 }, // Salary Sub-Category
+      { wch: 16 }, // Rate
+      { wch: 10 }, // Basic Duty
+      { wch: 10 }, // Duty Done
+      { wch: 14 }, // Basic Pay
+      { wch: 14 }, // Monthly Pay
+      { wch: 14 }, // Gross Salary
+      { wch: 14 }, // Net Salary
+      { wch: 12 }, // PF
+      { wch: 12 }, // ESIC
       { wch: 10 }, // LWF
-      { wch: 15 }, // Advance Taken
-      { wch: 10 }, // Bonus
-      { wch: 15 }, // Total Deductions
-      { wch: 15 }, // Designation
-      { wch: 20 }, // Employee Name
-      { wch: 15 }, // Created At
+      { wch: 14 }, // Advance Taken
+      { wch: 12 }, // Bonus
+      { wch: 16 }, // Total Deductions
+      { wch: 20 }, // Designation
+      { wch: 20 }, // Department
+      { wch: 13 }, // Created At
     ]
-    worksheet["!cols"] = columnWidths
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Payroll Report")
 
-    // Generate Excel file and download
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
     const blob = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     })
 
-    const fileName = `${filename}_${getCurrentDateTime()}.xlsx`
     saveAs(blob, fileName)
 
     return { success: true, fileName }
@@ -115,21 +161,4 @@ export function exportPayrollToExcel(data: PayrollReportRecord[], filename: stri
     console.error("Excel export error:", error)
     return { success: false, error: "Failed to generate Excel file" }
   }
-}
-
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
-
-export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
 }

@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Building2, Calendar as CalendarIcon, Eye, Loader2, Trash2, Download, FileText, FileSpreadsheet, Search, ArrowUpDown, X, Filter } from "lucide-react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
+import { Building2, Calendar as CalendarIcon, Eye, Loader2, Trash2, Download, FileText, FileSpreadsheet, ArrowUpDown, X, Filter } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -64,7 +65,23 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-export default function AttendanceRecordsPage() {
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"])
+
+function fileTypeFromUrl(url: string): { label: string; variant: "info" | "secondary" | "outline" } {
+  const extension = url.split("?")[0].split(".").pop()?.toLowerCase() ?? ""
+  if (extension === "pdf") return { label: "PDF", variant: "info" }
+  if (IMAGE_EXTENSIONS.has(extension)) return { label: `${extension === "jpeg" ? "JPG" : extension.toUpperCase()} image`, variant: "secondary" }
+  if (extension === "xlsx" || extension === "xls") return { label: `Excel (${extension.toUpperCase()})`, variant: "secondary" }
+  return { label: "File", variant: "outline" }
+}
+
+function monthParamToDate(value: string | null): Date | undefined {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value ?? "")
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, 1) : undefined
+}
+
+function AttendanceRecordsContent() {
+  const searchParams = useSearchParams()
   const { data: clientsData, isLoading: clientsLoading, fetchClients } = useClient()
   const clients: Client[] = clientsData?.clients || []
   const { toast } = useToast()
@@ -99,8 +116,8 @@ export default function AttendanceRecordsPage() {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      clientId: undefined,
-      month: undefined,
+      clientId: searchParams.get("clientId") ?? undefined,
+      month: monthParamToDate(searchParams.get("month")),
       startMonth: undefined,
       endMonth: undefined,
     },
@@ -234,14 +251,9 @@ export default function AttendanceRecordsPage() {
     }
   }
 
-  const onSubmit = (values: FormValues) => {
-    setPage(1) // Reset to first page on new search
+  const resetPages = () => {
+    setPage(1)
     setExcelPage(1)
-    if (activeTab === "sheets") {
-      fetchRecords()
-    } else {
-      fetchExcelRecords()
-    }
   }
 
   const handleClearFilters = () => {
@@ -337,7 +349,6 @@ export default function AttendanceRecordsPage() {
         setPreviewType("image")
       }
     } catch (error) {
-      console.log("HEAD request failed, using URL detection:", error)
       const urlLower = sheet.attendanceSheetUrl.toLowerCase()
 
       if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
@@ -443,14 +454,15 @@ export default function AttendanceRecordsPage() {
   }
 
   const hasActiveFilters = form.watch("clientId") || form.watch("month") || form.watch("startMonth") || form.watch("endMonth")
+  const rangeIncomplete = Boolean(form.watch("startMonth")) !== Boolean(form.watch("endMonth"))
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl space-y-6">
       <PageHeader
         no="02"
         eyebrow="Attendance register"
-        title="Attendance Records"
-        description="View and manage all uploaded attendance sheets."
+        title="Attendance Files"
+        description="Attendance sheets and Excel files uploaded for each client and month. Marked attendance is under Reports."
       />
 
       {/* Search and Filters */}
@@ -458,13 +470,13 @@ export default function AttendanceRecordsPage() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Search & Filters
+            Filters
           </CardTitle>
-          <CardDescription>Filter attendance sheets by client and month</CardDescription>
+          <CardDescription>Results update as you change a filter</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form noValidate onSubmit={(event) => event.preventDefault()} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField
                   control={form.control}
@@ -482,7 +494,10 @@ export default function AttendanceRecordsPage() {
                             ...clients.map((c) => ({ value: c.id ?? "", label: c.name })),
                           ]}
                           value={field.value || "all"}
-                          onChange={(value) => field.onChange(value === "all" ? undefined : value)}
+                          onChange={(value) => {
+                            field.onChange(value === "all" ? undefined : value)
+                            resetPages()
+                          }}
                           placeholder="All Clients"
                           searchPlaceholder="Search clients..."
                           emptyText="No clients found."
@@ -501,18 +516,18 @@ export default function AttendanceRecordsPage() {
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4" />
-                        Month (Single)
+                        Month
                       </FormLabel>
                       <FormControl>
                         <MonthPicker
                           value={field.value}
                           onChange={(date) => {
                             field.onChange(date)
-                            // Clear range if single month is selected
                             if (date) {
                               form.setValue("startMonth", undefined)
                               form.setValue("endMonth", undefined)
                             }
+                            resetPages()
                           }}
                           placeholder="Select month"
                         />
@@ -529,17 +544,17 @@ export default function AttendanceRecordsPage() {
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4" />
-                        Start Month
+                        From Month
                       </FormLabel>
                       <FormControl>
                         <MonthPicker
                           value={field.value}
                           onChange={(date) => {
                             field.onChange(date)
-                            // Clear single month if range is selected
                             if (date) {
                               form.setValue("month", undefined)
                             }
+                            resetPages()
                           }}
                           placeholder="From month"
                         />
@@ -556,17 +571,17 @@ export default function AttendanceRecordsPage() {
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4" />
-                        End Month
+                        To Month
                       </FormLabel>
                       <FormControl>
                         <MonthPicker
                           value={field.value}
                           onChange={(date) => {
                             field.onChange(date)
-                            // Clear single month if range is selected
                             if (date) {
                               form.setValue("month", undefined)
                             }
+                            resetPages()
                           }}
                           placeholder="To month"
                         />
@@ -577,27 +592,27 @@ export default function AttendanceRecordsPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button type="submit" disabled={loading}>
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4 mr-2" />
+              {(rangeIncomplete || hasActiveFilters) && (
+                <div className="flex flex-wrap items-center gap-3">
+                  {rangeIncomplete && (
+                    <p className="text-sm text-muted-foreground">
+                      Pick both From Month and To Month to filter by a range.
+                    </p>
                   )}
-                  Search
-                </Button>
-                {hasActiveFilters && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleClearFilters}
-                    disabled={loading}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
+                  {hasActiveFilters && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearFilters}
+                      disabled={loading || loadingExcel}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              )}
             </form>
           </Form>
         </CardContent>
@@ -724,8 +739,7 @@ export default function AttendanceRecordsPage() {
                   <TableBody>
                     {records.map((record) => {
                       const monthDate = parse(record.month, "yyyy-MM", new Date())
-                      const isPDF = record.attendanceSheetUrl.toLowerCase().includes(".pdf") ||
-                        record.attendanceSheetUrl.toLowerCase().endsWith(".pdf")
+                      const fileType = fileTypeFromUrl(record.attendanceSheetUrl)
 
                       return (
                         <TableRow key={record.id}>
@@ -738,9 +752,7 @@ export default function AttendanceRecordsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={isPDF ? "info" : "secondary"}>
-                              {isPDF ? "PDF" : "Image"}
-                            </Badge>
+                            <Badge variant={fileType.variant}>{fileType.label}</Badge>
                           </TableCell>
                           <TableCell className="font-mono text-[13px] text-muted-foreground">
                             {formatDate(record.createdAt)}
@@ -919,6 +931,7 @@ export default function AttendanceRecordsPage() {
                       <TableBody>
                         {excelRecords.map((record) => {
                           const monthDate = parse(record.month, "yyyy-MM", new Date())
+                          const excelType = fileTypeFromUrl(record.attendanceExcelUrl)
 
                           return (
                             <TableRow key={record.id}>
@@ -933,7 +946,7 @@ export default function AttendanceRecordsPage() {
                               <TableCell>
                                 <Badge variant="secondary">
                                   <FileSpreadsheet className="h-3 w-3 mr-1" />
-                                  Excel
+                                  {excelType.label === "File" ? "Excel" : excelType.label}
                                 </Badge>
                               </TableCell>
                               <TableCell className="font-mono text-[13px] text-muted-foreground">
@@ -1029,8 +1042,7 @@ export default function AttendanceRecordsPage() {
                     className="max-w-full max-h-[70vh] object-contain"
                     crossOrigin="anonymous"
                     key={previewUrl}
-                    onError={(e) => {
-                      console.error("❌ Image load error:", e, "URL:", previewUrl)
+                    onError={() => {
                       const urlLower = (previewUrl || "").toLowerCase()
 
                       if (urlLower.includes(".pdf") || urlLower.endsWith(".pdf")) {
@@ -1040,9 +1052,6 @@ export default function AttendanceRecordsPage() {
                       } else {
                         setPreviewType("unsupported")
                       }
-                    }}
-                    onLoad={() => {
-                      console.log("✅ Image loaded successfully:", previewUrl)
                     }}
                   />
                 </div>
@@ -1072,5 +1081,13 @@ export default function AttendanceRecordsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function AttendanceRecordsPage(): JSX.Element {
+  return (
+    <Suspense fallback={null}>
+      <AttendanceRecordsContent />
+    </Suspense>
   )
 }

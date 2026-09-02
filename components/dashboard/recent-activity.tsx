@@ -6,54 +6,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { label, formatDate } from "@/lib/labels"
-import type { DashboardReportData, RecentPayroll } from "@/types/dashboard"
+import { employeeName, formatDate, formatMoney, formatMonth, label } from "@/lib/labels"
+import type { DashboardReportData, RecentJoinee } from "@/types/dashboard"
 
 interface RecentActivityProps {
   data: DashboardReportData
 }
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+const joineeName = (joinee: RecentJoinee): string =>
+  [joinee.title ? label.title(joinee.title) : "", employeeName(joinee)].filter(Boolean).join(" ")
 
-const monthShort = (monthStr: string): string => {
-  if (!monthStr || !monthStr.includes("-")) return monthStr || "-"
-  const [year, monthNum] = monthStr.split("-")
-  const name = MONTH_NAMES[parseInt(monthNum, 10) - 1]
-  return name ? `${name}-${year.slice(-2)}` : monthStr
-}
+const initials = (joinee: RecentJoinee): string =>
+  employeeName(joinee)
+    .split(" ")
+    .map((part) => part[0] ?? "")
+    .slice(0, 2)
+    .join("") || "?"
 
-interface PayrollRun {
-  clientId: string
-  clientName: string
-  month: string
-  payslips: number
-  latest: string
-}
+const payslipCount = (count: number): string => `${count.toLocaleString("en-IN")} ${count === 1 ? "payslip" : "payslips"}`
 
-const groupRuns = (records: RecentPayroll[]): PayrollRun[] => {
-  const runs = new Map<string, PayrollRun>()
-  for (const record of records) {
-    const key = `${record.clientId}-${record.month}`
-    const existing = runs.get(key)
-    if (existing) {
-      existing.payslips += 1
-      if (record.createdAt > existing.latest) existing.latest = record.createdAt
-    } else {
-      runs.set(key, {
-        clientId: record.clientId,
-        clientName: record.client?.name || "Unknown client",
-        month: record.month,
-        payslips: 1,
-        latest: record.createdAt,
-      })
-    }
-  }
-  return [...runs.values()].sort((a, b) => (a.latest < b.latest ? 1 : -1)).slice(0, 6)
-}
-
-export function RecentActivity({ data }: RecentActivityProps) {
+export function RecentActivity({ data }: RecentActivityProps): JSX.Element {
   const joinees = (data.recentActivity?.recentJoinees ?? []).slice(0, 6)
-  const runs = groupRuns(data.recentActivity?.recentPayrolls ?? [])
+  const runs = (data.recentActivity?.recentPayrolls ?? []).slice(0, 6)
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -79,14 +53,10 @@ export function RecentActivity({ data }: RecentActivityProps) {
               {joinees.map((joinee) => (
                 <li key={joinee.id} className="flex items-center gap-3 py-2.5">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-surface font-mono text-[11px]">
-                      {`${joinee.firstName?.[0] ?? ""}${joinee.lastName?.[0] ?? ""}` || "?"}
-                    </AvatarFallback>
+                    <AvatarFallback className="bg-surface font-mono text-[11px]">{initials(joinee)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {[label.title(joinee.title), joinee.firstName, joinee.lastName].filter(Boolean).join(" ")}
-                    </p>
+                    <p className="truncate text-sm font-medium">{joineeName(joinee)}</p>
                     <p className="font-mono text-[11px] text-muted-foreground">
                       joined {formatDate(joinee.employeeOnboardingDate)}
                     </p>
@@ -125,10 +95,16 @@ export function RecentActivity({ data }: RecentActivityProps) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{run.clientName}</p>
                     <p className="font-mono text-[11px] text-muted-foreground nums">
-                      {run.payslips.toLocaleString("en-IN")} payslips · {formatDate(run.latest)}
+                      {payslipCount(run.recordCount)} ·{" "}
+                      {run.finalizedAt ? `finalized ${formatDate(run.finalizedAt)}` : "not finalized yet"}
                     </p>
                   </div>
-                  <Badge variant="info">{monthShort(run.month)}</Badge>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {typeof run.totalNet === "number" && (
+                      <span className="font-mono text-[13px] font-semibold tabular-nums">{formatMoney(run.totalNet)}</span>
+                    )}
+                    <Badge variant="info">{formatMonth(run.month)}</Badge>
+                  </div>
                 </li>
               ))}
             </ul>

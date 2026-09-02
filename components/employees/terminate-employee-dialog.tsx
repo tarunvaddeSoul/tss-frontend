@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { format } from "date-fns"
 import { AlertTriangle, UserX, Calendar, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { employeeService } from "@/services/employeeService"
 import { toast } from "sonner"
-import { convertToCustomDateFormat } from "@/lib/utils"
+import { employeeName, label } from "@/lib/labels"
 import type { Employee, UpdateEmployeeDto } from "@/types/employee"
 import { Status } from "@/enums/employee.enum"
 
@@ -67,13 +68,13 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
       const formData = form.getValues()
       const updateData: UpdateEmployeeDto = {
         status: Status.INACTIVE,
-        employeeRelievingDate: convertToCustomDateFormat(formData.employeeRelievingDate),
+        employeeRelievingDate: format(formData.employeeRelievingDate, "dd-MM-yyyy"),
       }
 
       const response = await employeeService.updateEmployee(employee.id, updateData)
 
       if (response.statusCode === 200 || response.data) {
-        toast.success(`${employee.firstName} ${employee.lastName} has been terminated from TSS successfully.`)
+        toast.success(`${employeeName(employee)} has been terminated from TSS successfully.`)
 
         onSuccess()
         onOpenChange(false)
@@ -83,8 +84,6 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
         throw new Error(response.message || "Failed to terminate employee")
       }
     } catch (error: any) {
-      console.error("Error terminating employee:", error)
-
       let errorMessage = "Failed to terminate employee. Please try again."
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message
@@ -143,9 +142,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Employee Name:</span>
-                <span className="text-sm">
-                  {employee.firstName} {employee.lastName}
-                </span>
+                <span className="text-sm">{employeeName(employee)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Employee ID:</span>
@@ -153,7 +150,7 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Current Status:</span>
-                <span className="text-sm">{employee.status || "ACTIVE"}</span>
+                <span className="text-sm">{label.status(employee.status || "ACTIVE")}</span>
               </div>
               {employee.clientName && (
                 <div className="flex items-center justify-between">
@@ -217,11 +214,12 @@ export function TerminateEmployeeDialog({ employee, open, onOpenChange, onSucces
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                You are about to terminate <strong>{employee.firstName} {employee.lastName}</strong> from Tulsyan Security Services.
+                You are about to terminate <strong>{employeeName(employee)}</strong> from Tulsyan Security Services.
               </p>
               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
                 <p>
-                  <strong>Termination Date:</strong> {form.getValues("employeeRelievingDate")?.toLocaleDateString() || "Not set"}
+                  <strong>Termination Date:</strong>{" "}
+                  {form.getValues("employeeRelievingDate") ? format(form.getValues("employeeRelievingDate"), "dd MMM yyyy") : "Not set"}
                 </p>
               </div>
               <Alert variant="destructive" className="mt-2">

@@ -46,13 +46,13 @@ const salaryInfoSchema = z
   )
   .refine(
     (data) => {
-      if (data.salaryCategory === SalaryCategory.CENTRAL || data.salaryCategory === SalaryCategory.STATE) {
+      if ((data.salaryCategory === SalaryCategory.CENTRAL || data.salaryCategory === SalaryCategory.STATE) && data.salarySubCategory) {
         return data.salaryPerDay !== null && data.salaryPerDay !== undefined && data.salaryPerDay > 0
       }
       return true
     },
     {
-      message: "Rate per day is required for CENTRAL and STATE categories",
+      message: "No rate found for this category and onboarding date. Check the onboarding date or add a salary rate schedule.",
       path: ["salaryPerDay"],
     },
   )
@@ -108,7 +108,7 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
     defaultValues: {
       salaryCategory: employee.salaryCategory || null,
       salarySubCategory: employee.salarySubCategory || null,
-      salaryPerDay: employee.salaryPerDay || null,
+      salaryPerDay: Number(employee.salaryPerDay) || null,
       monthlySalary: employee.monthlySalary || null,
       pfEnabled: employee.pfEnabled ?? false,
       esicEnabled: employee.esicEnabled ?? false,
@@ -170,13 +170,10 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
             // Get the first active rate (or find the one with effectiveTo === null for current active)
             const activeRateSchedule = response.data.find((rate) => rate.effectiveTo === null) || response.data[0]
             setActiveRate(activeRateSchedule.ratePerDay)
-            // Auto-populate salaryPerDay if not manually set
-            const currentSalaryPerDay = form.getValues("salaryPerDay")
-            if (!currentSalaryPerDay || currentSalaryPerDay === 0) {
-              form.setValue("salaryPerDay", activeRateSchedule.ratePerDay)
-            }
+            form.setValue("salaryPerDay", activeRateSchedule.ratePerDay)
           } else {
             setActiveRate(null)
+            form.setValue("salaryPerDay", null)
             setRateError("No active rate schedule found for this category and date")
           }
         } catch (error: any) {
@@ -203,11 +200,10 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
       // Optimistic update
       onUpdate(values as any)
 
-      // Format dates to DD-MM-YYYY format for backend
+      // salaryPerDay is derived server side from the rate schedule and rejected by the API
       const updateData: any = {
         salaryCategory: values.salaryCategory,
         salarySubCategory: values.salarySubCategory,
-        salaryPerDay: values.salaryPerDay,
         monthlySalary: values.monthlySalary,
         pfEnabled: values.pfEnabled,
         esicEnabled: values.esicEnabled,
@@ -218,7 +214,6 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
       toast.success("Salary information updated successfully!")
       setHasChanges(false)
     } catch (error: any) {
-      console.error("Error updating salary info:", error)
       const errorMessage =
         error.response?.data?.message || error.message || "Failed to update salary information"
       toast.error(errorMessage)
@@ -337,10 +332,7 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                   <Alert variant="info">
                     <Info className="h-4 w-4" />
                     <AlertDescription>
-                      Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString()}/day
-                      {form.getValues("salaryPerDay") !== activeRate && (
-                        <span className="ml-2 text-xs">(You can override this value manually)</span>
-                      )}
+                      Active rate for {label.salaryCategory(salaryCategory)}, {label.salarySubCategory(salarySubCategory)}: ₹{activeRate.toLocaleString("en-IN")}/day
                     </AlertDescription>
                   </Alert>
                 )}
@@ -357,27 +349,22 @@ export function SalaryInfoForm({ employee, onUpdate }: SalaryInfoFormProps) {
                   name="salaryPerDay"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Rate Per Day (₹) *</FormLabel>
+                      <FormLabel>Rate Per Day (₹)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.01"
-                          min="0.01"
-                          placeholder="Enter rate per day"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) => {
-                            field.onChange(e.target.value ? parseFloat(e.target.value) : null)
-                            setHasChanges(true)
-                          }}
+                          readOnly
+                          placeholder="Set from the salary rate schedule"
+                          name={field.name}
+                          ref={field.ref}
+                          value={field.value ?? ""}
+                          className="bg-muted"
                         />
                       </FormControl>
                       <FormMessage />
-                      {activeRate && !loadingActiveRate && (
-                        <p className="text-xs text-muted-foreground">
-                          Leave empty to use active rate: ₹{activeRate.toLocaleString()}/day
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Comes from the salary rate schedule for the onboarding date. Change the schedule to change this.
+                      </p>
                     </FormItem>
                   )}
                 />

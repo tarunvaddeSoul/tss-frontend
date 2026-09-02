@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format, parse } from "date-fns"
 import {
-  Building2,
   Download,
   FileText,
   Users,
@@ -27,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -441,23 +441,18 @@ export function AttendanceReportsComponent() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Client *</FormLabel>
-                      <Select onValueChange={handleClientChange} value={field.value} disabled={clientsLoading}>
-                        <FormControl>
-                          <SelectTrigger className="h-12">
-                            <SelectValue placeholder="Select a client" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id ?? ""}>
-                              <div className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-muted-foreground" />
-                                {client.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={clients.map((client) => ({ value: client.id ?? "", label: client.name }))}
+                          value={field.value}
+                          onChange={handleClientChange}
+                          placeholder="Select a client"
+                          searchPlaceholder="Search clients..."
+                          emptyText="No clients found."
+                          disabled={clientsLoading}
+                          className="h-12"
+                        />
+                      </FormControl>
                       <FormMessage />
                       {clientsLoading && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">

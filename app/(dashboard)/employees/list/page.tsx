@@ -26,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/pagination"
@@ -331,27 +332,22 @@ export default function EmployeeListPage() {
               </div>
 
               <div>
-                <Select
+                <Combobox
+                  options={[
+                    { value: "all", label: "All Clients" },
+                    ...clients.map((c) => ({ value: c.id ?? "", label: c.name })),
+                  ]}
                   value={searchParams.clientId}
-                  onValueChange={(value) =>
+                  onChange={(value) =>
                     setSearchParams({
                       ...searchParams,
                       clientId: value === "all" ? undefined : value,
                     })
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Clients</SelectItem>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id ?? ""}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select client"
+                  searchPlaceholder="Search clients..."
+                  emptyText="No clients found."
+                />
               </div>
 
               <div>

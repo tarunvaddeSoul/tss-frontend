@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
@@ -132,18 +132,17 @@ export function ClientReports() {
                 <label htmlFor="client-select" className="text-sm font-medium mb-2 block truncate">
                   Select Client
                 </label>
-                <Select value={selectedClientId} onValueChange={handleClientChange} disabled={loadingClients}>
-                  <SelectTrigger id="client-select" className="h-12 w-full">
-                    <SelectValue placeholder="Select a client" className="truncate" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id ?? ""} value={client.id ?? ""} className="truncate">
-                        <span className="truncate block">{client.name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="client-select"
+                  options={clients.map((client) => ({ value: client.id ?? "", label: client.name }))}
+                  value={selectedClientId}
+                  onChange={handleClientChange}
+                  placeholder="Select a client"
+                  searchPlaceholder="Search clients..."
+                  emptyText="No clients found."
+                  disabled={loadingClients}
+                  className="h-12 w-full"
+                />
               </div>
             </div>
 

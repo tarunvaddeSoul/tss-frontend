@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { MonthPicker } from "@/components/ui/month-picker"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useClient } from "@/hooks/use-client"
 import { usePayroll, usePayrollAdminInputs } from "@/hooks/use-payroll"
@@ -363,18 +363,14 @@ export default function CalculatePayroll() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="client">Client</Label>
-                                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a client" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {clients.map((client: any) => (
-                                            <SelectItem key={client.id} value={client.id}>
-                                                {client.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={clients.map((client: any) => ({ value: client.id ?? "", label: client.name }))}
+                                    value={selectedClientId}
+                                    onChange={setSelectedClientId}
+                                    placeholder="Select a client"
+                                    searchPlaceholder="Search clients..."
+                                    emptyText="No clients found."
+                                />
                             </div>
 
                             <div className="space-y-2">

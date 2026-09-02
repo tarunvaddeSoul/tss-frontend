@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -1906,13 +1907,18 @@ export function EmployeeForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Client</FormLabel>
-                    <ClearableSelect field={field} placeholder="Select client">
-                      {clients.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </ClearableSelect>
+                    <FormControl>
+                      <Combobox
+                        options={clients}
+                        value={field.value ? String(field.value) : undefined}
+                        onChange={field.onChange}
+                        placeholder="Select client"
+                        searchPlaceholder="Search clients..."
+                        emptyText="No clients found."
+                        clearable
+                        onClear={() => field.onChange(undefined)}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

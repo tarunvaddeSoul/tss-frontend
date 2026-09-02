@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -591,20 +592,17 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Client</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select client" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clientOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value ?? ""}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={clientOptions.map((option) => ({ value: option.value ?? "", label: option.label }))}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select client"
+                          searchPlaceholder="Search clients..."
+                          emptyText="No clients found."
+                          modal={true}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

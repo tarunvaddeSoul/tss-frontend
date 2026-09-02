@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { useToast } from "@/components/ui/use-toast"
 import { MonthPicker } from "@/components/ui/month-picker"
 import { Badge } from "@/components/ui/badge"
@@ -474,25 +475,20 @@ export default function AttendanceRecordsPage() {
                         <Building2 className="h-4 w-4" />
                         Client
                       </FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(value === "all" ? undefined : value)}
-                        value={field.value || "all"}
-                        disabled={clientsLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All Clients" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="all">All Clients</SelectItem>
-                          {clients.map((c) => (
-                            <SelectItem key={c.id} value={c.id ?? ""}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={[
+                            { value: "all", label: "All Clients" },
+                            ...clients.map((c) => ({ value: c.id ?? "", label: c.name })),
+                          ]}
+                          value={field.value || "all"}
+                          onChange={(value) => field.onChange(value === "all" ? undefined : value)}
+                          placeholder="All Clients"
+                          searchPlaceholder="Search clients..."
+                          emptyText="No clients found."
+                          disabled={clientsLoading}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -26,7 +26,7 @@ import { useClient } from "@/hooks/use-client"
 import { employeeService } from "@/services/employeeService"
 import { MonthPicker } from "@/components/ui/month-picker"
 import { exportPayrollToExcel, resolveEmployeeName, type PayrollReportRecord } from "@/utils/payroll-export"
-import { formatDate, formatMoney, formatMonth, humanize, label, employeeName } from "@/lib/labels"
+import { formatDate, formatMoney, formatMonth, humanize, label, employeeName as employeeDisplayName } from "@/lib/labels"
 import { downloadFileName } from "@/lib/filenames"
 import { PayrollReportResponseData, ReportFilters, ReportType } from "@/types/payroll"
 import type { Employee } from "@/types/employee"
@@ -1171,7 +1171,7 @@ export function PayrollReports() {
             const pdfRecords = allRecords.length ? allRecords : reportData.records
             // Get employee name for single employee reports
             const employeeName = pdfRecords.length === 1 && selectedEmployee
-              ? employeeName(selectedEmployee)
+              ? employeeDisplayName(selectedEmployee)
               : undefined
             return (
               <PayrollReportPDF

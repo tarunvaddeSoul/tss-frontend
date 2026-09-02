@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form"
 import { AlertCircle, RefreshCw, Search } from "lucide-react"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { label } from "@/lib/labels"
+import { label, employeeName, humanize, displayValue } from "@/lib/labels"
+import { ageFromDateOfBirth } from "@/components/employees/employee-age"
 
 // UI Components
 import { Button } from "@/components/ui/button"
@@ -186,8 +187,7 @@ export default function AdvancedEmployeeSearch() {
 
   const fetchClients = async () => {
     try {
-      const data = await clientService.getClients()
-      setClients(data.data?.clients || [])
+      setClients(await clientService.getAllClients())
     } catch (error) {
       console.error("Error fetching clients:", error)
     }
@@ -241,39 +241,34 @@ export default function AdvancedEmployeeSearch() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="designationId">Designation</Label>
-                  <Select onValueChange={(value) => setValue("designationId", value)} value={formValues.designationId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select designation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {designations.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    id="designationId"
+                    options={[
+                      { value: "all", label: "All designations" },
+                      ...designations.map((d) => ({ value: d.id, label: humanize(d.name) })),
+                    ]}
+                    value={formValues.designationId || "all"}
+                    onChange={(value) => setValue("designationId", value)}
+                    placeholder="All designations"
+                    searchPlaceholder="Search designations..."
+                    emptyText="No designations found."
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="employeeDepartmentId">Department</Label>
-                  <Select
-                    onValueChange={(value) => setValue("employeeDepartmentId", value)}
-                    value={formValues.employeeDepartmentId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All</SelectItem>
-                      {employeeDepartments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>
-                          {d.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    id="employeeDepartmentId"
+                    options={[
+                      { value: "all", label: "All departments" },
+                      ...employeeDepartments.map((d) => ({ value: d.id, label: humanize(d.name) })),
+                    ]}
+                    value={formValues.employeeDepartmentId || "all"}
+                    onChange={(value) => setValue("employeeDepartmentId", value)}
+                    placeholder="All departments"
+                    searchPlaceholder="Search departments..."
+                    emptyText="No departments found."
+                  />
                 </div>
               </div>
 
@@ -677,12 +672,12 @@ export default function AdvancedEmployeeSearch() {
                               {employee.id}
                             </Button>
                           </TableCell>
-                          <TableCell className="font-medium">{`${employee.firstName} ${employee.lastName}`}</TableCell>
-                          <TableCell>{activeHistory?.designationName || "N/A"}</TableCell>
-                          <TableCell>{activeHistory?.departmentName || "N/A"}</TableCell>
-                          <TableCell>{activeHistory?.clientName || "N/A"}</TableCell>
+                          <TableCell className="font-medium">{employeeName(employee)}</TableCell>
+                          <TableCell>{humanize(activeHistory?.designationName)}</TableCell>
+                          <TableCell>{humanize(activeHistory?.departmentName)}</TableCell>
+                          <TableCell>{displayValue(activeHistory?.clientName)}</TableCell>
                           <TableCell>{label.gender(employee.gender)}</TableCell>
-                          <TableCell className="text-right font-mono text-[13px]">{employee.age}</TableCell>
+                          <TableCell className="text-right font-mono text-[13px]">{ageFromDateOfBirth(employee.dateOfBirth) ?? "-"}</TableCell>
                         </TableRow>
                       )
                     })}

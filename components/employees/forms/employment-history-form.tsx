@@ -29,7 +29,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -69,6 +68,7 @@ import type {
 import type { Client } from "@/types/client"
 import { Status } from "@/enums/employee.enum"
 import { SalaryType } from "@/types/salary"
+import { formatDate, humanize, label } from "@/lib/labels"
 
 // Helper function to safely parse dates
 const parseDate = (dateString: string | undefined | null): Date | null => {
@@ -178,13 +178,13 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
 
         const [historiesResponse, clientsResponse, designationsResponse, departmentsResponse] = await Promise.all([
           employeeService.getEmployeeEmploymentHistory(employee.id),
-          clientService.getClients({ page: 1, limit: 100 }),
+          clientService.getAllClients(),
           designationService.getDesignations(),
           departmentService.getEmployeeDepartments(),
         ])
 
         setEmploymentHistories(historiesResponse.data || [])
-        setClients(clientsResponse.data?.clients || [])
+        setClients(clientsResponse)
         setDesignations(designationsResponse || [])
         setDepartments(departmentsResponse || [])
       } catch (error) {
@@ -332,12 +332,12 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
 
   const designationOptions = designations.map((designation) => ({
     value: designation.id,
-    label: designation.name,
+    label: humanize(designation.name),
   }))
 
   const departmentOptions = departments.map((department) => ({
     value: department.id,
-    label: department.name,
+    label: humanize(department.name),
   }))
 
   // Add a function to check if an employment can be made active
@@ -457,12 +457,12 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                       <span className="truncate block">{history.clientName}</span>
                     </TableCell>
                     <TableCell className="min-w-[120px]">
-                      <span className="truncate block">{history.designationName}</span>
+                      <span className="truncate block">{humanize(history.designationName)}</span>
                     </TableCell>
                     <TableCell className="min-w-[120px]">
-                      <span className="truncate block">{history.departmentName}</span>
+                      <span className="truncate block">{humanize(history.departmentName)}</span>
                     </TableCell>
-                    <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{history.joiningDate}</TableCell>
+                    <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{formatDate(history.joiningDate)}</TableCell>
                     <TableCell className="min-w-[100px]">
                       {history.salaryType ? (
                         <Badge variant="outline" className="text-xs">
@@ -475,7 +475,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     <TableCell className="min-w-[100px]">
                       {employee.salaryCategory ? (
                         <Badge variant="outline" className="text-xs">
-                          {employee.salaryCategory}
+                          {label.salaryCategory(employee.salaryCategory)}
                         </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">N/A</span>
@@ -484,7 +484,7 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                     <TableCell className="min-w-[120px]">
                       {employee.salarySubCategory ? (
                         <Badge variant="outline" className="text-xs">
-                          {employee.salarySubCategory}
+                          {label.salarySubCategory(employee.salarySubCategory)}
                         </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">N/A</span>
@@ -614,20 +614,17 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Designation</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select designation" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {designationOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={designationOptions}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select designation"
+                          searchPlaceholder="Search designations..."
+                          emptyText="No designations found."
+                          modal={true}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -639,20 +636,17 @@ export function EmploymentHistoryForm({ employee, onUpdate }: EmploymentHistoryF
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Department</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {departmentOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={departmentOptions}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select department"
+                          searchPlaceholder="Search departments..."
+                          emptyText="No departments found."
+                          modal={true}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

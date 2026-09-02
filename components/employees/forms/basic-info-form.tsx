@@ -32,7 +32,6 @@ const basicInfoSchema = z.object({
   status: z.string().min(1, "Status is required"),
   category: z.string().min(1, "Category is required"),
   recruitedBy: z.string().min(1, "Recruiter name is required"),
-  age: z.number().optional(),
 })
 
 // Helper function to parse DD-MM-YYYY to Date
@@ -79,7 +78,6 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
       status: employee.status || "ACTIVE",
       category: employee.category || "",
       recruitedBy: employee.recruitedBy || "",
-      age: employee.age || 0,
     },
   })
 
@@ -95,7 +93,6 @@ export function BasicInfoForm({ employee, onUpdate }: BasicInfoFormProps) {
         ...values,
         dateOfBirth: values.dateOfBirth ? formatDateToDDMMYYYY(values.dateOfBirth) : undefined,
         employeeOnboardingDate: values.employeeOnboardingDate ? formatDateToDDMMYYYY(values.employeeOnboardingDate) : undefined,
-        age: values.age || undefined,
       }
 
       await employeeService.updateEmployee(employee.id, updateData)

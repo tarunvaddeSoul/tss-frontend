@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   Plus,
-  Search,
   XCircle,
   Loader2,
   Download,
@@ -25,14 +24,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Combobox } from "@/components/ui/combobox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination } from "@/components/ui/pagination"
 import { Badge } from "@/components/ui/badge"
-import { label } from "@/lib/labels"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { label, employeeName, humanize, displayValue } from "@/lib/labels"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Employee, EmployeeSearchParams, IEmployeeEmploymentHistory } from "@/types/employee"
 import { Client } from "@/types/client"
@@ -41,8 +40,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { PageHeader } from "@/components/layout/page-header"
 import { TerminateEmployeeDialog } from "@/components/employees/terminate-employee-dialog"
 import dynamic from "next/dynamic"
-// import { EmployeeViewPDF } from "@/components/employees/employee-view-pdf"
-// import { PDFViewer } from "@/components/pdf-viewer"
 
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
@@ -59,18 +56,26 @@ interface EmployeeDepartment {
   name: string
 }
 
+function initialsOf(employee: Employee): string {
+  return (
+    employeeName(employee)
+      .split(" ")
+      .map((part) => part[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?"
+  )
+}
+
 export default function EmployeeListPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [viewModalOpen, setViewModalOpen] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [pdfLoading, setPdfLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<string>("details")
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false)
   const [employeeToTerminate, setEmployeeToTerminate] = useState<Employee | null>(null)
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
   const [pdfPreviewEmployee, setPdfPreviewEmployee] = useState<Employee | null>(null)
-  const [pdfLoadingEmployee, setPdfLoadingEmployee] = useState(false)
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useState<EmployeeSearchParams>({
     page: 1,
     limit: 10,
@@ -106,15 +111,6 @@ export default function EmployeeListPage() {
     return () => clearTimeout(handle)
   }, [searchInput])
 
-  // Cleanup PDF URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl)
-      }
-    }
-  }, [pdfUrl])
-
   const fetchEmployees = async () => {
     try {
       setLoading(true)
@@ -126,7 +122,6 @@ export default function EmployeeListPage() {
       const limit = searchParams.limit || 10
       setTotalPages(Math.ceil(total / limit))
     } catch (error) {
-      console.error("Error fetching employees:", error)
       setError(true)
       setEmployees([])
       toast.error("Could not load employees. Please try again.")
@@ -140,7 +135,7 @@ export default function EmployeeListPage() {
       const response = await designationService.getDesignations()
       setDesignations(response)
     } catch (error) {
-      console.error("Error fetching designations:", error)
+      setDesignations([])
     }
   }
 
@@ -149,71 +144,35 @@ export default function EmployeeListPage() {
       const response = await departmentService.getEmployeeDepartments()
       setEmployeeDepartments(response)
     } catch (error) {
-      console.error("Error fetching employee departments:", error)
+      setEmployeeDepartments([])
     }
   }
 
   const fetchClients = async () => {
     try {
-      const response = await clientService.getClients()
-
-      if (response.data && response.data.clients) {
-        setClients(response.data.clients)
-      } else {
-        setClients([])
-      }
+      setClients(await clientService.getAllClients())
     } catch (error) {
-      console.error("Error fetching clients:", error)
+      setClients([])
     }
   }
 
-  const handleView = async (employee: Employee) => {
-    if (employee) {
-      setSelectedEmployee(employee)
-      setViewModalOpen(true)
-      setActiveTab("details")
-      // Clear any existing PDF
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl)
-        setPdfUrl(null)
-      }
-    }
+  const handleView = (employee: Employee) => {
+    setSelectedEmployee(employee)
+    setViewModalOpen(true)
   }
 
-  const handleGeneratePDF = async () => {
-    if (!selectedEmployee) return
-
+  // The list row lacks contact, bank and reference data, so the PDF always renders from the full record
+  const openEmployeePdf = async (employee: Employee) => {
     try {
-      setPdfLoading(true)
-      
-      // Dynamically import both pdf and the component
-      const [{ pdf }, { default: EmployeeViewPDF }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("@/components/employees/employee-view-pdf"),
-      ])
-
-      // Generate PDF
-      const blob = await pdf(<EmployeeViewPDF employee={selectedEmployee} />).toBlob()
-      const url = URL.createObjectURL(blob)
-      setPdfUrl(url)
-      setActiveTab("pdf")
+      setPdfLoadingId(employee.id)
+      const response = await employeeService.getEmployeeById(employee.id)
+      setPdfPreviewEmployee(response.data)
+      setPdfPreviewOpen(true)
     } catch (error) {
-      console.error("Error generating PDF:", error)
-      toast.error("Failed to generate PDF. Please try again.")
+      toast.error("Could not load the employee details for the PDF. Please try again.")
     } finally {
-      setPdfLoading(false)
+      setPdfLoadingId(null)
     }
-  }
-
-  const handleDownloadPDF = () => {
-    if (!pdfUrl || !selectedEmployee) return
-
-    const link = document.createElement("a")
-    link.href = pdfUrl
-    link.download = `employee_${selectedEmployee.id}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
   const handleEdit = (employee: Employee) => {
@@ -234,7 +193,7 @@ export default function EmployeeListPage() {
   }
 
   const handleTerminationSuccess = () => {
-    fetchEmployees() // Refresh the list
+    fetchEmployees()
   }
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
@@ -242,15 +201,34 @@ export default function EmployeeListPage() {
     setSearchParams({ ...searchParams, searchText: searchInput || undefined, page: 1 })
   }
 
+  const updateFilters = (patch: Partial<EmployeeSearchParams>) => {
+    setSearchParams({ ...searchParams, ...patch, page: 1 })
+  }
+
   const handlePageChange = (newPage: number | string | undefined) => {
     const pageNum = Number(newPage)
-    if (!pageNum || isNaN(pageNum)) return // Prevent NaN and 0
+    if (!pageNum || isNaN(pageNum)) return
     setSearchParams({ ...searchParams, page: pageNum })
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase() || "?"
-  }
+  const designationOptions = [
+    { value: "all", label: "All designations" },
+    ...designations.map((d) => ({ value: d.id, label: humanize(d.name) })),
+  ]
+
+  const departmentOptions = [
+    { value: "all", label: "All departments" },
+    ...employeeDepartments.map((d) => ({ value: d.id, label: humanize(d.name) })),
+  ]
+
+  const clientOptions = [
+    { value: "all", label: "All clients" },
+    ...clients.map((c) => ({ value: c.id ?? "", label: c.name })),
+  ]
+
+  const selectedActiveHistory = selectedEmployee?.employmentHistories?.find(
+    (h: IEmployeeEmploymentHistory) => h.status === "ACTIVE",
+  )
 
   return (
     <div className="space-y-6">
@@ -271,113 +249,74 @@ export default function EmployeeListPage() {
       <Card>
         <CardHeader>
           <CardTitle>Search Employees</CardTitle>
+          <CardDescription>Results update as you type or change a filter.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form noValidate onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-              <div>
-                <Input
-                  placeholder="Search employees"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                />
-              </div>
+          <form noValidate onSubmit={handleSearch} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="space-y-2">
+              <Label htmlFor="employee-search">Search</Label>
+              <Input
+                id="employee-search"
+                placeholder="Name or employee ID"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
 
-              <div>
-                <Select
-                  value={searchParams.designationId}
-                  onValueChange={(value) =>
-                    setSearchParams({
-                      ...searchParams,
-                      designationId: value === "all" ? undefined : value,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select designation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Designations</SelectItem>
-                    {designations.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="designation-filter">Designation</Label>
+              <Combobox
+                id="designation-filter"
+                options={designationOptions}
+                value={searchParams.designationId ?? "all"}
+                onChange={(value) => updateFilters({ designationId: value === "all" ? undefined : value })}
+                placeholder="All designations"
+                searchPlaceholder="Search designations..."
+                emptyText="No designations found."
+              />
+            </div>
 
-              <div>
-                <Select
-                  value={searchParams.employeeDepartmentId}
-                  onValueChange={(value) =>
-                    setSearchParams({
-                      ...searchParams,
-                      employeeDepartmentId: value === "all" ? undefined : value,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    {employeeDepartments.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="department-filter">Department</Label>
+              <Combobox
+                id="department-filter"
+                options={departmentOptions}
+                value={searchParams.employeeDepartmentId ?? "all"}
+                onChange={(value) => updateFilters({ employeeDepartmentId: value === "all" ? undefined : value })}
+                placeholder="All departments"
+                searchPlaceholder="Search departments..."
+                emptyText="No departments found."
+              />
+            </div>
 
-              <div>
-                <Combobox
-                  options={[
-                    { value: "all", label: "All Clients" },
-                    ...clients.map((c) => ({ value: c.id ?? "", label: c.name })),
-                  ]}
-                  value={searchParams.clientId}
-                  onChange={(value) =>
-                    setSearchParams({
-                      ...searchParams,
-                      clientId: value === "all" ? undefined : value,
-                    })
-                  }
-                  placeholder="Select client"
-                  searchPlaceholder="Search clients..."
-                  emptyText="No clients found."
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-filter">Client</Label>
+              <Combobox
+                id="client-filter"
+                options={clientOptions}
+                value={searchParams.clientId ?? "all"}
+                onChange={(value) => updateFilters({ clientId: value === "all" ? undefined : value })}
+                placeholder="All clients"
+                searchPlaceholder="Search clients..."
+                emptyText="No clients found."
+              />
+            </div>
 
-              <div>
-                <Select
-                  value={searchParams.status || "all"}
-                  onValueChange={(value) =>
-                    setSearchParams({
-                      ...searchParams,
-                      status: value === "all" ? undefined : value,
-                      page: 1,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="INACTIVE">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Button type="submit" className="w-full">
-                  <Search className="mr-2 h-4 w-4" />
-                  Search
-                </Button>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">Status</Label>
+              <Select
+                value={searchParams.status || "all"}
+                onValueChange={(value) => updateFilters({ status: value === "all" ? undefined : value })}
+              >
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </form>
         </CardContent>
@@ -396,13 +335,7 @@ export default function EmployeeListPage() {
                 <span className="text-sm text-muted-foreground">Items per page:</span>
                 <Select
                   value={String(searchParams.limit)}
-                  onValueChange={(value) =>
-                    setSearchParams({
-                      ...searchParams,
-                      limit: Number(value),
-                      page: 1, // Reset to first page when changing limit
-                    })
-                  }
+                  onValueChange={(value) => updateFilters({ limit: Number(value) })}
                 >
                   <SelectTrigger className="w-[80px]">
                     <SelectValue />
@@ -460,6 +393,9 @@ export default function EmployeeListPage() {
                   ) : employees.length > 0 ? (
                     employees.map((employee) => {
                       const activeHistory = employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")
+                      const designation = humanize(activeHistory?.designationName)
+                      const department = humanize(activeHistory?.departmentName)
+                      const client = displayValue(activeHistory?.clientName)
 
                       return (
                       <TableRow key={employee.id}>
@@ -467,10 +403,10 @@ export default function EmployeeListPage() {
                           <div className="flex items-center gap-3">
                             <Avatar>
                               <AvatarImage src={employee.avatar || "/placeholder.svg"} />
-                              <AvatarFallback>{getInitials(employee.firstName, employee.lastName)}</AvatarFallback>
+                              <AvatarFallback>{initialsOf(employee)}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-medium">{`${employee.firstName} ${employee.lastName}`}</p>
+                              <p className="font-medium">{employeeName(employee)}</p>
                               <button
                                 onClick={() => handleIdClick(employee.id)}
                                 className="font-mono text-xs text-info hover:underline"
@@ -481,19 +417,13 @@ export default function EmployeeListPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className={activeHistory?.designationName ? "text-sm" : "text-sm text-muted-foreground"}>
-                            {activeHistory?.designationName || "N/A"}
-                          </span>
+                          <span className={designation === "-" ? "text-sm text-muted-foreground" : "text-sm"}>{designation}</span>
                         </TableCell>
                         <TableCell>
-                          <span className={activeHistory?.departmentName ? "text-sm" : "text-sm text-muted-foreground"}>
-                            {activeHistory?.departmentName || "N/A"}
-                          </span>
+                          <span className={department === "-" ? "text-sm text-muted-foreground" : "text-sm"}>{department}</span>
                         </TableCell>
                         <TableCell>
-                          <span className={activeHistory?.clientName ? "text-sm" : "text-sm text-muted-foreground"}>
-                            {activeHistory?.clientName || "N/A"}
-                          </span>
+                          <span className={client === "-" ? "text-sm text-muted-foreground" : "text-sm"}>{client}</span>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
@@ -538,24 +468,11 @@ export default function EmployeeListPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={async () => {
-                                try {
-                                  setPdfLoadingEmployee(true)
-                                  // Fetch full employee details before opening PDF
-                                  const fullEmployeeData = await employeeService.getEmployeeById(employee.id)
-                                  setPdfPreviewEmployee(fullEmployeeData.data)
-                                  setPdfPreviewOpen(true)
-                                } catch (error) {
-                                  console.error("Error fetching employee details:", error)
-                                  toast.error("Failed to load employee details for PDF")
-                                } finally {
-                                  setPdfLoadingEmployee(false)
-                                }
-                              }}
-                              disabled={pdfLoadingEmployee}
-                              title="View & Download PDF"
+                              onClick={() => openEmployeePdf(employee)}
+                              disabled={pdfLoadingId === employee.id}
+                              title="Preview and download PDF"
                             >
-                              {pdfLoadingEmployee ? (
+                              {pdfLoadingId === employee.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Download className="h-4 w-4" />
@@ -613,100 +530,79 @@ export default function EmployeeListPage() {
         </Card>
       </ScrollArea>
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Employee Details</DialogTitle>
           </DialogHeader>
 
           {selectedEmployee && (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="pdf" disabled={!pdfUrl && !pdfLoading}>
-                  PDF Preview
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="details" className="space-y-4 pt-4">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={selectedEmployee.avatar || "/placeholder.svg"} />
-                    <AvatarFallback className="text-lg">
-                      {getInitials(selectedEmployee.firstName, selectedEmployee.lastName)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-display text-xl font-bold">{`${selectedEmployee.firstName} ${selectedEmployee.lastName}`}</h3>
-                    <p className="font-mono text-[13px] text-muted-foreground">ID: {selectedEmployee.id}</p>
-                  </div>
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={selectedEmployee.avatar || "/placeholder.svg"} />
+                  <AvatarFallback className="text-lg">{initialsOf(selectedEmployee)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-display text-xl font-bold">{employeeName(selectedEmployee)}</h3>
+                  <p className="font-mono text-[13px] text-muted-foreground">ID: {selectedEmployee.id}</p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Designation</p>
-                    <p>{selectedEmployee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName || "N/A"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Department</p>
-                    <p>{selectedEmployee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.departmentName || "N/A"}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Client</p>
-                    <p>{selectedEmployee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.clientName || "N/A"}</p>
-                  </div>
-                  {selectedEmployee.contactDetails?.mobileNumber && (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Mobile</p>
-                      <p>{selectedEmployee.contactDetails?.mobileNumber}</p>
-                    </div>
-                  )}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Designation</p>
+                  <p>{humanize(selectedActiveHistory?.designationName)}</p>
                 </div>
-
-                <div className="pt-4 flex justify-end">
-                  <Button onClick={handleGeneratePDF} disabled={pdfLoading}>
-                    {pdfLoading ? "Generating PDF..." : "Generate PDF"}
-                  </Button>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Department</p>
+                  <p>{humanize(selectedActiveHistory?.departmentName)}</p>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="pdf" className="pt-4">
-                {pdfLoading ? (
-                  <div className="flex flex-col items-center justify-center py-10 space-y-4">
-                    <Skeleton className="h-[400px] w-full" />
-                    <p className="text-muted-foreground">Generating PDF...</p>
-                  </div>
-                ) : pdfUrl ? (
-                  <div className="space-y-4">
-                    <div className="border rounded-md overflow-hidden h-[500px]">
-                      <iframe src={pdfUrl} className="w-full h-full" />
-                    </div>
-                    <div className="flex justify-end">
-                      <Button onClick={handleDownloadPDF}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download PDF
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center py-10">
-                    <p className="text-muted-foreground">
-                      No PDF generated yet. Go to Details tab and click Generate PDF.
-                    </p>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Client</p>
+                  <p>{displayValue(selectedActiveHistory?.clientName)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Status</p>
+                  <Badge variant={selectedEmployee.status === "ACTIVE" ? "success" : "destructive"}>
+                    {label.status(selectedEmployee.status)}
+                  </Badge>
+                </div>
+                {selectedEmployee.contactDetails?.mobileNumber && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Mobile</p>
+                    <p>{displayValue(selectedEmployee.contactDetails.mobileNumber)}</p>
                   </div>
                 )}
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setViewModalOpen(false)}>
               Close
             </Button>
+            {selectedEmployee && (
+              <>
+                <Button variant="outline" onClick={() => handleIdClick(selectedEmployee.id)}>
+                  Full profile
+                </Button>
+                <Button
+                  onClick={() => openEmployeePdf(selectedEmployee)}
+                  disabled={pdfLoadingId === selectedEmployee.id}
+                >
+                  {pdfLoadingId === selectedEmployee.id ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  View & Download PDF
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Terminate Employee Dialog */}
       {employeeToTerminate && (
         <TerminateEmployeeDialog
           employee={employeeToTerminate}
@@ -719,14 +615,14 @@ export default function EmployeeListPage() {
         />
       )}
 
-      {/* PDF Preview Dialog */}
       {pdfPreviewEmployee && (
         <DynamicPdfPreviewDialog
+          key={pdfPreviewEmployee.id}
           open={pdfPreviewOpen}
           onOpenChange={setPdfPreviewOpen}
-          title={`Employee Profile - ${pdfPreviewEmployee.firstName} ${pdfPreviewEmployee.lastName}`}
+          title={`Employee Profile - ${employeeName(pdfPreviewEmployee)}`}
           description={`Employee ID: ${pdfPreviewEmployee.id}`}
-          fileName={`employee-${pdfPreviewEmployee.firstName}-${pdfPreviewEmployee.lastName}.pdf`}
+          fileName={`employee-${pdfPreviewEmployee.id}.pdf`}
           renderDocument={async () => {
             const { default: EmployeeViewPDF } = await import("@/components/employees/employee-view-pdf")
             return <EmployeeViewPDF employee={pdfPreviewEmployee} />

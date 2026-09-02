@@ -38,7 +38,8 @@ import { employeeService } from "@/services/employeeService"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
-import { label, formatDate } from "@/lib/labels"
+import { label, formatDate, employeeName, humanize, displayValue } from "@/lib/labels"
+import { ageFromDateOfBirth } from "@/components/employees/employee-age"
 
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
@@ -217,9 +218,14 @@ export default function EmployeeViewPage() {
     )
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-  }
+  const fullName = employeeName(employee)
+  const initials =
+    fullName
+      .split(" ")
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?"
 
   const currentEmployment = employee.employmentHistories?.find(
     (h: IEmployeeEmploymentHistory) => h.status === "ACTIVE"
@@ -239,13 +245,13 @@ export default function EmployeeViewPage() {
             <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
               <Avatar className="h-16 w-16 sm:h-20 sm:w-20 shrink-0">
                 <AvatarFallback className="text-base sm:text-lg font-semibold bg-surface text-foreground">
-                  {getInitials(employee.firstName, employee.lastName)}
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <h1 className="font-display text-xl sm:text-2xl font-bold tracking-[-0.02em] text-foreground truncate">
-                    {[employee.title ? label.title(employee.title) : "", employee.firstName, employee.lastName].filter(Boolean).join(" ")}
+                    {[employee.title ? label.title(employee.title) : "", fullName].filter(Boolean).join(" ")}
                   </h1>
                   <Badge variant={employee.status === "ACTIVE" ? "success" : "destructive"} className="shrink-0">
                     {label.status(employee.status)}
@@ -256,7 +262,7 @@ export default function EmployeeViewPage() {
                   <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                     <div className="flex items-center space-x-1 shrink-0">
                       <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                      <span className="truncate">{currentEmployment.designationName}</span>
+                      <span className="truncate">{humanize(currentEmployment.designationName)}</span>
                     </div>
                     <div className="flex items-center space-x-1 shrink-0">
                       <Building className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
@@ -335,7 +341,7 @@ export default function EmployeeViewPage() {
                   label="Date of Birth"
                   value={formatDate(employee.dateOfBirth)}
                 />
-                <InfoItem icon={<Calendar className="h-4 w-4" />} label="Age" value={employee.age?.toString()} />
+                <InfoItem icon={<Calendar className="h-4 w-4" />} label="Age" value={ageFromDateOfBirth(employee.dateOfBirth)?.toString()} />
                 <InfoItem icon={<Heart className="h-4 w-4" />} label="Blood Group" value={employee.bloodGroup} />
                 <InfoItem icon={<Users className="h-4 w-4" />} label="Category" value={label.category(employee.category)} />
               </CardContent>
@@ -439,12 +445,12 @@ export default function EmployeeViewPage() {
                           <InfoItem
                             icon={<Briefcase className="h-4 w-4" />}
                             label="Designation"
-                            value={currentEmployment.designationName}
+                            value={humanize(currentEmployment.designationName)}
                           />
                           <InfoItem
                             icon={<Users className="h-4 w-4" />}
                             label="Department"
-                            value={currentEmployment.departmentName}
+                            value={humanize(currentEmployment.departmentName)}
                           />
                           <InfoItem
                             icon={<Calendar className="h-4 w-4" />}
@@ -487,10 +493,10 @@ export default function EmployeeViewPage() {
                                     <span className="truncate block font-medium">{history.clientName}</span>
                                   </TableCell>
                                   <TableCell className="min-w-[120px]">
-                                    <span className="truncate block">{history.designationName}</span>
+                                    <span className="truncate block">{humanize(history.designationName)}</span>
                                   </TableCell>
                                   <TableCell className="min-w-[120px]">
-                                    <span className="truncate block">{history.departmentName}</span>
+                                    <span className="truncate block">{humanize(history.departmentName)}</span>
                                   </TableCell>
                                   <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{formatDate(history.joiningDate)}</TableCell>
                                   <TableCell className="min-w-[110px] whitespace-nowrap font-mono text-[13px]">{history.leavingDate ? formatDate(history.leavingDate) : "Present"}</TableCell>
@@ -791,9 +797,9 @@ export default function EmployeeViewPage() {
         <DynamicPdfPreviewDialog
           open={pdfPreviewOpen}
           onOpenChange={setPdfPreviewOpen}
-          title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+          title={`Employee Profile - ${fullName}`}
           description={`Employee ID: ${employee.id}`}
-          fileName={`Employee-${employee.id}-${employee.firstName}-${employee.lastName}.pdf`}
+          fileName={`employee-${employee.id}.pdf`}
           renderDocument={async () => {
             const { default: EmployeeViewPDF } = await import("./employee-view-pdf")
             return <EmployeeViewPDF employee={employee} />
@@ -935,7 +941,7 @@ function InfoItem({ icon, label, value }: InfoItemProps) {
       <div className="text-muted-foreground mt-0.5 shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-xs sm:text-sm font-medium text-muted-foreground">{label}</p>
-        <p className="text-sm sm:text-base text-foreground break-words">{value || "N/A"}</p>
+        <p className="text-sm sm:text-base text-foreground break-words">{displayValue(value, "N/A")}</p>
       </div>
     </div>
   )

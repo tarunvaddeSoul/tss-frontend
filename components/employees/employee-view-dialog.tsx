@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import type { Employee, IEmployeeEmploymentHistory } from "@/types/employee"
 import { EmployeeDocumentManager } from "@/components/employees/employee-document-manager"
-import { label, formatDate } from "@/lib/labels"
+import { label, formatDate, employeeName, humanize, displayValue } from "@/lib/labels"
 
 const DynamicPdfPreviewDialog = dynamic(
   () => import("@/components/pdf/pdf-preview-dialog").then((mod) => ({ default: mod.PdfPreviewDialog })),
@@ -41,10 +41,10 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
               <User className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <DialogTitle className="text-xl">
-                {employee.firstName} {employee.lastName}
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground">{employee.designationName}</p>
+              <DialogTitle className="text-xl">{employeeName(employee)}</DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                {humanize(employee.employmentHistories?.find((h: IEmployeeEmploymentHistory) => h.status === "ACTIVE")?.designationName ?? employee.designationName)}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                       <div>
                         <p className="text-sm text-muted-foreground">Full Name</p>
                         <p className="font-medium">
-                          {[employee.title ? label.title(employee.title) : "", employee.firstName, employee.lastName].filter(Boolean).join(" ")}
+                          {[employee.title ? label.title(employee.title) : "", employeeName(employee)].filter(Boolean).join(" ")}
                         </p>
                       </div>
                       <div>
@@ -183,11 +183,11 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                           </div>
                           <div>
                             <p className="text-sm text-muted-foreground">Department</p>
-                            <p className="font-medium">{activeEmployment?.departmentName || "Not specified"}</p>
+                            <p className="font-medium">{humanize(activeEmployment?.departmentName)}</p>
                           </div>
                           <div>
                             <p className="text-sm text-muted-foreground">Designation</p>
-                            <p className="font-medium">{activeEmployment?.designationName || "Not specified"}</p>
+                            <p className="font-medium">{humanize(activeEmployment?.designationName)}</p>
                           </div>
                           <div>
                             <p className="text-sm text-muted-foreground">Date of Joining</p>
@@ -290,13 +290,13 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                       <div>
                         <p className="text-sm text-muted-foreground">Bank City</p>
                         <p className="font-medium">
-                          {employee.bankDetails?.bankCity || employee.bankCity || "Not specified"}
+                          {displayValue(employee.bankDetails?.bankCity || employee.bankCity, "Not specified")}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">PF UAN Number</p>
                         <p className="font-medium">
-                          {employee.additionalDetails?.pfUanNumber || employee.pfUanNumber || "Not specified"}
+                          {displayValue(employee.additionalDetails?.pfUanNumber || employee.pfUanNumber, "Not specified")}
                         </p>
                       </div>
                       <div>
@@ -315,9 +315,7 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
               <Card>
                 <CardHeader>
                   <CardTitle>Employment History</CardTitle>
-                  <CardDescription>
-                    Complete employment history for {employee.firstName} {employee.lastName}
-                  </CardDescription>
+                  <CardDescription>Complete employment history for {employeeName(employee)}</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto scrollbar-sleek">
@@ -341,8 +339,8 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
                           employee.employmentHistories.map((history: IEmployeeEmploymentHistory) => (
                             <TableRow key={history.id}>
                               <TableCell>{history.clientName}</TableCell>
-                              <TableCell>{history.designationName}</TableCell>
-                              <TableCell>{history.departmentName}</TableCell>
+                              <TableCell>{humanize(history.designationName)}</TableCell>
+                              <TableCell>{humanize(history.departmentName)}</TableCell>
                               <TableCell className="font-mono text-[13px]">{formatDate(history.joiningDate)}</TableCell>
                               <TableCell className="font-mono text-[13px]">{history.leavingDate ? formatDate(history.leavingDate) : "-"}</TableCell>
                               <TableCell>
@@ -431,9 +429,9 @@ export function EmployeeViewDialog({ employee, isOpen, onClose }: EmployeeViewDi
       <DynamicPdfPreviewDialog
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}
-        title={`Employee Profile - ${employee.firstName} ${employee.lastName}`}
+        title={`Employee Profile - ${employeeName(employee)}`}
         description={`Employee ID: ${employee.id}`}
-        fileName={`Employee-${employee.id}-${employee.firstName}-${employee.lastName}.pdf`}
+        fileName={`employee-${employee.id}.pdf`}
         renderDocument={async () => {
           const { default: EmployeeViewPDF } = await import("./employee-view-pdf")
           return <EmployeeViewPDF employee={employee} />

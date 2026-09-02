@@ -5,12 +5,11 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { AlertTriangle, XCircle, Calendar, FileText, Loader2 } from "lucide-react"
+import { AlertTriangle, XCircle, Calendar, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
+import { Form, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { DatePicker } from "@/components/ui/date-picker"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -32,12 +31,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { employeeService } from "@/services/employeeService"
 import { useToast } from "@/components/ui/use-toast"
+import { employeeName, formatDate, humanize } from "@/lib/labels"
 import type { Employee, IEmployeeEmploymentHistory, LeavingDateDto } from "@/types/employee"
-import { Status } from "@/enums/employee.enum"
 
 const terminateEmploymentSchema = z.object({
   leavingDate: z.date({ required_error: "Termination date is required" }),
-  reason: z.string().optional(),
 })
 
 interface TerminateEmploymentDialogProps {
@@ -63,16 +61,12 @@ export function TerminateEmploymentDialog({
     resolver: zodResolver(terminateEmploymentSchema),
     defaultValues: {
       leavingDate: new Date(),
-      reason: "",
     },
   })
 
   useEffect(() => {
     if (open && employment) {
-      form.reset({
-        leavingDate: new Date(),
-        reason: "",
-      })
+      form.reset({ leavingDate: new Date() })
     }
   }, [open, employment])
 
@@ -106,9 +100,6 @@ export function TerminateEmploymentDialog({
           title: "Employment Terminated",
           description: `Employment at ${employment.clientName} has been terminated successfully.`,
         })
-        
-        // If reason was provided, you might want to log it or store it separately
-        // This depends on your backend API support
 
         onSuccess()
         onOpenChange(false)
@@ -118,8 +109,6 @@ export function TerminateEmploymentDialog({
         throw new Error(response.message || "Failed to terminate employment")
       }
     } catch (error: any) {
-      console.error("Error terminating employment:", error)
-      
       let errorMessage = "Failed to terminate employment. Please try again."
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message
@@ -172,9 +161,7 @@ export function TerminateEmploymentDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Employee:</span>
-                <span className="text-sm">
-                  {employee.firstName} {employee.lastName}
-                </span>
+                <span className="text-sm">{employeeName(employee)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Client:</span>
@@ -182,15 +169,15 @@ export function TerminateEmploymentDialog({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Designation:</span>
-                <span className="text-sm">{employment.designationName}</span>
+                <span className="text-sm">{humanize(employment.designationName)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Department:</span>
-                <span className="text-sm">{employment.departmentName}</span>
+                <span className="text-sm">{humanize(employment.departmentName)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Joining Date:</span>
-                <span className="font-mono text-[13px]">{employment.joiningDate}</span>
+                <span className="font-mono text-[13px]">{formatDate(employment.joiningDate)}</span>
               </div>
             </div>
           </div>
@@ -209,30 +196,6 @@ export function TerminateEmploymentDialog({
                     <DatePicker date={field.value} onSelect={field.onChange} />
                     <FormDescription>
                       Select the last working day. Must be on or after the joining date.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="reason"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Termination Reason (Optional)
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter reason for termination (optional, for internal records)"
-                        {...field}
-                        rows={3}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Optional: Record the reason for termination for internal documentation.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -272,21 +235,13 @@ export function TerminateEmploymentDialog({
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                You are about to terminate the employment of{" "}
-                <strong>
-                  {employee.firstName} {employee.lastName}
-                </strong>{" "}
-                at <strong>{employment.clientName}</strong>.
+                You are about to terminate the employment of <strong>{employeeName(employee)}</strong> at{" "}
+                <strong>{employment.clientName}</strong>.
               </p>
               <div className="bg-muted p-3 rounded-md space-y-1 text-sm">
                 <p>
                   <strong>Termination Date:</strong> {form.getValues("leavingDate") ? format(form.getValues("leavingDate"), "dd MMM yyyy") : "Not set"}
                 </p>
-                {form.getValues("reason") && (
-                  <p>
-                    <strong>Reason:</strong> {form.getValues("reason")}
-                  </p>
-                )}
               </div>
               <Alert variant="destructive" className="mt-2">
                 <AlertTriangle className="h-4 w-4" />

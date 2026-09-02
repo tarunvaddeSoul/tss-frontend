@@ -14,6 +14,7 @@ import { useEffect } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PageHeader } from "@/components/layout/page-header"
 import { getErrorMessage } from "@/services/api"
+import { humanize } from "@/lib/labels"
 
 export default function AddEmployeePage() {
     const [designations, setDesignations] = useState<{ value: string; label: string }[]>([])
@@ -29,32 +30,28 @@ export default function AddEmployeePage() {
             try {
                 setIsDataLoading(true)
 
-                // Fetch designations
                 const designationsData = await designationService.getDesignations()
-                console.log("Designations data:", designationsData)
                 setDesignations(
                     designationsData.map((designation) => ({
                         value: designation.id,
-                        label: designation.name,
+                        label: humanize(designation.name),
                     })),
                 )
 
-                // Fetch departments
                 const departmentsData = await departmentService.getEmployeeDepartments()
                 setDepartments(
                     departmentsData.map((department) => ({
                         value: department.id,
-                        label: department.name,
+                        label: humanize(department.name),
                     })),
                 )
 
-                // Fetch clients
-                const clientsData = await clientService.getClients()
+                const clientsData = await clientService.getAllClients()
                 setClients(
-                    clientsData.data?.clients?.map((client) => ({
+                    clientsData.map((client) => ({
                         value: client.id ?? "",
                         label: client.name,
-                    })) ?? []
+                    })),
                 )
             } catch (error) {
                 console.error("Error fetching form data:", getErrorMessage(error))
@@ -70,8 +67,7 @@ export default function AddEmployeePage() {
     const handleSubmit = async (values: EmployeeFormValues) => {
         setIsLoading(true)
         try {
-            const createEmployeeResponse = await employeeService.createEmployee(values)
-            console.log("(handleSubmit) Employee created successfully:", JSON.stringify(createEmployeeResponse, null, 2))
+            await employeeService.createEmployee(values)
             clearEmployeeFormDraft()
 
             toast.success("Employee created successfully. Redirecting to employee list...")

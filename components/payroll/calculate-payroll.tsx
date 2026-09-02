@@ -644,8 +644,7 @@ function CalculatePayrollContent(): JSX.Element {
                                 <AlertDescription>
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                         <p>
-                                            {missingAttendanceEmployees.length} of {activeEmployees.length} employees have no attendance for {monthLabel} and will be
-                                            paid {formatMoney(0)}. Upload their attendance first unless this is expected.
+                                            {missingAttendanceEmployees.length} of {activeEmployees.length} employees have no attendance for {monthLabel} and will not be paid until it is uploaded. Upload their attendance first unless this is expected.
                                         </p>
                                         {uploadAttendanceButton}
                                     </div>
@@ -812,7 +811,7 @@ function CalculatePayrollContent(): JSX.Element {
                                         <AlertCircle className="h-4 w-4" />
                                         <AlertTitle>{finalizedMissing.length} employees had no attendance</AlertTitle>
                                         <AlertDescription className="space-y-3">
-                                            <p>They were saved with {formatMoney(0)} for {monthLabel}. Upload their attendance and recalculate to correct this.</p>
+                                            <p>They were skipped for {monthLabel} and have no salary record. Upload their attendance and recalculate to include them.</p>
                                             <EmployeeList
                                                 title="Employees with no attendance"
                                                 employees={finalizedMissing.map((id) => ({ employeeId: id, name: nameFor(id) }))}
@@ -851,7 +850,7 @@ function CalculatePayrollContent(): JSX.Element {
                                             {calculatedMissingAttendance.length > 0
                                                 ? `${calculatedMissingAttendance.length} of them have no attendance for ${monthLabel}. `
                                                 : ""}
-                                            Finalizing saves these {formatMoney(0)} records. Upload attendance and recalculate if this is not expected.
+                                            Employees without attendance are skipped. Employees marked with 0 days are saved with {formatMoney(0)}. Upload attendance and recalculate if this is not expected.
                                         </p>
                                         {calculatedMissingAttendance.length > 0 && uploadAttendanceButton}
                                     </div>
@@ -1066,7 +1065,7 @@ function CalculatePayrollContent(): JSX.Element {
                     </div>
                     {zeroPayCount > 0 && (
                         <p className="text-sm text-warning">
-                            {zeroPayCount} {zeroPayCount === 1 ? "employee" : "employees"} will be saved with {formatMoney(0)}.
+                            {missingAttendanceEmployees.length} {missingAttendanceEmployees.length === 1 ? "employee" : "employees"} without attendance will be skipped. {zeroPayCount - missingAttendanceEmployees.length} marked with 0 days will be saved with {formatMoney(0)}.
                         </p>
                     )}
                     <AlertDialogFooter>
